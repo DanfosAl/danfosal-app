@@ -1,0 +1,27 @@
+﻿# Build artifacts - DO NOT COMMIT
+dist/
+*.exe
+*.dll
+*.pak
+*.bin
+*.dat
+node_modules/
+.venv/
+
+# Build outputs
+resources/app/dist/
+resources/app/android/app/build/
+resources/app/android/.gradle/
+
+# Large binaries
+*.asar
+ffmpeg.dll
+chrome_*.pak
+d3dcompiler_*.dll
+vk_swiftshader.*
+vulkan-*.dll
+
+# Logs
+*.log
+firebase-debug.log
+npm-debug.log

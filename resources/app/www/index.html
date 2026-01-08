@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Danfosal Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "bg-main": "#0f172a", // Darker slate
+                        "bg-secondary": "#1e293b",
+                        "card-dark": "#1e293b",
+                        "accent-primary": "#6366f1", // Indigo
+                        "accent-secondary": "#ec4899", // Pink
+                        "accent-success": "#10b981", // Emerald
+                        "accent-warning": "#f59e0b", // Amber
+                        "accent-info": "#06b6d4", // Cyan
+                        "text-primary": "#f8fafc",
+                        "text-secondary": "#94a3b8",
+                        "text-tertiary": "#64748b",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Space Grotesk", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 20px -5px rgba(99, 102, 241, 0.4)',
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        body {
+            @apply bg-bg-main text-text-primary;
+        }
+        .glass-morphism {
+            @apply bg-card-dark/60 backdrop-blur-xl border border-white/5;
+        }
+        .card-hover {
+            @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-neon hover:border-accent-primary/30;
+        }
+        .stat-value {
+            @apply font-display font-bold text-4xl tracking-tight;
+        }
+        .stat-label {
+            @apply text-sm font-medium text-text-secondary uppercase tracking-wider;
+        }
+        .action-card {
+            @apply relative overflow-hidden rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer border border-white/5;
+        }
+        .action-icon-bg {
+            @apply w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <!-- Theme system removed for permanent dark mode -->
+    <!-- Keyboard Navigation -->
+    <script src="keyboard-navigation.js"></script>
+    <!-- Auto-updater for Android OTA updates -->
+    <script src="app-updater.js" defer></script>
+    <!-- Android Back Button Handler -->
+    <script src="back-button-handler.js" defer></script>
+    <!-- Smart Inventory for Ticker -->
+    <script src="smart-inventory.js" defer></script>
+    <!-- SortableJS for Drag & Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- New Feature Modules -->
+    <script src="notifications.js" defer></script>
+    <script src="whatsapp-integration.js" defer></script>
+    <!-- Theme customizer removed for permanent dark mode -->
+    <script src="advanced-analytics.js" defer></script>
+    <script src="advanced-features.js" defer></script>
+    
+    <!-- Fiscal QR Scanner -->
+    <script src="fiscal-invoice-scanner.js"></script>
+    
+    <!-- AI Assistant System -->
+    <link rel="stylesheet" href="ai-chatbot.css">
+    <script src="ai-agent.js" defer></script>
+    <script src="ai-agent-extensions.js" defer></script>
+    <script src="ai-chatbot.js" defer></script>
+    
+    <!-- FontAwesome for icons -->
+    <script src="https://kit.fontawesome.com/64d58efce2.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            position: relative;
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+        
+        /* All light mode styles removed for permanent dark mode */
+        
+        /* Animated background gradient */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 50%, rgba(249, 115, 22, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+            animation: gradientShift 15s ease infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(5%, 5%) rotate(120deg); }
+            66% { transform: translate(-5%, 5%) rotate(240deg); }
+        }
+        
+        /* Glassmorphism cards */
+        .dashboard-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 1.75rem;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-decoration: none;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Glow effect on hover */
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 1.25rem;
+            padding: 2px;
+            background: linear-gradient(135deg, #f97316, #3b82f6, #8b5cf6);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        .dashboard-card:hover::before {
+            opacity: 1;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(30, 41, 59, 0.6);
+            box-shadow: 0 20px 60px rgba(249, 115, 22, 0.3),
+                        0 0 40px rgba(59, 130, 246, 0.2);
+        }
+        
+        /* Card icon gradients */
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2));
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-card:hover .card-icon {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.5);
+        }
+        
+        /* Stat cards with enhanced glassmorphism */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.6s ease;
+        }
+        
+        .stat-card:hover::after {
+            top: -100%;
+            right: -100%;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Animated counter */
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3));
+        }
+        
+        /* Badge animation */
+        .badge-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        
+        /* Arrange mode */
+        .is-arranging .dashboard-card {
+            cursor: grab;
+            border-color: rgba(139, 92, 246, 0.5);
+            border-style: dashed;
+        }
+        
+        .sortable-ghost {
+            opacity: 0.3;
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        /* Theme toggle button */
+        /* Theme toggle CSS removed for permanent dark mode */
+        
+        /* Notification badge - Enhanced visibility */
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 900;
+            border: 4px solid #0f172a;
+            box-shadow: 0 0 40px rgba(239, 68, 68, 1), 
+                        0 0 60px rgba(239, 68, 68, 0.8),
+                        0 4px 16px rgba(0, 0, 0, 0.7);
+            animation: pulse 2s infinite;
+            z-index: 50;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 1);
+            letter-spacing: -0.5px;
+        }
+        
+        body.light-mode .notification-badge {
+            border-color: #ffffff;
+            box-shadow: 0 0 40px rgba(239, 68, 68, 1), 
+                        0 0 60px rgba(239, 68, 68, 0.8),
+                        0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Header gradient text - NO SPINNING */
+        .gradient-text {
+            background: linear-gradient(135deg, #f97316, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 100% 100%;
+        }
+        
+        /* Card title - clean and stable */
+        .card-title {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Loading skeleton */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .skeleton {
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.05) 0%, 
+                rgba(255,255,255,0.1) 50%, 
+                rgba(255,255,255,0.05) 100%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        /* Floating animation for icons */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Quick search bar */
+        .search-bar {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            width: 100%;
+            max-width: 500px;
+            transition: all 0.3s ease;
+        }
+        
+        .search-bar:focus {
+            outline: none;
+            border-color: rgba(249, 115, 22, 0.5);
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.3);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .theme-toggle {
+                bottom: 1rem;
+                right: 1rem;
+                width: 50px;
+                height: 50px;
+            }
+        }
+        
+        /* Page transition effects */
+        @keyframes pageEnter {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px) scale(0.98);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        body {
+            animation: pageEnter 0.5s ease-out;
+        }
+        
+        /* Enhanced stat cards */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(59, 130, 246, 0.1));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #f97316, #3b82f6, #8b5cf6);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(249, 115, 22, 0.3);
+        }
+        
+        body.light-mode .stat-card {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(59, 130, 246, 0.15));
+        }
+        
+        /* Export button */
+        .export-btn {
+            position: fixed;
+            bottom: 6rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
+            z-index: 100;
+        }
+        
+        .export-btn:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.8);
+        }
+        
+        @media (max-width: 768px) {
+            .export-btn {
+                bottom: 5rem;
+                right: 1rem;
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        /* Stock Ticker Style */
+        .ticker-container {
+            width: 100%;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 0;
+            margin-bottom: 30px;
+            position: relative;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+
+        .ticker-wrapper {
+            display: flex;
+            width: fit-content;
+            animation: ticker-scroll 40s linear infinite;
+        }
+
+        .ticker-wrapper:hover {
+            animation-play-state: paused;
+        }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            white-space: nowrap;
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 1.1rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ticker-value {
+            color: white;
+            font-weight: 700;
+            margin-left: 8px;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .ticker-change {
+            margin-left: 6px;
+            font-size: 0.9rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .change-up { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+        .change-down { color: #f87171; background: rgba(248, 113, 113, 0.1); }
+        .change-neutral { color: #94a3b8; }
+
+        @keyframes ticker-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* New Design Glassmorphism Styles */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1016; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333a4d; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563; 
+        }
+        .glass-panel {
+            background: rgba(26, 28, 36, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .metric-card {
+            background: linear-gradient(145deg, #1a1c24 0%, #15161c 100%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.3);
+        }
+        .chat-bubble {
+            position: relative;
+            background: #232633;
+            border-radius: 16px;
+            padding: 14px;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            border: none;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        .section-title {
+            position: relative;
+            display: inline-block;
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #6366f1, transparent);
+            border-radius: 2px;
+        }
+        .hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .icon-glow-teal { background: radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, rgba(45, 212, 191, 0) 70%); }
+        .icon-glow-purple { background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0) 70%); }
+        .icon-glow-orange { background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0) 70%); }
+        .icon-glow-blue { background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0) 70%); }
+    </style>
+</head>
+<body class="antialiased min-h-screen overflow-x-hidden selection:bg-accent-primary selection:text-white">
+<div class="fixed inset-0 pointer-events-none z-0">
+    <div class="absolute top-0 left-0 w-[500px] h-[500px] bg-accent-primary/10 rounded-full blur-[120px] mix-blend-screen"></div>
+    <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-accent-secondary/10 rounded-full blur-[120px] mix-blend-screen"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent-info/5 rounded-full blur-[100px] mix-blend-screen"></div>
+</div>
+<div class="relative z-10 p-4 md:p-8 max-w-[1600px] mx-auto grid grid-cols-1 gap-8">
+    <div class="contents">
+
+    <!-- Quick Actions Floating Button -->
+    <button id="quick-actions-btn" class="export-btn" style="bottom: 8rem; right: 2rem; z-index: 2000; background: linear-gradient(135deg, #8b5cf6, #7c3aed);" aria-label="Quick Actions" title="Quick Actions Menu">
+        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+    </button>
+
+    <!-- Quick Actions Menu -->
+    <div id="quick-actions-menu" style="
+        position: fixed;
+        bottom: 13rem;
+        right: 2rem;
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 1rem;
+        padding: 1rem;
+        width: 250px;
+        display: none;
+        z-index: 2001;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    ">
+        <h3 style="color: white; font-weight: 700; margin-bottom: 1rem; font-size: 1rem;">⚡ Quick Actions</h3>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button onclick="window.location.href='products.html'" style="
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+                color: white;
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📦 Add Product</button>
+            <button onclick="window.location.href='analytics.html'" style="
+                background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2));
+                color: white;
+                border: 1px solid rgba(168, 85, 247, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📊 View Analytics</button>
+            <button onclick="window.location.href='advanced-analytics.html'" style="
+                background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(126, 34, 206, 0.2));
+                color: white;
+                border: 1px solid rgba(147, 51, 234, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📈 Advanced Analytics</button>
+            <button onclick="window.location.href='smart-dashboard.html'" style="
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+                color: white;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🤖 Smart Dashboard</button>
+            <button onclick="window.location.href='business-intelligence.html'" style="
+                background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2));
+                color: white;
+                border: 1px solid rgba(236, 72, 153, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🧠 Business Intelligence</button>
+            <button onclick="window.location.href='business-landscape.html'" style="
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+                color: white;
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🗺️ Business Landscape</button>
+            <button onclick="window.location.href='ai-dashboard.html'" style="
+                background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2));
+                color: white;
+                border: 1px solid rgba(168, 85, 247, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🤖 AI Command Center</button>
+            <button onclick="window.location.href='notes.html'" style="
+                background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
+                color: white;
+                border: 1px solid rgba(245, 158, 11, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📝 Notes & Tasks</button>
+            <button onclick="window.location.href='customer-portal.html'" style="
+                background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(126, 34, 206, 0.2));
+                color: white;
+                border: 1px solid rgba(147, 51, 234, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📱 Customer Portal</button>
+            <button onclick="window.location.href='import-sales-history.html'" style="
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+                color: white;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">📊 Import Sales History</button>
+            <button onclick="window.location.href='settings.html'" style="
+                background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(202, 138, 4, 0.2));
+                color: white;
+                border: 1px solid rgba(234, 179, 8, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">⚙️ Settings</button>
+            <button id="refresh-data-btn" style="
+                background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2));
+                color: white;
+                border: 1px solid rgba(249, 115, 22, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🔄 Refresh Data</button>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-8 min-w-0">
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-4xl md:text-6xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">
+                    Dashboard
+                </h1>
+                <p class="text-text-secondary mt-2 text-lg">Good afternoon, here's what's happening today.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="h-12 px-6 rounded-full glass-morphism hover:bg-white/10 text-sm font-medium flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">calendar_today</span>
+                    <span id="current-date">Oct 24, 2023</span>
+                </button>
+                <button class="w-12 h-12 rounded-full glass-morphism hover:bg-white/10 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined">notifications</span>
+                </button>
+                <button onclick="window.location.href='settings.html'" class="w-12 h-12 rounded-full glass-morphism hover:bg-white/10 flex items-center justify-center transition-colors">
+                    <span class="material-symbols-outlined">settings</span>
+                </button>
+                <button id="arrange-btn" class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/10" title="Arrange Cards">
+                    <div class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        JD
+                    </div>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stock Ticker -->
+        <div class="ticker-container mb-6">
+            <div class="ticker-wrapper" id="business-ticker">
+                <div class="ticker-item">Loading market data...</div>
+            </div>
+        </div>
+
+        <!-- Enhanced Stats Cards Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="metric-card p-6 rounded-2xl relative group overflow-hidden hover:border-teal-500/30 transition-all duration-300 animate-slide-up hover-lift" style="animation-delay: 0.1s">
+                <div class="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="flex justify-between items-start mb-5 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 icon-glow-teal border border-teal-500/20 group-hover:bg-teal-500/20 transition-colors">
+                        <span class="material-symbols-outlined text-2xl">payments</span>
+                    </div>
+                    <span class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-300 bg-teal-500/10 rounded-lg border border-teal-500/20 shadow-neon-teal">Today</span>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Total Revenue</h3>
+                    <div class="flex items-baseline gap-3">
+                        <p id="today-revenue" class="text-3xl font-bold text-white tracking-tight">€0.00</p>
+                        <span class="text-xs font-bold text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/10 shadow-neon-teal">+0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-2xl relative group overflow-hidden hover:border-purple-500/30 transition-all duration-300 animate-slide-up hover-lift" style="animation-delay: 0.15s">
+                <div class="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="flex justify-between items-start mb-5 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 icon-glow-purple border border-purple-500/20 group-hover:bg-purple-500/20 transition-colors">
+                        <span class="material-symbols-outlined text-2xl">grid_view</span>
+                    </div>
+                    <span class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-purple-300 bg-purple-500/10 rounded-lg border border-purple-500/20 shadow-neon-purple">Active</span>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Instagram Orders</h3>
+                    <div class="flex items-baseline gap-2 mb-4">
+                        <p id="instagram-orders" class="text-3xl font-bold text-white tracking-tight">0</p>
+                        <span class="text-xs text-gray-500 font-medium">Today</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-2xl relative group overflow-hidden hover:border-orange-500/30 transition-all duration-300 animate-slide-up hover-lift" style="animation-delay: 0.2s">
+                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="flex justify-between items-start mb-5 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400 icon-glow-orange border border-orange-500/20 group-hover:bg-orange-500/20 transition-colors">
+                        <span class="material-symbols-outlined text-2xl">hourglass_empty</span>
+                    </div>
+                    <span class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-orange-300 bg-orange-500/10 rounded-lg border border-orange-500/20 shadow-neon-orange">Wait</span>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Pending</h3>
+                    <div class="flex items-baseline gap-3 mb-4">
+                        <p id="pending-orders" class="text-3xl font-bold text-white tracking-tight">0</p>
+                        <span class="text-[10px] font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 shadow-neon-orange uppercase tracking-wide">Attn Req.</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-500 text-xs font-medium">
+                        <span class="material-symbols-outlined text-[16px]">schedule</span>
+                        <span>Avg wait: <span class="text-gray-300">14m</span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card p-6 rounded-2xl relative group overflow-hidden hover:border-blue-500/30 transition-all duration-300 animate-slide-up hover-lift" style="animation-delay: 0.25s">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="flex justify-between items-start mb-5 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 icon-glow-blue border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
+                        <span class="material-symbols-outlined text-2xl">people</span>
+                    </div>
+                    <span class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-300 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-neon-blue">Total</span>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Customers</h3>
+                    <div class="flex items-baseline gap-3 mb-4">
+                        <p id="total-customers" class="text-3xl font-bold text-white tracking-tight">0</p>
+                        <span class="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20 shadow-neon-teal">+12</span>
+                    </div>
+                    <div class="flex items-end gap-1.5 mt-auto h-6 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div class="w-1.5 bg-blue-900 h-[30%] rounded-sm group-hover:bg-blue-800 transition-colors"></div>
+                        <div class="w-1.5 bg-blue-800 h-[50%] rounded-sm group-hover:bg-blue-700 transition-colors"></div>
+                        <div class="w-1.5 bg-blue-700 h-[40%] rounded-sm group-hover:bg-blue-600 transition-colors"></div>
+                        <div class="w-1.5 bg-blue-600 h-[70%] rounded-sm group-hover:bg-blue-500 transition-colors"></div>
+                        <div class="w-1.5 bg-blue-500 h-[60%] rounded-sm group-hover:bg-blue-400 transition-colors"></div>
+                        <div class="w-1.5 bg-blue-400 h-[90%] rounded-sm group-hover:bg-blue-300 transition-colors"></div>
+                        <div class="w-1.5 bg-cyan-400 h-[100%] rounded-sm shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Dashboard Cards -->
+        <div>
+            <h2 class="text-xl font-display font-semibold mb-6 text-text-primary flex items-center gap-2">
+                <span class="material-symbols-outlined text-accent-primary">grid_view</span>
+                Operations & Analytics
+            </h2>
+            <main id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- In Store Sales -->
+                <a href="store-sales.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-store-sales">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-pink-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#1f1623] text-accent-pink flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-pink-500/20 shadow-[0_0_15px_-3px_rgba(236,72,153,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(236,72,153,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">storefront</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-pink-300 transition-colors">In Store Sales</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Direct register access for physical transactions.</p>
+                </a>
+                
+                <!-- Online Orders -->
+                <a href="online-orders.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-orders">
+                    <div id="unpaid-orders-badge" class="notification-badge hidden" style="top: 1.25rem; right: 1.25rem; width: 28px; height: 28px; font-size: 12px; z-index: 10;">0</div>
+                    <div class="absolute inset-0 bg-gradient-to-tr from-green-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 px-2.5 py-1 bg-green-500/20 text-green-400 text-[10px] font-extrabold tracking-wider rounded border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]" id="new-orders-badge" style="display:none;">2 NEW</div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#13231a] text-accent-green flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-green-500/20 shadow-[0_0_15px_-3px_rgba(34,197,94,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(34,197,94,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">shopping_cart</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-green-300 transition-colors">Online Orders</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Manage incoming digital orders and delivery.</p>
+                </a>
+                
+                <!-- Visual Analytics -->
+                <a href="visual-analytics.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-visual-analytics">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#0e2126] text-accent-cyan flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-cyan-500/20 shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(6,182,212,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">visibility</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">Visual Analytics</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Immersive 3D data visualization suite.</p>
+                </a>
+                
+                <!-- Analytics -->
+                <a href="analytics.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-analytics">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#241a12] text-accent-orange flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(249,115,22,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">bar_chart</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-orange-300 transition-colors">Analytics</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Comprehensive charts and performance metrics.</p>
+                </a>
+                
+                <!-- Advanced Analytics (AI Forecasts) -->
+                <a href="advanced-analytics.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-advanced-analytics">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#191a33] text-indigo-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(99,102,241,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">ssid_chart</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-indigo-300 transition-colors">AI Forecasts</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Predictive modeling and deep insights.</p>
+                </a>
+                
+                <!-- Expenses & Profit -->
+                <a href="expenses.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-expenses">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-red-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#2b1515] text-accent-red flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-red-500/20 shadow-[0_0_15px_-3px_rgba(239,68,68,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(239,68,68,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">trending_down</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-red-300 transition-colors">Expenses & Profit</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Track spending and calculate net profits.</p>
+                </a>
+                
+                <!-- Finance (Debts & Debtors) -->
+                <a href="debts.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-finance">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-teal-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#132320] text-accent-teal flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-teal-500/20 shadow-[0_0_15px_-3px_rgba(45,212,191,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(45,212,191,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">balance</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-teal-300 transition-colors">Finance</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Manage debtors and creditors in one place.</p>
+                </a>
+                
+                <!-- Products -->
+                <a href="products.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-products">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#121b2e] text-accent-blue flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-blue-500/20 shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(59,130,246,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">inventory_2</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-blue-300 transition-colors">Products</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Manage your product catalog and inventory.</p>
+                </a>
+                
+                <!-- To Order -->
+                <a href="to_order.html" class="glass-panel p-7 rounded-2xl hover:bg-[#1E202B] transition-all duration-300 group cursor-pointer border border-white/5 relative hover-lift" id="card-to-order">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+                    <div class="absolute top-5 right-5 text-gray-600 group-hover:text-white transition-colors group-hover:translate-x-1 group-hover:-translate-y-1 duration-300">
+                        <span class="material-symbols-outlined text-base">north_east</span>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#1f1612] text-accent-orange flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_20px_-3px_rgba(249,115,22,0.5)]">
+                        <span class="material-symbols-outlined text-[28px]">edit_note</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2 group-hover:text-orange-300 transition-colors">To Order</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed font-medium">Manage your internal procurement and shopping list.</p>
+                </a>
+            </main>
+        </div>
+
+        <!-- System Status Removed -->
+    </div>
+</div>
+
+<!-- Floating Action Buttons Removed -->
+
+
+
+    <!-- Theme toggle removed for permanent dark mode -->
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // --- GLOBAL VARIABLES (Accessible Everywhere) ---
+        window.allProducts = [];
+        window.allOnlineOrders = [];
+        window.allStoreSales = [];
+        
+        // Placeholder function to prevent crash before load
+        window.updateTicker = function() {}; 
+        // ------------------------------------------------
+        
+        try {
+            const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+            const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            const { getFirestore, collection, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+                authDomain: "danfosal-app.firebaseapp.com",
+                projectId: "danfosal-app",
+                storageBucket: "danfosal-app.appspot.com",
+                messagingSenderId: "565855692028",
+                appId: "1:565855692028:web:c7cb647497cb3df9452379",
+                measurementId: "G-50JPG2KKEC"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+
+            // Make Firebase available globally for AI agent
+            window.db = db;
+            window.auth = auth;
+            window.firebaseImports = {
+                collection,
+                getDocs,
+                onSnapshot,
+                addDoc,
+                updateDoc,
+                deleteDoc,
+                doc,
+                query,
+                where
+            };
+
+            const startApp = async () => {
+            // Listen for real-time updates on online orders for the badge and stats
+            const onlineOrdersRef = collection(db, 'onlineOrders');
+            const storeSalesRef = collection(db, 'storeSales');
+            const productsRef = collection(db, 'products');
+            
+            // Load store sales - UPDATE GLOBAL (no let)
+            onSnapshot(storeSalesRef, (snapshot) => {
+                window.allStoreSales = snapshot.docs.map(doc => doc.data());
+                updateStats(window.allOnlineOrders); // Update stats when store sales change
+                updateTicker(); // Update ticker when data changes
+            });
+            
+            // Load products
+            onSnapshot(productsRef, (snapshot) => {
+                window.allProducts = snapshot.docs.map(doc => doc.data());
+                updateTicker(); // Update ticker when products change
+            });
+            
+            onSnapshot(onlineOrdersRef, (snapshot) => {
+                const orders = snapshot.docs.map(doc => doc.data());
+                window.allOnlineOrders = orders; // Save to global
+                updateStats(orders); // Pass orders to update function
+                updateTicker(); // Update ticker when orders change
+            });
+            }; // End of startApp
+            
+            // Wait for authentication before loading data
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    console.log("✅ User authenticated:", user.uid);
+                    startApp();
+                    
+                    // Don't call updateTicker immediately - let onSnapshot trigger it
+                    // Ticker will auto-update when data loads via onSnapshot listeners
+                } else {
+                    console.log("🔄 Signing in anonymously...");
+                    signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+                }
+            });
+            
+            function updateStats(orders = []) {
+                
+                // Unpaid orders badge
+                const openOrders = orders.filter(order => order.status !== 'Paid' && order.status !== 'Returned');
+                console.log('All orders:', orders.map(o => ({client: o.clientName, status: o.status})));
+                console.log('Open orders count:', openOrders.length);
+                const unpaidOrdersBadge = document.getElementById('unpaid-orders-badge');
+                if (openOrders.length > 0) {
+                    unpaidOrdersBadge.textContent = openOrders.length;
+                    unpaidOrdersBadge.classList.remove('hidden');
+                } else {
+                    unpaidOrdersBadge.textContent = '0';
+                    unpaidOrdersBadge.classList.add('hidden');
+                }
+
+                // Calculate stats
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayTimestamp = today.getTime();
+
+                const todayOrders = orders.filter(order => {
+                    let orderTime = order.timestamp;
+                    // Convert Firestore Timestamp to milliseconds
+                    if (typeof orderTime === 'object' && orderTime.toMillis) {
+                        orderTime = orderTime.toMillis();
+                    } else if (typeof orderTime === 'object' && orderTime.seconds) {
+                        orderTime = orderTime.seconds * 1000;
+                    }
+                    return orderTime >= todayTimestamp;
+                });
+                
+                // Filter today's store sales
+                const todayStoreSales = window.allStoreSales.filter(sale => {
+                    let saleTime = sale.timestamp;
+                    if (typeof saleTime === 'object' && saleTime.toMillis) {
+                        saleTime = saleTime.toMillis();
+                    } else if (typeof saleTime === 'object' && saleTime.seconds) {
+                        saleTime = saleTime.seconds * 1000;
+                    }
+                    return saleTime >= todayTimestamp;
+                });
+                
+                // Calculate revenue from both online orders and store sales
+                const onlineRevenue = todayOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+                const storeRevenue = todayStoreSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+                const todayRevenue = onlineRevenue + storeRevenue;
+                
+                const instagramOrders = orders.filter(order => order.source === 'Instagram Chatbot' && order.status !== 'Paid' && order.status !== 'Returned').length;
+                const pendingOrders = orders.filter(order => order.status !== 'Paid' && order.status !== 'Returned').length;
+                const uniqueCustomers = new Set(orders.map(order => order.clientName)).size;
+
+                // Update stats cards
+                document.getElementById('today-revenue').textContent = `€${todayRevenue.toFixed(2)}`;
+                document.getElementById('instagram-orders').textContent = instagramOrders;
+                document.getElementById('pending-orders').textContent = pendingOrders;
+                document.getElementById('total-customers').textContent = uniqueCustomers;
+            }
+
+            // Initialize Push Notifications
+            if (typeof NotificationManager !== 'undefined') {
+                window.notificationManager = new NotificationManager(db);
+                
+                // Check if notifications are enabled
+                const notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false';
+                if (notificationsEnabled) {
+                    window.notificationManager.requestPermission();
+                    window.notificationManager.startMonitoring();
+                }
+            }
+
+            // Initialize WhatsApp Integration
+            if (typeof WhatsAppManager !== 'undefined') {
+                window.whatsAppManager = new WhatsAppManager();
+                
+                // Load saved business number
+                const savedNumber = localStorage.getItem('whatsappBusinessNumber');
+                if (savedNumber) {
+                    window.whatsAppManager.setBusinessNumber(savedNumber);
+                }
+            }
+
+            // Update current date display
+            const updateDate = () => {
+                const dateEl = document.getElementById('current-date');
+                if (dateEl) {
+                    const now = new Date();
+                    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                    dateEl.textContent = now.toLocaleDateString('en-US', options);
+                }
+            };
+            updateDate();
+        } catch (error) {
+            console.error('Failed to load Firebase:', error);
+            // App will still work without Firebase features
+        }
+    </script>
+    
+    <!-- Drag & Drop Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('dashboard-grid');
+            const arrangeBtn = document.getElementById('arrange-btn');
+            const moveIcon = document.getElementById('arrange-icon-move');
+            const checkIcon = document.getElementById('arrange-icon-check');
+            const body = document.body;
+
+            const sortable = new Sortable(grid, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                disabled: true,
+                onEnd: () => {
+                    const order = Array.from(grid.children).map(item => item.id);
+                    localStorage.setItem('dashboardOrder', JSON.stringify(order));
+                }
+            });
+
+            const loadOrder = () => {
+                const savedOrder = localStorage.getItem('dashboardOrder');
+                if (savedOrder) {
+                    const order = JSON.parse(savedOrder);
+                    order.forEach(cardId => {
+                        const card = document.getElementById(cardId);
+                        if (card) {
+                            grid.appendChild(card);
+                        }
+                    });
+                }
+            };
+
+            arrangeBtn.addEventListener('click', () => {
+                const isArranging = !sortable.option('disabled');
+                sortable.option('disabled', isArranging);
+                
+                body.classList.toggle('is-arranging', !isArranging);
+                moveIcon.classList.toggle('hidden', !isArranging);
+                checkIcon.classList.toggle('hidden', isArranging);
+            });
+
+            loadOrder();
+        });
+        
+        // Quick search functionality
+        const searchBar = document.getElementById('quick-search');
+        const cards = document.querySelectorAll('.dashboard-card');
+        
+        if (searchBar) {
+            searchBar.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                cards.forEach(card => {
+                    const text = card.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        card.style.display = 'flex';
+                        card.style.animation = 'fadeIn 0.3s ease';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Focus search on '/' key
+            if (e.key === '/' && !e.ctrlKey && !e.metaKey && searchBar) {
+                e.preventDefault();
+                searchBar.focus();
+            }
+            
+            // Clear search on Escape
+            if (e.key === 'Escape' && searchBar && searchBar === document.activeElement) {
+                searchBar.value = '';
+                searchBar.blur();
+                cards.forEach(card => card.style.display = 'flex');
+            }
+
+            
+            // Quick navigation shortcuts
+            if (e.altKey) {
+                switch(e.key) {
+                    case 'a':
+                        e.preventDefault();
+                        window.location.href = 'analytics.html';
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        window.location.href = 'products.html';
+                        break;
+                    case 'o':
+                        e.preventDefault();
+                        window.location.href = 'orders_online.html';
+                        break;
+                }
+            }
+        });
+        
+        // Theme toggle functionality removed for permanent dark mode
+        
+        // Animate stat values counting up
+        const animateValue = (element, start, end, duration) => {
+            const range = end - start;
+            const increment = range / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                
+                if (element.id === 'today-revenue') {
+                    element.textContent = `€${current.toFixed(2)}`;
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 16);
+        };
+        
+        // Add fade-in animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Export Data Feature Removed
+
+        
+        // Add slide animations
+        const slideStyle = document.createElement('style');
+        slideStyle.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(slideStyle);
+        
+        // Quick Actions Menu Toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const quickActionsBtn = document.getElementById('quick-actions-btn');
+            const quickActionsMenu = document.getElementById('quick-actions-menu');
+            
+            if (quickActionsBtn && quickActionsMenu) {
+                let menuOpen = false;
+                
+                quickActionsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent immediate closing
+                    menuOpen = !menuOpen;
+                    if (menuOpen) {
+                        quickActionsMenu.style.display = 'block';
+                        quickActionsMenu.style.animation = 'slideIn 0.3s ease';
+                        quickActionsBtn.style.transform = 'rotate(180deg)';
+                    } else {
+                        quickActionsMenu.style.animation = 'slideOut 0.3s ease';
+                        setTimeout(() => {
+                            quickActionsMenu.style.display = 'none';
+                        }, 300);
+                        quickActionsBtn.style.transform = '';
+                    }
+                });
+                
+                // Close menu when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (menuOpen && !quickActionsBtn.contains(e.target) && !quickActionsMenu.contains(e.target)) {
+                        menuOpen = false;
+                        quickActionsMenu.style.animation = 'slideOut 0.3s ease';
+                        setTimeout(() => {
+                            quickActionsMenu.style.display = 'none';
+                        }, 300);
+                        quickActionsBtn.style.transform = '';
+                    }
+                });
+            } else {
+                console.error('Quick Actions elements not found');
+            }
+        });
+        
+        // Refresh Data Button
+        const refreshBtn = document.getElementById('refresh-data-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                const btn = e.target;
+                btn.textContent = '⏳ Refreshing...';
+                btn.style.opacity = '0.7';
+                
+                // Reload the page to fetch fresh data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            });
+        }
+
+        
+        // Add hover effects to quick action buttons
+        document.querySelectorAll('#quick-actions-menu button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = 'translateX(-5px)';
+                btn.style.boxShadow = '0 4px 20px rgba(249, 115, 22, 0.3)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = '';
+                btn.style.boxShadow = '';
+            });
+        });
+
+        // Initialize new features
+        // Note: NotificationManager and AdvancedAnalytics moved inside Firebase startApp to access db
+        window.addEventListener('load', () => {
+            // Initialize WhatsApp Integration (doesn't need db)
+            if (typeof WhatsAppManager !== 'undefined') {
+                window.whatsAppManager = new WhatsAppManager();
+                
+                // Load saved business number
+                const savedNumber = localStorage.getItem('whatsappBusinessNumber');
+                if (savedNumber) {
+                    window.whatsAppManager.setBusinessNumber(savedNumber);
+                }
+            }
+
+            // Initialize Theme Customizer (doesn't need db)
+            if (typeof ThemeCustomizer !== 'undefined') {
+                window.themeCustomizer = new ThemeCustomizer();
+                
+                // Apply saved theme
+                const savedTheme = localStorage.getItem('selectedTheme');
+                if (savedTheme) {
+                    window.themeCustomizer.applyTheme(savedTheme);
+                }
+            }
+        });
+    </script>
+
+    <!-- Ticker Logic -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDSwdM_YM1DL16ceJex2MX5bNw0dl9Sus",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.firebasestorage.app",
+            messagingSenderId: "1043642431150",
+            appId: "1:1043642431150:web:78f74d5b75b79c9d83f800",
+            measurementId: "G-4C6B64YHFL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Cache configuration
+        const CACHE_KEY = 'tickerDataCache';
+        const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
+        function getCachedTickerData() {
+            try {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (!cached) return null;
+                
+                const data = JSON.parse(cached);
+                const age = Date.now() - data.timestamp;
+                
+                // Return cached data if less than CACHE_DURATION old
+                if (age < CACHE_DURATION) {
+                    return data.content;
+                }
+            } catch (e) {
+                console.error('Cache read error:', e);
+            }
+            return null;
+        }
+
+        function setCachedTickerData(content) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    content: content,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.error('Cache write error:', e);
+            }
+        }
+
+        // Define updateTicker function and attach to window for global access
+        window.updateTicker = async function(forceRefresh = false) {
+            const ticker = document.getElementById('business-ticker');
+            if (!ticker) return;
+
+            // Try to use cached data first
+            if (!forceRefresh) {
+                const cachedContent = getCachedTickerData();
+                if (cachedContent) {
+                    ticker.innerHTML = cachedContent;
+                    // Still fetch fresh data in background
+                    fetchAndUpdateTicker();
+                    return;
+                }
+            }
+
+            // Show loading state
+            ticker.innerHTML = '<div class="ticker-item">🔄 Loading market data...</div>';
+            
+            // Fetch fresh data
+            await fetchAndUpdateTicker();
+        }
+
+        async function fetchAndUpdateTicker() {
+            const ticker = document.getElementById('business-ticker');
+            if (!ticker) return;
+
+            try {
+                // Check authentication first
+                const user = window.auth ? window.auth.currentUser : null;
+                if (!user) {
+                    console.warn("⚠️ Ticker skipped: User not authenticated");
+                    ticker.innerHTML = '<div class="ticker-item">🔄 Authenticating...</div>';
+                    return;
+                }
+
+                // Wait for data to be loaded
+                if (!window.allOnlineOrders || !window.allProducts || !window.allStoreSales) {
+                    console.log("⏳ Ticker waiting for data to load...");
+                    ticker.innerHTML = '<div class="ticker-item">⏳ Loading data...</div>';
+                    return;
+                }
+
+                // Use global data arrays instead of querying Firestore
+                const items = [];
+
+                // 1. Orders Count
+                const pendingOrders = window.allOnlineOrders.filter(order => 
+                    order.status === 'pending' || order.status === 'Pending'
+                ).length;
+                items.push(`
+                    <div class="ticker-item">
+                        <span>📦 PENDING ORDERS</span>
+                        <span class="ticker-value">${pendingOrders}</span>
+                    </div>
+                `);
+
+                // 2. Low Stock Items
+                const lowStockItems = window.allProducts.filter(product => 
+                    (product.stock || 0) <= (product.minStock || 5)
+                );
+                if (lowStockItems.length > 0) {
+                    items.push(`
+                        <div class="ticker-item">
+                            <span>⚠️ LOW STOCK</span>
+                            <span class="ticker-value">${lowStockItems.length} Items</span>
+                        </div>
+                    `);
+                }
+
+                // 3. Total Products
+                items.push(`
+                    <div class="ticker-item">
+                        <span>📦 PRODUCTS</span>
+                        <span class="ticker-value">${window.allProducts.length}</span>
+                    </div>
+                `);
+
+                // 4. Store Sales Today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayTimestamp = today.getTime();
+                
+                const todayStoreSales = window.allStoreSales.filter(sale => {
+                    let saleTime = sale.timestamp;
+                    if (typeof saleTime === 'object' && saleTime.toMillis) {
+                        saleTime = saleTime.toMillis();
+                    } else if (typeof saleTime === 'object' && saleTime.seconds) {
+                        saleTime = saleTime.seconds * 1000;
+                    }
+                    return saleTime >= todayTimestamp;
+                });
+
+                const todayRevenue = todayStoreSales.reduce((sum, sale) => 
+                    sum + (parseFloat(sale.total) || 0), 0
+                );
+
+                items.push(`
+                    <div class="ticker-item">
+                        <span>💰 TODAY'S REVENUE</span>
+                        <span class="ticker-value">€${todayRevenue.toFixed(2)}</span>
+                    </div>
+                `);
+
+                // 5. System Status
+                items.push(`
+                    <div class="ticker-item">
+                        <span>✅ SYSTEM</span>
+                        <span class="ticker-value">Online</span>
+                    </div>
+                `);
+
+                // Duplicate items for seamless scrolling
+                const content = items.join('') + items.join('') + items.join('');
+                ticker.innerHTML = content;
+
+                // Cache the content
+                setCachedTickerData(content);
+
+            } catch (error) {
+                console.error('Ticker Error:', error);
+                
+                // Try to show cached data on error
+                const cachedContent = getCachedTickerData();
+                if (cachedContent) {
+                    ticker.innerHTML = cachedContent;
+                } else {
+                    ticker.innerHTML = '<div class="ticker-item">⚡ System Online • Data loading...</div>';
+                }
+            }
+        }
+
+        // Ticker is now started inside onAuthStateChanged after authentication
+
+        // Listen for visibility change to refresh when returning to page
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // Page became visible - use cache immediately, refresh in background
+                updateTicker();
+            }
+        });
+    </script>
+</body>
+</html>

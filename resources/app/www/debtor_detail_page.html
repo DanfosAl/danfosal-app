@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Details - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="keyboard-navigation.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Inter', sans-serif; } 
+        .product-paid { text-decoration: line-through; color: #6b7280; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+        </svg>
+    </button>
+
+    <!-- Red Dot Notification -->
+    <div class="red-dot" title="New notifications available"></div>
+
+    <div class="max-w-6xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 id="invoice-header" class="text-3xl md:text-4xl font-extrabold gradient-text">Invoice...</h1>
+                <p id="debtor-subheader" class="theme-text-secondary">for Debtor...</p>
+            </div>
+            <a id="back-link" href="debtors_list.html" class="glass-btn inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                Back to Invoices
+            </a>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Products Section -->
+                <section class="glass-container">
+                    <h3 class="text-xl font-bold mb-4 theme-text">Products on this Invoice</h3>
+                    <div id="products-list" class="space-y-4 mb-6"></div>
+                    <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/10">
+                        <input type="text" id="product-select" list="products-datalist" placeholder="Select a Product to Add" class="flex-grow bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                        <datalist id="products-datalist"></datalist>
+                        <button id="add-product-btn" class="glass-btn bg-blue-600 hover:bg-blue-700">Add Product</button>
+                    </div>
+                </section>
+
+                <!-- Payment History -->
+                <section class="glass-container">
+                    <h3 class="text-xl font-bold mb-4 theme-text">Payment History for this Invoice</h3>
+                    <div id="payment-history-list" class="space-y-3 mb-6"></div>
+                     <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-white/10">
+                        <input type="number" id="payment-amount" placeholder="Amount (€)" class="flex-grow bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                        <button id="add-payment-btn" class="glass-btn bg-green-600 hover:bg-green-700">Log Payment</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Financial Summary -->
+            <aside class="glass-container self-start">
+                <h3 class="text-xl font-bold mb-6 text-center theme-text">Invoice Summary</h3>
+                <div class="space-y-5">
+                    <div>
+                        <p class="text-sm theme-text-secondary">Total Amount</p>
+                        <p id="total-amount" class="text-3xl font-bold text-red-400">€0.00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm theme-text-secondary">Amount Paid</p>
+                        <p id="amount-paid" class="text-3xl font-bold text-green-400">€0.00</p>
+                    </div>
+                    <hr class="border-white/10">
+                    <div>
+                        <p class="text-sm theme-text-secondary">Remaining Balance</p>
+                        <p id="remaining-balance" class="text-4xl font-extrabold theme-text">€0.00</p>
+                    </div>
+                </div>
+                <div id="paid-in-full-badge" class="mt-6 text-center bg-green-500/20 text-green-300 font-bold py-3 px-4 rounded-lg hidden">PAID IN FULL</div>
+            </aside>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const startApp = async () => {
+
+            const params = new URLSearchParams(window.location.search);
+            const debtorId = params.get('debtorId');
+            const invoiceId = params.get('invoiceId');
+            
+            if (!debtorId || !invoiceId) {
+                document.body.innerHTML = `<h1 class="text-red-500 text-center p-8">Error: Missing Debtor or Invoice ID. Please go back and try again.</h1>`;
+                return;
+            }
+
+            const invoiceRef = doc(db, `debtors/${debtorId}/invoices`, invoiceId);
+            let masterProductList = [];
+
+            onSnapshot(collection(db, 'products'), (snapshot) => {
+                masterProductList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                document.getElementById('products-datalist').innerHTML = masterProductList.map(p => `<option value="${p.name}"></option>`).join('');
+            });
+
+            onSnapshot(invoiceRef, (docSnap) => {
+                if (!docSnap.exists()) {
+                    document.body.innerHTML = `<h1 class="text-red-500 text-center">Error: Invoice not found.</h1>`;
+                    return;
+                }
+                const invoice = docSnap.data();
+                
+                getDoc(doc(db, 'debtors', debtorId)).then(debtorDoc => {
+                    if (debtorDoc.exists()) {
+                        const debtorName = debtorDoc.data().name;
+                        document.getElementById('invoice-header').textContent = `Invoice #${invoice.number}`;
+                        document.getElementById('debtor-subheader').textContent = `for Debtor: ${debtorName}`;
+                        document.getElementById('back-link').href = `invoices_list.html?debtorId=${debtorId}&debtorName=${encodeURIComponent(debtorName)}`;
+                    }
+                });
+
+                const productsListDiv = document.getElementById('products-list');
+                productsListDiv.innerHTML = '';
+                if (!invoice.items || invoice.items.length === 0) {
+                    productsListDiv.innerHTML = '<p class="theme-text-secondary">No products added to this invoice yet.</p>';
+                } else {
+                    invoice.items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5';
+                        div.innerHTML = `<span class="theme-text">${item.name} - €${item.price.toFixed(2)}</span><button data-item='${JSON.stringify(item)}' class="remove-item-btn text-red-400 hover:text-red-300 font-bold text-lg transition-colors">&times;</button>`;
+                        productsListDiv.appendChild(div);
+                    });
+                }
+                
+                const paymentHistoryList = document.getElementById('payment-history-list');
+                paymentHistoryList.innerHTML = '';
+                 if (!invoice.payments || invoice.payments.length === 0) {
+                    paymentHistoryList.innerHTML = '<p class="theme-text-secondary">No payments logged for this invoice.</p>';
+                } else {
+                    invoice.payments.forEach(payment => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5';
+                        div.innerHTML = `<span class="theme-text">Paid €${payment.amount.toFixed(2)}</span><span class="text-sm theme-text-secondary">${new Date(payment.timestamp).toLocaleDateString()}</span>`;
+                        paymentHistoryList.appendChild(div);
+                    });
+                }
+
+                const totalPaid = (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                const totalAmount = invoice.totalAmount;
+                const remainingBalance = totalAmount - totalPaid;
+
+                document.getElementById('total-amount').textContent = `€${totalAmount.toFixed(2)}`;
+                document.getElementById('amount-paid').textContent = `€${totalPaid.toFixed(2)}`;
+                document.getElementById('remaining-balance').textContent = `€${remainingBalance.toFixed(2)}`;
+                
+                updateDoc(invoiceRef, { remainingBalance: remainingBalance });
+
+                if (remainingBalance <= 0) {
+                    document.getElementById('paid-in-full-badge').classList.remove('hidden');
+                } else {
+                    document.getElementById('paid-in-full-badge').classList.add('hidden');
+                }
+            });
+
+            document.getElementById('add-product-btn').addEventListener('click', async () => {
+                const productName = document.getElementById('product-select').value;
+                const product = masterProductList.find(p => p.name === productName);
+                if (product) {
+                    await updateDoc(invoiceRef, { items: arrayUnion(product) });
+                    document.getElementById('product-select').value = '';
+                } else {
+                    alert('Please select a valid product from the list.');
+                }
+            });
+            
+            document.getElementById('products-list').addEventListener('click', async (e) => {
+                if (e.target.classList.contains('remove-item-btn')) {
+                    const item = JSON.parse(e.target.dataset.item);
+                    await updateDoc(invoiceRef, { items: arrayRemove(item) });
+                }
+            });
+            
+            document.getElementById('add-payment-btn').addEventListener('click', async () => {
+                const amountInput = document.getElementById('payment-amount');
+                const amount = parseFloat(amountInput.value);
+                if (!isNaN(amount) && amount > 0) {
+                    const newPayment = { amount: amount, timestamp: Date.now() };
+                    await updateDoc(invoiceRef, { payments: arrayUnion(newPayment) });
+                    amountInput.value = '';
+                } else {
+                    alert('Please enter a valid payment amount.');
+                }
+            });
+        };
+        // Wait for authentication before loading data
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                startApp();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

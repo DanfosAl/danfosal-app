@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Danfosal App</string>
+    <string name="title_activity_main">Danfosal App</string>
+    <string name="package_name">com.danfosal.app</string>
+    <string name="custom_url_scheme">com.danfosal.app</string>
+</resources>

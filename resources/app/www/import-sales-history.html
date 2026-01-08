@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Import Sales History - Danfosal</title>
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <style>
+        .import-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .upload-zone {
+            border: 3px dashed rgba(59, 130, 246, 0.5);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(59, 130, 246, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(59, 130, 246, 0.8);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .upload-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .preview-table th {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .preview-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .preview-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-new {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .status-duplicate {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .status-skip {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .status-inactive {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-box h4 {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 8px;
+        }
+
+        .stat-box .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.3s ease;
+        }
+
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 20px 0;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .log-entry.success { color: #10b981; }
+        .log-entry.warning { color: #f59e0b; }
+        .log-entry.error { color: #ef4444; }
+        .log-entry.info { color: #3b82f6; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="nav-container">
+            <div class="nav-title">
+                <span class="logo">📊</span>
+                <span>Import Sales History</span>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">🏠 Dashboard</a>
+                <a href="settings.html" class="nav-link">⚙️ Settings</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container import-container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1 class="gradient-text" style="font-size: 2.5rem; margin-bottom: 10px;">📊 Import Sales History</h1>
+            <p style="opacity: 0.7; font-size: 1.1rem;">Import të dhënat historike të shitjeve nga Excel për statistika më të pasura</p>
+        </header>
+
+        <!-- Instructions -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h3 style="margin-bottom: 15px;">📋 Udhëzime</h3>
+            <ul style="line-height: 1.8; opacity: 0.9;">
+                <li>✅ Excel file duhet të ketë këto kolona (me emra të saktë):</li>
+                <li style="margin-left: 30px;">• <strong>Kodi/Llogaria</strong> - Kodi i produktit (shumë i rëndësishëm për statistika)</li>
+                <li style="margin-left: 30px;">• <strong>Përshkrimi</strong> - Emri i produktit</li>
+                <li style="margin-left: 30px;">• <strong>Sasia</strong> - Sasia e shitur</li>
+                <li style="margin-left: 30px;">• <strong>Cmimi_per_njesi</strong> - Çmimi për njësi</li>
+                <li style="margin-left: 30px;">• <strong>Cmimi_EUR</strong> - Totali</li>
+                <li style="margin-left: 30px;">• <strong>Data</strong> - Data e shitjes (DD/MM/YYYY)</li>
+                <li style="margin-left: 30px;">• <strong>Subjekti</strong> - Emri i blerësit (për Customer Portal)</li>
+                <li>✅ Sistemi kontrollon duplikate bazuar në <strong>KOD + DATA + BLERËS</strong></li>
+                <li>✅ Nëse gjen duplikate, <strong>PËRDITËSON</strong> shitjet me kod produkti dhe emër blerësi</li>
+                <li>✅ Përdorni filtrin "Shfaq vetëm Aktive" për të importuar vetëm produkte aktive</li>
+                <li>🗑️ <strong>Cleanup Mode:</strong> Aktivizoni VETËM për herën e parë për të fshirë shitjet që nuk janë në Excel</li>
+                <li>⚠️ TESTONI me 5-10 rreshta para se të importoni të gjitha!</li>
+            </ul>
+        </div>
+
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="upload-zone">
+            <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 20px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <h3 style="margin-bottom: 10px;">Kliko ose tërhiq Excel file këtu</h3>
+            <p style="opacity: 0.7;">Formatet e pranuara: .xlsx, .xls, .csv</p>
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+        </div>
+
+        <!-- Statistics -->
+        <div id="stats-section" style="display: none;">
+            <h3 style="margin-bottom: 15px;">📊 Statistikat e Importit</h3>
+            
+            <!-- Filters -->
+            <div style="margin-bottom: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 15px;">
+                    <input type="checkbox" id="filter-active-only" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                    <span style="font-weight: 600; font-size: 1.1rem;">🔍 Shfaq vetëm Produktet Aktive (për import)</span>
+                </label>
+                <p style="margin: 0 0 15px 30px; opacity: 0.8; font-size: 0.9rem;">Kur aktivizohet, vetëm shitjet e produkteve aktive do të importohen. Produktet jo-aktive do të fshihen nga lista.</p>
+            </div>
+
+            <!-- DANGER ZONE -->
+            <div style="margin-bottom: 20px; padding: 20px; background: rgba(239, 68, 68, 0.1); border-radius: 10px; border: 2px solid rgba(239, 68, 68, 0.5);">
+                <h4 style="color: #ef4444; margin-bottom: 15px;">⚠️ ZONA E RREZIKSHME - LEXO ME KUJDES!</h4>
+                
+                <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 15px;">
+                    <input type="checkbox" id="delete-all-mode" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+                    <span style="font-weight: 600; font-size: 1.1rem; color: #ef4444;">🗑️ FSHI TË GJITHA SHITJET DHE FILLO NGA E PARA</span>
+                </label>
+                <div style="padding: 15px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; border-left: 4px solid #ef4444;">
+                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #ef4444;">⚠️ KUJDES TË MADH:</p>
+                    <ul style="margin: 0; padding-left: 20px; color: #ef4444;">
+                        <li>Do të FSHIJË TË GJITHA shitjet nga baza e të dhënave</li>
+                        <li>Do të FSHIJË shitjet nga App-i DHE ato të importuara</li>
+                        <li>Pas fshirjes, do të importojë vetëm shitjet nga Excel-i i ri</li>
+                        <li>❌ NUK KA RIKTHIM - të dhënat fshihen përgjithmonë!</li>
+                        <li>✅ Përdor VETËM nëse ke TË GJITHA shitjet në Excel</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box" style="background: rgba(16, 185, 129, 0.1);">
+                    <h4>Shitje të Reja</h4>
+                    <div class="value" id="stat-new" style="color: #10b981;">0</div>
+                </div>
+                <div class="stat-box" style="background: rgba(245, 158, 11, 0.1);">
+                    <h4>Duplikate (Skip)</h4>
+                    <div class="value" id="stat-duplicate" style="color: #f59e0b;">0</div>
+                </div>
+                <div class="stat-box" style="background: rgba(139, 92, 246, 0.1);">
+                    <h4>📦 Porosi Online</h4>
+                    <div class="value" id="stat-online" style="color: #8b5cf6;">0</div>
+                </div>
+                <div class="stat-box" style="background: rgba(34, 197, 94, 0.1);">
+                    <h4>🏪 Shitje Dyqan</h4>
+                    <div class="value" id="stat-store" style="color: #22c55e;">0</div>
+                </div>
+                <div class="stat-box" style="background: rgba(156, 163, 175, 0.1);">
+                    <h4>Produkte Jo-Aktive</h4>
+                    <div class="value" id="stat-inactive" style="color: #9ca3af;">0</div>
+                </div>
+                <div class="stat-box" style="background: rgba(59, 130, 246, 0.1);">
+                    <h4>Total Rreshta</h4>
+                    <div class="value" id="stat-total" style="color: #3b82f6;">0</div>
+                </div>
+            </div>
+            
+            <!-- Order Type Info -->
+            <div style="margin-top: 15px; padding: 15px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                <p style="margin: 0; font-size: 0.95rem;">
+                    <strong>ℹ️ Si identifikohen porosit:</strong><br>
+                    📦 <strong>Porosi Online</strong>: Rreshta që përmbajnë telefon, adresë ose qytet (regjistrohen në onlineOrders)<br>
+                    🏪 <strong>Shitje Dyqan</strong>: Rreshta pa informacion klienti (regjistrohen në storeSales)
+                </p>
+            </div>
+        </div>
+
+        <!-- Preview Table -->
+        <div id="preview-section" style="display: none;">
+            <h3 style="margin-bottom: 15px;">👁️ Parapamja e të Dhënave</h3>
+            <div style="overflow-x: auto;">
+                <table class="preview-table" id="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Lloji</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Kodi</th>
+                            <th>Blerësi</th>
+                            <th>Produkti</th>
+                            <th>Sasia</th>
+                            <th>Çmimi/Njësi</th>
+                            <th>Total</th>
+                            <th>Arsyeja</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div id="progress-section" style="display: none;">
+            <h3 style="margin-bottom: 15px;">⏳ Progresi i Importit</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+            </div>
+            <p style="text-align: center; margin-top: 10px;" id="progress-text">0 / 0</p>
+        </div>
+
+        <!-- Log -->
+        <div id="log-section" style="display: none;">
+            <h3 style="margin-bottom: 15px;">📋 Log</h3>
+            <div class="log-container" id="log-container"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div id="action-buttons" style="display: none; text-align: center; margin-top: 30px;">
+            <button class="btn" id="import-btn" style="margin: 0 10px;">
+                ✅ Import Shitjet e Reja (<span id="import-count">0</span>)
+            </button>
+            <button class="btn" id="cancel-btn" style="margin: 0 10px; background: rgba(239, 68, 68, 0.2);">
+                ❌ Anulo
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let parsedData = [];
+        let existingSales = [];
+        let activeProducts = new Map();
+        let processedData = [];
+
+        // Setup upload zone
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        async function handleFile(file) {
+            log('info', `📂 Duke lexuar file: ${file.name}...`);
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+                        raw: false, // Keep strings as strings
+                        defval: ''  // Default value for empty cells
+                    });
+                    
+                    log('success', `✅ U lexuan ${jsonData.length} rreshta nga Excel`);
+                    
+                    // Debug: Log first row to see column names and values
+                    if (jsonData.length > 0) {
+                        const firstRow = jsonData[0];
+                        const allColumns = Object.keys(firstRow);
+                        log('info', `📋 Kolonat e gjetura në Excel (${allColumns.length}): ${allColumns.join(', ')}`);
+                        log('info', `🔍 Rreshti i parë: Kodi="${firstRow['Kodi/Llogaria']}", Përshkrimi="${firstRow['Përshkrimi']}", Subjekti="${firstRow['Subjekti']}"`);
+                        
+                        // Check for online order columns
+                        const hasPhoneCol = allColumns.some(col => col.toLowerCase().includes('tel') || col.toLowerCase().includes('phone'));
+                        const hasAddressCol = allColumns.some(col => col.toLowerCase().includes('adres') || col.toLowerCase().includes('address'));
+                        const hasCityCol = allColumns.some(col => col.toLowerCase().includes('qytet') || col.toLowerCase().includes('city') || col.toLowerCase().includes('vend'));
+                        
+                        log('info', `📞 Ka kolonë telefoni: ${hasPhoneCol ? '✅ PO' : '❌ JO'}`);
+                        log('info', `🏠 Ka kolonë adresë: ${hasAddressCol ? '✅ PO' : '❌ JO'}`);
+                        log('info', `🏙️ Ka kolonë qyteti: ${hasCityCol ? '✅ PO' : '❌ JO'}`);
+                        
+                        // Test online detection on first row
+                        const isFirstRowOnline = isOnlineOrder(firstRow);
+                        log('info', `📦 Rreshti i parë detektohet si: ${isFirstRowOnline ? '🌐 ONLINE' : '🏪 DYQAN'}`);
+                    }
+                    
+                    await loadExistingData();
+                    await processData(jsonData);
+                    
+                } catch (error) {
+                    log('error', `❌ Gabim në leximin e file: ${error.message}`);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function loadExistingData() {
+            log('info', '🔄 Duke ngarkuar të dhënat ekzistuese...');
+            
+            // Load existing sales - we need to track document IDs for updates
+            const [onlineOrders, storeSales, products] = await Promise.all([
+                getDocs(collection(db, 'onlineOrders')),
+                getDocs(collection(db, 'storeSales')),
+                getDocs(collection(db, 'products'))
+            ]);
+
+            existingSales = [];
+            window.existingSalesMap = new Map(); // Store document references for updates
+            
+            // Process online orders
+            onlineOrders.forEach(doc => {
+                const order = doc.data();
+                let orderDate = order.timestamp;
+                
+                // Normalize date
+                if (orderDate && typeof orderDate.toDate === 'function') {
+                    orderDate = orderDate.toDate();
+                } else if (orderDate && typeof orderDate.toMillis === 'function') {
+                    orderDate = new Date(orderDate.toMillis());
+                } else if (orderDate && typeof orderDate === 'object' && orderDate.seconds) {
+                    orderDate = new Date(orderDate.seconds * 1000);
+                } else if (orderDate) {
+                    orderDate = new Date(orderDate);
+                }
+                
+                const orderDateStr = orderDate ? new Date(orderDate).toISOString().split('T')[0] : '';
+                const customerName = (order.customerName || order.clientName || '').toString().trim();
+                const total = parseFloat(order.total || order.price || order.totalPrice) || 0;
+                
+                if (order.items) {
+                    order.items.forEach((item, itemIndex) => {
+                        const saleKey = `online_${doc.id}_${itemIndex}`;
+                        const saleData = {
+                            date: orderDateStr,
+                            productCode: (item.code || '').toString().trim().toUpperCase(),
+                            productName: (item.name || item.product || '').toString().trim(),
+                            quantity: parseFloat(item.quantity) || 0,
+                            price: parseFloat(item.price) || 0,
+                            customerName: customerName,
+                            total: total,
+                            source: 'online',
+                            docId: doc.id,
+                            itemIndex: itemIndex
+                        };
+                        
+                        existingSales.push(saleData);
+                        window.existingSalesMap.set(saleKey, { docRef: doc.ref, data: order, itemIndex });
+                    });
+                }
+            });
+
+            // Process store sales
+            storeSales.forEach(doc => {
+                const sale = doc.data();
+                let saleDate = sale.timestamp;
+                
+                // Normalize date
+                if (saleDate && typeof saleDate.toDate === 'function') {
+                    saleDate = saleDate.toDate();
+                } else if (saleDate && typeof saleDate.toMillis === 'function') {
+                    saleDate = new Date(saleDate.toMillis());
+                } else if (saleDate && typeof saleDate === 'object' && saleDate.seconds) {
+                    saleDate = new Date(saleDate.seconds * 1000);
+                } else if (saleDate) {
+                    saleDate = new Date(saleDate);
+                }
+                
+                const saleDateStr = saleDate ? new Date(saleDate).toISOString().split('T')[0] : '';
+                const customerName = (sale.customerName || sale.clientName || '').toString().trim();
+                const total = parseFloat(sale.total) || 0;
+                
+                if (sale.items) {
+                    sale.items.forEach((item, itemIndex) => {
+                        const saleKey = `store_${doc.id}_${itemIndex}`;
+                        const saleData = {
+                            date: saleDateStr,
+                            productCode: (item.code || '').toString().trim().toUpperCase(),
+                            productName: (item.name || item.product || '').toString().trim(),
+                            quantity: parseFloat(item.quantity) || 0,
+                            price: parseFloat(item.price) || 0,
+                            customerName: customerName,
+                            total: total,
+                            source: 'store',
+                            docId: doc.id,
+                            itemIndex: itemIndex
+                        };
+                        
+                        existingSales.push(saleData);
+                        window.existingSalesMap.set(saleKey, { docRef: doc.ref, data: sale, itemIndex });
+                    });
+                }
+            });
+
+            // Load active products with cost/price data
+            activeProducts.clear();
+            products.forEach(doc => {
+                const product = doc.data();
+                const code = (product.code || '').toString().trim().toUpperCase();
+                const name = (product.name || '').toString().trim();
+                
+                const productInfo = {
+                    id: doc.id,
+                    name: name,
+                    code: code,
+                    cost: parseFloat(product.cost) || 0,
+                    price: parseFloat(product.price) || 0,
+                    active: true
+                };
+                
+                if (code) {
+                    activeProducts.set(code, productInfo);
+                }
+                if (name) {
+                    activeProducts.set(name, productInfo);
+                }
+            });
+
+            log('success', `✅ U ngarkuan ${existingSales.length} shitje ekzistuese dhe ${products.size} produkte aktive`);
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            // Try DD/MM/YYYY format
+            const parts = dateStr.toString().trim().split(/[\/\-\.]/);
+            if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                return new Date(year, month, day);
+            }
+            
+            return new Date(dateStr);
+        }
+
+        function getColumnValue(row, possibleNames) {
+            for (const name of possibleNames) {
+                if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+                    return row[name].toString().trim();
+                }
+            }
+            return '';
+        }
+
+        function normalizeString(str) {
+            if (!str) return '';
+            return str.toString().trim().toLowerCase();
+        }
+        
+        // Detect if row is online order (has phone, address, city) or store sale
+        function isOnlineOrder(row) {
+            // Check ALL possible column name variations for phone
+            const phone = row['Tel marresi'] || row['Tel_marresi'] || row['Tel. marresi'] || 
+                         row['Telefoni'] || row['Telefoni i marresit'] || row['Tel'] || 
+                         row['Phone'] || row['Telephone'] || row['Nr. Tel'] || row['Nr Tel'] ||
+                         row['Tel marrësi'] || row['Telefoni i marrësit'];
+            
+            // Check ALL possible column name variations for address
+            const address = row['Adresa e marresit'] || row['Adresa_e_marresit'] || 
+                           row['Adresa e marrësit'] || row['Adresa'] || row['Address'] || 
+                           row['Vendndodhja'] || row['Adresa e dorezimit'] ||
+                           row['Adresa e marrësi'];
+            
+            // Check ALL possible column name variations for city
+            const city = row['Qyteti i marresit'] || row['Qyteti_i_marresit'] || 
+                        row['Qyteti i marrësit'] || row['Qyteti'] || row['City'] || 
+                        row['Qytet'] || row['Vend'] || row['Qyteti i marrësi'];
+            
+            // Check for receiver/customer name (different from Subjekti which is the business customer)
+            const receiverName = row['Emri i marresit'] || row['Emri i marrësit'] || 
+                                row['Marresi'] || row['Marrësi'] || row['Receiver'];
+            
+            // Check for delivery-specific columns
+            const hasDeliveryInfo = row['Dorezim'] || row['Delivery'] || row['Shperndare'];
+            
+            const hasPhone = phone && phone.toString().trim() !== '' && phone.toString().trim() !== '-' && phone.toString().trim() !== '0';
+            const hasAddress = address && address.toString().trim() !== '' && address.toString().trim() !== '-';
+            const hasCity = city && city.toString().trim() !== '' && city.toString().trim() !== '-';
+            const hasReceiver = receiverName && receiverName.toString().trim() !== '' && receiverName.toString().trim() !== '-';
+            
+            // If has phone OR address OR city OR receiver name OR delivery info, it's an online order
+            const isOnline = hasPhone || hasAddress || hasCity || hasReceiver || hasDeliveryInfo;
+            
+            return isOnline;
+        }
+        
+        // Delete all existing sales and orders
+        async function deleteAllExistingData() {
+            log('warning', '⚠️ Duke fshirë të gjitha shitjet ekzistuese...');
+            
+            try {
+                const [storeSales, onlineOrders] = await Promise.all([
+                    getDocs(collection(db, 'storeSales')),
+                    getDocs(collection(db, 'onlineOrders'))
+                ]);
+                
+                let deleteCount = 0;
+                const deletePromises = [];
+                
+                storeSales.forEach(doc => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                    deleteCount++;
+                });
+                
+                onlineOrders.forEach(doc => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                    deleteCount++;
+                });
+                
+                await Promise.all(deletePromises);
+                
+                log('success', `✅ U fshirën ${deleteCount} shitje/porosi nga baza e të dhënave`);
+                return deleteCount;
+                
+            } catch (error) {
+                log('error', `❌ Gabim në fshirjen e të dhënave: ${error.message}`);
+                throw error;
+            }
+        }
+
+        function findDuplicateSale(row) {
+            const rowDate = parseDate(getColumnValue(row, ['Data', 'DATE', 'Date']));
+            if (!rowDate) return null;
+
+            const rowDateStr = rowDate.toISOString().split('T')[0];
+            
+            // Get values from row - read exact column names from Excel
+            const codeValue = row['Kodi/Llogaria'];
+            
+            // Debug
+            console.log('findDuplicateSale input:', {
+                'row keys': Object.keys(row),
+                'Kodi/Llogaria direct': row['Kodi/Llogaria'],
+                'full row': row
+            });
+            
+            const rowCode = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim().toUpperCase() : '';
+            const nameValue = row['Përshkrimi'] || row['Pershkrimi'];
+            const rowName = (nameValue !== undefined && nameValue !== null && nameValue !== '') ? nameValue.toString().trim() : '';
+            const customerValue = row['Subjekti'];
+            const rowCustomer = (customerValue !== undefined && customerValue !== null && customerValue !== '') ? customerValue.toString().trim() : '';
+            const rowQuantity = parseFloat(row['Sasia'] || 0);
+            const rowPrice = parseFloat(row['Cmimi_per_njesi'] || 0);
+            const rowTotal = parseFloat(row['Cmimi_EUR'] || 0);
+            
+            // Strategy 1: BUYER + DATE + TOTAL (for in-store sales)
+            if (rowCustomer && rowTotal > 0) {
+                const match = existingSales.find(sale => {
+                    const customerMatch = normalizeString(sale.customerName) === normalizeString(rowCustomer);
+                    const dateMatch = sale.date === rowDateStr;
+                    const totalMatch = Math.abs(sale.total - rowTotal) < 0.01;
+                    
+                    return customerMatch && dateMatch && totalMatch;
+                });
+                
+                if (match) return match;
+            }
+            
+            // Strategy 2: CODE + DATE + QUANTITY (most reliable for products with codes)
+            if (rowCode) {
+                const match = existingSales.find(sale => {
+                    const codeMatches = sale.productCode === rowCode;
+                    const dateMatches = sale.date === rowDateStr;
+                    const quantityMatches = Math.abs(sale.quantity - rowQuantity) < 0.01;
+                    
+                    return codeMatches && dateMatches && quantityMatches;
+                });
+                
+                if (match) return match;
+            }
+            
+            // Strategy 3: NAME + DATE + QUANTITY + PRICE
+            if (rowName) {
+                const match = existingSales.find(sale => {
+                    const nameMatches = normalizeString(sale.productName) === normalizeString(rowName);
+                    const dateMatches = sale.date === rowDateStr;
+                    const quantityMatches = Math.abs(sale.quantity - rowQuantity) < 0.01;
+                    const priceMatches = Math.abs(sale.price - rowPrice) < 0.01;
+                    
+                    return nameMatches && dateMatches && quantityMatches && priceMatches;
+                });
+                
+                if (match) return match;
+            }
+            
+            return null;
+        }
+
+        function isDuplicate(row) {
+            return findDuplicateSale(row) !== null;
+        }
+
+        function getProductInfo(row) {
+            // Read exact column names from Excel
+            const codeValue = row['Kodi/Llogaria'];
+            const code = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim().toUpperCase() : '';
+            const nameValue = row['Përshkrimi'] || row['Pershkrimi'];
+            const name = (nameValue !== undefined && nameValue !== null && nameValue !== '') ? nameValue.toString().trim() : '';
+            
+            // Priority 1: Match by code (most reliable)
+            if (code && activeProducts.has(code)) {
+                return activeProducts.get(code);
+            }
+            
+            // Priority 2: Match by name
+            if (name && activeProducts.has(name)) {
+                return activeProducts.get(name);
+            }
+            
+            return null;
+        }
+
+        function isProductActive(row) {
+            return getProductInfo(row) !== null;
+        }
+
+        async function processData(data) {
+            processedData = [];
+            let stats = { new: 0, duplicate: 0, inactive: 0, online: 0, store: 0, total: data.length };
+
+            data.forEach((row, index) => {
+                const isDup = isDuplicate(row);
+                const isActive = isProductActive(row);
+                const isOnline = isOnlineOrder(row);
+                
+                let status = 'new';
+                let reason = 'Gati për import';
+                let orderType = isOnline ? 'online' : 'store';
+
+                if (isDup) {
+                    status = 'duplicate';
+                    reason = isOnline ? 'Porosi online ekzistuese (duplikat)' : 'Shitje ekzistuese (duplikat e gjetur bazuar në kod+datë)';
+                    stats.duplicate++;
+                } else if (!isActive) {
+                    status = 'inactive';
+                    reason = 'Produkt jo-aktiv (nuk gjendet në katalog)';
+                    stats.inactive++;
+                    stats.new++; // Still count as new, but mark as inactive
+                } else {
+                    stats.new++;
+                }
+                
+                if (isOnline) {
+                    stats.online++;
+                } else {
+                    stats.store++;
+                }
+
+                const processedRow = {
+                    ...row,
+                    status,
+                    reason,
+                    isActive,
+                    orderType,
+                    rowIndex: index
+                };
+                
+                // Debug first 3 rows
+                if (index < 3) {
+                    console.log(`processData Row ${index}: Type=${orderType}, Kodi="${row['Kodi/Llogaria']}", Phone="${row['Tel marresi']}"`, processedRow);
+                }
+                
+                processedData.push(processedRow);
+            });
+
+            updateStats(stats);
+            displayPreview(processedData);
+            
+            // Log duplicate detection info
+            log('info', `📊 Analiza: ${stats.new - stats.duplicate} të reja, ${stats.duplicate} duplikate, ${stats.inactive} jo-aktive`);
+            if (stats.duplicate > 0) {
+                log('warning', `⚠️ ${stats.duplicate} shitje u gjetën tashmë të regjistruara (bazuar në kod+datë+sasi)`);
+            }
+            
+            document.getElementById('stats-section').style.display = 'block';
+            document.getElementById('preview-section').style.display = 'block';
+            document.getElementById('action-buttons').style.display = 'block';
+            
+            // Setup filter
+            setupActiveFilter();
+            updateImportCount();
+        }
+        
+        function setupActiveFilter() {
+            const filterCheckbox = document.getElementById('filter-active-only');
+            filterCheckbox.addEventListener('change', function() {
+                displayPreview(processedData);
+                updateImportCount();
+            });
+        }
+        
+        function updateImportCount() {
+            const filterActive = document.getElementById('filter-active-only').checked;
+            let count = 0;
+            
+            processedData.forEach(row => {
+                if (row.status === 'duplicate') return;
+                if (filterActive && !row.isActive) return;
+                count++;
+            });
+            
+            document.getElementById('import-count').textContent = count;
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-new').textContent = stats.new - stats.duplicate;
+            document.getElementById('stat-duplicate').textContent = stats.duplicate;
+            document.getElementById('stat-online').textContent = stats.online || 0;
+            document.getElementById('stat-store').textContent = stats.store || 0;
+            document.getElementById('stat-inactive').textContent = stats.inactive;
+            document.getElementById('stat-total').textContent = stats.total;
+        }
+
+        function displayPreview(data) {
+            const tbody = document.querySelector('#preview-table tbody');
+            tbody.innerHTML = '';
+            
+            const filterActive = document.getElementById('filter-active-only')?.checked || false;
+
+            // Filter data based on active filter
+            let filteredData = data;
+            if (filterActive) {
+                filteredData = data.filter(row => row.isActive || row.status === 'duplicate');
+            }
+
+            // Show first 100 rows
+            const preview = filteredData.slice(0, 100);
+            
+            preview.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Type badge
+                let typeBadge = row.orderType === 'online' 
+                    ? '<span class="status-badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">📦 Online</span>'
+                    : '<span class="status-badge" style="background: rgba(34, 197, 94, 0.2); color: #22c55e;">🏪 Dyqan</span>';
+                
+                let statusBadge = '';
+                if (row.status === 'new') {
+                    statusBadge = '<span class="status-badge status-new">✅ E Re</span>';
+                } else if (row.status === 'duplicate') {
+                    statusBadge = '<span class="status-badge status-duplicate">⚠️ Duplikat (do të përditësohet)</span>';
+                } else if (row.status === 'inactive') {
+                    statusBadge = '<span class="status-badge status-inactive">⚪ Jo-Aktiv</span>';
+                }
+
+                // Read exact column names from Excel
+                const codeValue = row['Kodi/Llogaria'];
+                const code = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim() : '-';
+                const buyerValue = row['Subjekti'] || row['Emri i marresit'];
+                const buyer = (buyerValue !== undefined && buyerValue !== null && buyerValue !== '') ? buyerValue.toString().trim() : '-';
+                const nameValue = row['Përshkrimi'] || row['Pershkrimi'];
+                const name = (nameValue !== undefined && nameValue !== null && nameValue !== '') ? nameValue.toString().trim() : '-';
+                const date = row['Data'] || '-';
+                const qty = row['Sasia'] || 0;
+                const price = row['Cmimi_per_njesi'] || 0;
+                const total = row['Cmimi_EUR'] || 0;
+                
+                // Debug first 3 rows
+                if (preview.indexOf(row) < 3) {
+                    console.log(`Row ${preview.indexOf(row)}: Type=${row.orderType}, code="${code}", buyer="${buyer}", name="${name}"`, row);
+                }
+
+                tr.innerHTML = `
+                    <td>${typeBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td>${date}</td>
+                    <td><strong>${code}</strong></td>
+                    <td><strong style="color: #3b82f6;">${buyer}</strong></td>
+                    <td>${name}</td>
+                    <td>${qty}</td>
+                    <td>${price} €</td>
+                    <td>${total} €</td>
+                    <td style="opacity: 0.7; font-size: 0.85rem;">${row.reason}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+
+            if (filteredData.length > 100) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="9" style="text-align: center; opacity: 0.7;">... dhe ${filteredData.length - 100} rreshta të tjerë</td>`;
+                tbody.appendChild(tr);
+            }
+            
+            if (filteredData.length === 0 && filterActive) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="9" style="text-align: center; padding: 40px; opacity: 0.7;">
+                    <h3>🔍 Nuk ka produkte aktive për të importuar</h3>
+                    <p>Çaktivizoni filtrin për të parë të gjitha shitjet.</p>
+                </td>`;
+                tbody.appendChild(tr);
+            }
+        }
+
+        document.getElementById('import-btn').addEventListener('click', async () => {
+            const filterActive = document.getElementById('filter-active-only').checked;
+            const deleteAllMode = document.getElementById('delete-all-mode')?.checked || false;
+            
+            // Separate sales into new and duplicates to update
+            let newSales = [];
+            let duplicatesToUpdate = [];
+            
+            processedData.forEach(row => {
+                if (row.status === 'duplicate' && !deleteAllMode) {
+                    // Check if duplicate has missing code or buyer name that we can fill in
+                    const codeValue = row['Kodi/Llogaria'];
+                    const code = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim() : '';
+                    const customerValue = row['Subjekti'];
+                    const customerName = (customerValue !== undefined && customerValue !== null && customerValue !== '') ? customerValue.toString().trim() : '';
+                    if (code || customerName) {
+                        duplicatesToUpdate.push(row);
+                    }
+                } else {
+                    if (!filterActive || row.isActive) {
+                        newSales.push(row);
+                    }
+                }
+            });
+            
+            if (newSales.length === 0 && duplicatesToUpdate.length === 0 && !deleteAllMode) {
+                alert('Nuk ka shitje të reja për të importuar ose përditësuar!');
+                return;
+            }
+
+            let confirmMessage = '';
+            if (deleteAllMode) {
+                confirmMessage = `🚨 KONFIRMIM FINAL - LEXO ME KUJDES! 🚨\n\n`;
+                confirmMessage += `Ke aktivizuar "FSHI TË GJITHA SHITJET"!\n\n`;
+                confirmMessage += `Çfarë do të ndodhë:\n`;
+                confirmMessage += `1️⃣ Do të FSHIHEN ${existingSalesMap.size} shitje ekzistuese në total\n`;
+                confirmMessage += `2️⃣ Do të IMPORTOHEN ${newSales.length} shitje të reja nga Excel\n\n`;
+                confirmMessage += `⚠️ KUJDES TË MADH:\n`;
+                confirmMessage += `- TË GJITHA shitjet e regjistruara do të FSHIHEN\n`;
+                confirmMessage += `- Statistikat aktuale do të HUMBASIN\n`;
+                confirmMessage += `- NUK KA RIKTHIM pas kësaj!\n\n`;
+                confirmMessage += `❓ A je 100% i sigurt që dëshiron të vazhdosh?\n`;
+                confirmMessage += `Kliko OK vetëm nëse je PLOTËSISHT i sigurt!`;
+                
+                const firstConfirm = confirm(confirmMessage);
+                if (!firstConfirm) {
+                    alert('❌ Anuluar - Asnjë ndryshim nuk u bë.');
+                    return;
+                }
+                
+                // Second confirmation
+                const finalConfirm = confirm(`⚠️ KONFIRMIM I FUNDIT!\n\n${existingSalesMap.size} shitje do të FSHIHEN përgjithmonë!\n${newSales.length} shitje do të IMPORTOHEN nga Excel.\n\n🚨 NUK KA RIKTHIM!\n\nKliko OK për të FSHIRË dhe IMPORTUAR.`);
+                if (!finalConfirm) {
+                    alert('❌ Anuluar - Asnjë ndryshim nuk u bë.');
+                    return;
+                }
+            } else if (newSales.length > 0 && duplicatesToUpdate.length > 0) {
+                confirmMessage = `Dëshironi të:\n- Importoni ${newSales.length} shitje të reja\n- Përditësoni ${duplicatesToUpdate.length} shitje ekzistuese me kode/emra të munguar\n\nKjo nuk do të ndikojë stokun aktual.`;
+            } else if (newSales.length > 0) {
+                confirmMessage = filterActive 
+                    ? `Dëshironi të importoni ${newSales.length} shitje (vetëm produkte aktive)?\n\nKjo nuk do të ndikojë stokun aktual.`
+                    : `Dëshironi të importoni ${newSales.length} shitje historike?\n\nKjo nuk do të ndikojë stokun aktual.`;
+            } else {
+                confirmMessage = `Dëshironi të përditësoni ${duplicatesToUpdate.length} shitje ekzistuese me kode/emra të munguar?\n\nKjo nuk do të ndikojë stokun aktual.`;
+            }
+
+            if (!deleteAllMode && !confirm(confirmMessage)) {
+                return;
+            }
+
+            document.getElementById('progress-section').style.display = 'block';
+            document.getElementById('log-section').style.display = 'block';
+            document.getElementById('import-btn').disabled = true;
+
+            let imported = 0;
+            let importedOnline = 0;
+            let importedStore = 0;
+            let updated = 0;
+            let deleted = 0;
+            const total = deleteAllMode ? existingSalesMap.size + newSales.length : newSales.length + duplicatesToUpdate.length;
+
+            // DELETE ALL MODE: Remove all existing sales first
+            if (deleteAllMode) {
+                log('warning', '🗑️ DUKE FSHIRË TË GJITHA SHITJET EKZISTUESE...');
+                log('warning', `📊 Total për t'u fshirë: ${existingSalesMap.size} shitje`);
+                
+                let deleteCount = 0;
+                const totalToDelete = existingSalesMap.size;
+                
+                for (const [saleId, saleInfo] of existingSalesMap.entries()) {
+                    try {
+                        await deleteDoc(saleInfo.docRef);
+                        deleted++;
+                        deleteCount++;
+                        
+                        if (deleteCount % 10 === 0 || deleteCount === totalToDelete) {
+                            log('info', `🗑️ Fshirë ${deleteCount}/${totalToDelete} shitje...`);
+                        }
+                    } catch (error) {
+                        log('error', `❌ Gabim në fshirje: ${error.message}`);
+                    }
+                }
+                
+                log('success', `✅ U fshinë ${deleted} shitje - Baza e të dhënave është pastruar!`);
+                log('info', '📥 Duke filluar importin e shitjeve të reja...');
+            }
+
+            // Process new sales
+            for (const row of newSales) {
+                try {
+                    // Read exact column names from Excel
+                    const dateValue = row['Data'];
+                    const date = (dateValue !== undefined && dateValue !== null && dateValue !== '') ? dateValue.toString().trim() : '';
+                    
+                    // Check for timestamp in 'Koha e Krijimit' column
+                    const timestampValue = row['Koha e Krijimit'];
+                    const hasTimestamp = timestampValue && timestampValue.toString().trim() !== '';
+                    
+                    let saleDate;
+                    if (hasTimestamp) {
+                        // Parse full timestamp (e.g., "2025-04-03 14:54:24")
+                        const timestampStr = timestampValue.toString().trim();
+                        saleDate = new Date(timestampStr);
+                        // Validate parsed date
+                        if (isNaN(saleDate.getTime())) {
+                            // Fallback to date only if timestamp parsing fails
+                            saleDate = parseDate(date);
+                        }
+                    } else {
+                        // No timestamp, use date only
+                        saleDate = parseDate(date);
+                    }
+                    
+                    // For online orders, use "Emri i marresit" (receiver name), fallback to Subjekti
+                    // For store sales, use Subjekti (business customer)
+                    const isOnline = row.orderType === 'online';
+                    let customerName = '';
+                    if (isOnline) {
+                        const receiverValue = row['Emri i marresit'] || row['Emri i marrësit'] || row['Marresi'] || row['Marrësi'];
+                        customerName = (receiverValue !== undefined && receiverValue !== null && receiverValue !== '') 
+                            ? receiverValue.toString().trim() 
+                            : (row['Subjekti'] || '').toString().trim();
+                    } else {
+                        customerName = (row['Subjekti'] || '').toString().trim();
+                    }
+                    
+                    const codeValue = row['Kodi/Llogaria'];
+                    const code = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim().toUpperCase() : '';
+                    const nameValue = row['Përshkrimi'] || row['Pershkrimi'];
+                    const name = (nameValue !== undefined && nameValue !== null && nameValue !== '') ? nameValue.toString().trim() : '';
+                    const qty = parseFloat(row['Sasia'] || 0) || 1;
+                    const price = parseFloat(row['Cmimi_per_njesi'] || 0) || 0;
+                    const total = parseFloat(row['Cmimi_EUR'] || 0) || 0;
+                    
+                    // Handle negative quantities (returns)
+                    const isReturn = qty < 0;
+                    const absQty = Math.abs(qty);
+                    const absTotal = Math.abs(total);
+                    
+                    if (isOnline) {
+                        // ONLINE ORDER - Save to onlineOrders collection
+                        const phoneValue = row['Tel marresi'] || row['Telefoni'] || row['Tel marrësi'];
+                        const phone = (phoneValue !== undefined && phoneValue !== null && phoneValue !== '') ? phoneValue.toString().trim() : '';
+                        
+                        const addressValue = row['Adresa e marresit'] || row['Adresa'] || row['Adresa e marrësit'];
+                        const address = (addressValue !== undefined && addressValue !== null && addressValue !== '') ? addressValue.toString().trim() : '';
+                        
+                        const cityValue = row['Qyteti i marresit'] || row['Qyteti'] || row['Qyteti i marrësit'];
+                        const city = (cityValue !== undefined && cityValue !== null && cityValue !== '') ? cityValue.toString().trim() : '';
+                        
+                        // Lookup product cost and price from catalog
+                        const productInfo = getProductInfo(row);
+                        const productCost = productInfo ? productInfo.cost : 0;
+                        const productPrice = productInfo ? productInfo.price : price;
+                        const itemCost = productCost * absQty;
+                        
+                        const orderData = {
+                            items: [{
+                                code: code,
+                                productCode: code,
+                                name: name || 'Unknown',
+                                product: name || 'Unknown',
+                                quantity: absQty,
+                                price: productPrice,
+                                cost: productCost
+                            }],
+                            total: absTotal,
+                            price: absTotal,
+                            cost: itemCost,
+                            timestamp: Timestamp.fromDate(saleDate),
+                            orderDate: saleDate.toISOString().split('T')[0],
+                            hasRealTimestamp: hasTimestamp, // Flag to indicate if order has real time data
+                            customerName: customerName || 'Unknown',
+                            clientName: customerName || 'Unknown',
+                            phoneNumber: phone,
+                            telephone: phone,
+                            deliveryAddress: address,
+                            address: address,
+                            city: city,
+                            status: isReturn ? 'Returned' : 'Paid',
+                            source: 'imported',
+                            importedAt: Timestamp.now(),
+                            productActive: row.isActive
+                        };
+                        
+                        await addDoc(collection(db, 'onlineOrders'), orderData);
+                        
+                        const phoneInfo = phone ? ` 📞 ${phone}` : '';
+                        const cityInfo = city ? ` 📍 ${city}` : '';
+                        log('success', `📦 ${imported + updated + 1}/${total}: ${name} - ${customerName}${phoneInfo}${cityInfo}`);
+                        importedOnline++;
+                        
+                    } else {
+                        // STORE SALE - Save to storeSales collection
+                        // Lookup product cost and price from catalog
+                        const productInfo = getProductInfo(row);
+                        const productCost = productInfo ? productInfo.cost : 0;
+                        const productPrice = productInfo ? productInfo.price : price;
+                        const itemCost = productCost * absQty;
+                        
+                        const saleData = {
+                            items: [{
+                                code: code,
+                                productCode: code,
+                                name: name || 'Unknown',
+                                product: name || 'Unknown',
+                                quantity: absQty,
+                                price: productPrice,
+                                cost: productCost
+                            }],
+                            total: absTotal,
+                            productCode: code,
+                            productName: name || 'Unknown',
+                            quantity: absQty,
+                            price: productPrice,
+                            cost: itemCost,
+                            date: saleDate.toISOString().split('T')[0],
+                            timestamp: Timestamp.fromDate(saleDate),
+                            hasRealTimestamp: hasTimestamp, // Flag to indicate if sale has real time data
+                            source: 'imported',
+                            importedAt: Timestamp.now(),
+                            productActive: row.isActive,
+                            isReturn: isReturn,
+                            customerName: customerName || 'Historical Sale',
+                            clientName: customerName || 'Historical Sale'
+                        };
+
+                        await addDoc(collection(db, 'storeSales'), saleData);
+                        
+                        const returnLabel = isReturn ? ' 🔄 KTHIM' : '';
+                        const customerInfo = customerName ? ` - Blerës: ${customerName}` : '';
+                        const codeInfo = code ? ` [${code}]` : '';
+                        log('success', `🏪 ${imported + updated + 1}/${total}: ${name}${codeInfo}${customerInfo}${returnLabel}`);
+                        importedStore++;
+                    }
+                    
+                    imported++;
+                    updateProgress(imported + updated, total);
+                    
+                } catch (error) {
+                    log('error', `❌ Gabim importimi: ${row['Përshkrimi'] || row['Pershkrimi'] || 'Unknown'} - ${error.message}`);
+                }
+            }
+
+            // Process duplicates to update
+            for (const row of duplicatesToUpdate) {
+                try {
+                    // Read exact column names from Excel
+                    const dateValue = row['Data'];
+                    const date = (dateValue !== undefined && dateValue !== null && dateValue !== '') ? dateValue.toString().trim() : '';
+                    const codeValue = row['Kodi/Llogaria'];
+                    const code = (codeValue !== undefined && codeValue !== null && codeValue !== '') ? codeValue.toString().trim() : '';
+                    const nameValue = row['Përshkrimi'] || row['Pershkrimi'];
+                    const name = (nameValue !== undefined && nameValue !== null && nameValue !== '') ? nameValue.toString().trim() : '';
+                    const customerValue = row['Subjekti'];
+                    const customerName = (customerValue !== undefined && customerValue !== null && customerValue !== '') ? customerValue.toString().trim() : '';
+
+                    // Find the matching sale
+                    const matchedSale = findDuplicateSale(row);
+                    
+                    if (matchedSale && window.existingSalesMap) {
+                        const saleKey = `${matchedSale.docId}_${matchedSale.itemIndex}`;
+                        const saleInfo = window.existingSalesMap.get(saleKey);
+                        
+                        if (saleInfo) {
+                            const updateData = {};
+                            let itemsUpdated = false;
+                            
+                            // Update customer name if missing
+                            if (customerName) {
+                                const currentCustomer = normalizeString(saleInfo.data.customerName);
+                                if (!currentCustomer || currentCustomer === 'historical sale' || currentCustomer === 'unknown') {
+                                    updateData.customerName = customerName;
+                                    updateData.clientName = customerName;
+                                }
+                            }
+                            
+                            // Update item code if missing
+                            if (code && saleInfo.data.items && saleInfo.data.items[matchedSale.itemIndex]) {
+                                const currentCode = saleInfo.data.items[matchedSale.itemIndex].code;
+                                if (!currentCode) {
+                                    // Need to update the items array
+                                    const updatedItems = [...saleInfo.data.items];
+                                    updatedItems[matchedSale.itemIndex] = {
+                                        ...updatedItems[matchedSale.itemIndex],
+                                        code: code
+                                    };
+                                    updateData.items = updatedItems;
+                                    itemsUpdated = true;
+                                }
+                            }
+                            
+                            // Only update if there's something to update
+                            if (Object.keys(updateData).length > 0) {
+                                await updateDoc(saleInfo.docRef, updateData);
+                                updated++;
+                                updateProgress(imported + updated, total);
+                                
+                                const codeInfo = code ? ` [${code}]` : '';
+                                const customerInfo = customerName ? ` - Blerës: ${customerName}` : '';
+                                log('info', `✏️ ${imported + updated}/${total}: ${name}${codeInfo}${customerInfo} (përditësuar)`);
+                            }
+                        }
+                    }
+                    
+                } catch (error) {
+                    log('error', `❌ Gabim përditësimi: ${getColumnValue(row, ['Përshkrimi', 'Product'])} - ${error.message}`);
+                }
+            }
+
+            // Final success message
+            const finalMessage = deleteAllMode 
+                ? `🎉 Procesi u përfundua! ${deleted} shitje u fshinë, ${importedOnline} porosi online + ${importedStore} shitje dyqan u importuan.`
+                : `🎉 Importi u përfundua! ${importedOnline} porosi online, ${importedStore} shitje dyqan, ${updated} përditësuar.`;
+            
+            log('success', finalMessage);
+            
+            let alertMessage = 'Importi u përfundua me sukses!\n\n';
+            if (deleteAllMode) {
+                alertMessage = '🗑️ RESET I PLOTË U KRYE!\n\n';
+                alertMessage += `🗑️ ${deleted} shitje të vjetra u fshinë.\n`;
+                alertMessage += `📦 ${importedOnline} porosi online u importuan.\n`;
+                alertMessage += `🏪 ${importedStore} shitje dyqan u importuan.\n\n`;
+                alertMessage += '📊 Baza e të dhënave është e pastër dhe e rifreskuar!';
+            } else {
+                if (importedOnline > 0) alertMessage += `📦 ${importedOnline} porosi online u shtuan.\n`;
+                if (importedStore > 0) alertMessage += `🏪 ${importedStore} shitje dyqan u shtuan.\n`;
+                if (updated > 0) alertMessage += `✏️ ${updated} shitje ekzistuese u përditësuan me kode/emra.\n`;
+                if (imported > 0 || updated > 0) alertMessage += '\n📊 Të dhënat e klientëve u regjistruan për analytics dhe Customer Portal.';
+            }
+            
+            alert(alertMessage);
+            
+            // Reload page after 2 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            if (confirm('Dëshironi të anuloni importin?')) {
+                window.location.reload();
+            }
+        });
+
+        function updateProgress(current, total) {
+            const percent = (current / total) * 100;
+            document.getElementById('progress-fill').style.width = percent + '%';
+            document.getElementById('progress-text').textContent = `${current} / ${total}`;
+        }
+
+        function log(type, message) {
+            const logContainer = document.getElementById('log-container');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+    </script>
+</body>
+</html>

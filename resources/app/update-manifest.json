@@ -1,0 +1,20 @@
+{
+  "version": "1.2.0",
+  "windows": {
+    "version": "1.2.0",
+    "url": "https://firebasestorage.googleapis.com/v0/b/danfosal-app.appspot.com/o/updates%2Fwindows%2FDanfosal-App-Setup-1.2.0.exe?alt=media",
+    "releaseDate": "2025-11-09",
+    "releaseNotes": "Initial release with auto-update support",
+    "mandatory": false,
+    "size": 200000000
+  },
+  "android": {
+    "version": "1.2.0",
+    "versionCode": 10200,
+    "url": "https://firebasestorage.googleapis.com/v0/b/danfosal-app.appspot.com/o/updates%2Fandroid%2Fdanfosal-app-1.2.0.apk?alt=media",
+    "releaseDate": "2025-11-09",
+    "releaseNotes": "Initial release with auto-update support",
+    "mandatory": false,
+    "size": 1200000
+  }
+}

@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Manrope', 'sans-serif'] },
+                    colors: {
+                        background: '#050b07',
+                        surface: { dark: '#0a120c', light: '#121e16' },
+                        primary: '#4ade80',
+                        secondary: '#a855f7',
+                        accent: '#f43f5e'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050b07; color: #e5e7eb; }
+        .glass-panel {
+            background: rgba(10, 18, 12, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #050b07; }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        
+        /* Map Customization */
+        .leaflet-container { background: #050b07; font-family: 'Manrope'; }
+        .leaflet-popup-content-wrapper { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); border-radius: 8px; }
+        .leaflet-popup-tip { background: rgba(255, 255, 255, 0.9); }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden selection:bg-primary/20 selection:text-primary">
+
+    <!-- Sidebar -->
+    <aside class="w-20 lg:w-64 border-r border-white/5 flex flex-col bg-surface-dark/50 backdrop-blur-xl z-50 transition-all duration-300">
+        <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-white/5">
+            <div class="size-8 rounded-lg bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-[0_0_15px_rgba(74,222,128,0.3)]">
+                <span class="material-symbols-outlined text-black text-xl font-bold">analytics</span>
+            </div>
+            <span class="ml-3 font-bold text-lg hidden lg:block tracking-tight">Danfosal<span class="text-primary">.AI</span></span>
+        </div>
+
+        <nav class="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+            <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all group">
+                <span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+                <span class="hidden lg:block font-medium">Dashboard</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary/10 text-primary border border-primary/10 transition-all">
+                <span class="material-symbols-outlined">monitoring</span>
+                <span class="hidden lg:block font-medium">Analytics</span>
+            </a>
+            <a href="online-orders.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all group">
+                <span class="material-symbols-outlined group-hover:scale-110 transition-transform">orders</span>
+                <span class="hidden lg:block font-medium">Orders</span>
+            </a>
+            <a href="products.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all group">
+                <span class="material-symbols-outlined group-hover:scale-110 transition-transform">inventory_2</span>
+                <span class="hidden lg:block font-medium">Products</span>
+            </a>
+            
+            <div class="my-4 border-t border-white/5"></div>
+            
+            <div class="px-3 mb-2 hidden lg:block text-xs font-bold text-white/30 uppercase tracking-wider">Filters</div>
+            <div class="px-3">
+                <select id="sidebar-time-filter" class="w-full bg-surface-light border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/50 transition-colors">
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 3 Months</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-background">
+        <!-- Header -->
+        <header class="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-surface-dark/30 backdrop-blur-md z-40">
+            <h1 class="text-xl font-bold text-white/90">Performance Overview</h1>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-2 bg-surface-light border border-white/10 rounded-lg p-1">
+                    <button onclick="scrollToSection('kpi-grid')" class="px-3 py-1.5 rounded-md text-xs font-medium bg-white/10 text-white shadow-sm hover:bg-white/20 transition-colors">Overview</button>
+                    <button onclick="scrollToSection('sales-charts')" class="px-3 py-1.5 rounded-md text-xs font-medium text-white/50 hover:text-white hover:bg-white/5 transition-colors">Sales</button>
+                    <button onclick="scrollToSection('customer-lists')" class="px-3 py-1.5 rounded-md text-xs font-medium text-white/50 hover:text-white hover:bg-white/5 transition-colors">Customers</button>
+                </div>
+                <div class="h-8 w-px bg-white/10 mx-2"></div>
+                <div class="flex items-center gap-3">
+                    <select id="main-time-filter" class="bg-surface-light border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80 focus:outline-none focus:border-primary/50">
+                        <option value="30">Last 30 Days</option>
+                        <option value="90">Last 3 Months</option>
+                        <option value="all">All Time</option>
+                    </select>
+                    <button onclick="updateAnalytics()" class="bg-primary hover:bg-primary/90 text-black text-sm font-bold px-4 py-1.5 rounded-lg shadow-[0_0_15px_rgba(74,222,128,0.3)] transition-all active:scale-95">
+                        Refresh Data
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            <!-- KPI Grid -->
+            <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Revenue -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-primary">payments</span>
+                    </div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 rounded-lg bg-primary/10 text-primary">
+                            <span class="material-symbols-outlined text-xl">attach_money</span>
+                        </div>
+                        <span class="text-sm font-medium text-white/50">Total Revenue</span>
+                    </div>
+                    <div class="text-3xl font-bold text-white tracking-tight" id="kpi-revenue">€0.00</div>
+                    <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="text-emerald-400 flex items-center font-medium"><span class="material-symbols-outlined text-sm mr-0.5">trending_up</span> +12.5%</span>
+                        <span class="text-white/30">vs last period</span>
+                    </div>
+                </div>
+
+                <!-- Profit -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-emerald-500">savings</span>
+                    </div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                            <span class="material-symbols-outlined text-xl">trending_up</span>
+                        </div>
+                        <span class="text-sm font-medium text-white/50">Net Profit</span>
+                    </div>
+                    <div class="text-3xl font-bold text-white tracking-tight" id="kpi-profit">€0.00</div>
+                    <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="text-emerald-400 flex items-center font-medium">Healthy Margin</span>
+                    </div>
+                </div>
+
+                <!-- Avg Order -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-purple-500">shopping_bag</span>
+                    </div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+                            <span class="material-symbols-outlined text-xl">shopping_basket</span>
+                        </div>
+                        <span class="text-sm font-medium text-white/50">Avg. Order Value</span>
+                    </div>
+                    <div class="text-3xl font-bold text-white tracking-tight" id="kpi-avg-order">€0.00</div>
+                    <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="text-white/30">Per transaction</span>
+                    </div>
+                </div>
+
+                <!-- Total Orders -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-blue-500">group_add</span>
+                    </div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                            <span class="material-symbols-outlined text-xl">person_add</span>
+                        </div>
+                        <span class="text-sm font-medium text-white/50">Total Orders</span>
+                    </div>
+                    <div class="text-3xl font-bold text-white tracking-tight" id="kpi-acquisition">0</div>
+                    <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="text-white/30">Total processed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div id="sales-charts" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Revenue Chart -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Revenue Analytics</h3>
+                            <p class="text-xs text-white/40">Monthly performance trend</p>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5">
+                            <span class="size-2 rounded-full bg-primary animate-pulse"></span>
+                            <span class="text-xs font-medium text-primary">Live Updates</span>
+                        </div>
+                    </div>
+                    <div class="h-[300px] w-full">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Order Status Chart -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-1">Order Status</h3>
+                    <p class="text-xs text-white/40 mb-6">Breakdown by status</p>
+                    <div class="h-[250px] relative">
+                        <canvas id="acquisitionChart"></canvas>
+                        <!-- Center Text Overlay -->
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="text-center">
+                                <span class="block text-2xl font-bold text-white" id="chart-total-orders">0</span>
+                                <span class="text-[10px] text-white/40 uppercase tracking-wider">Orders</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geo Map -->
+            <div class="glass-panel p-0 rounded-2xl overflow-hidden border border-white/10 h-[400px] relative">
+                <div class="absolute top-4 left-4 z-[400] bg-surface-dark/80 backdrop-blur px-4 py-2 rounded-lg border border-white/10 shadow-lg">
+                    <h3 class="text-sm font-bold text-white">Global Reach</h3>
+                    <p class="text-[10px] text-white/50">Customer locations heatmap</p>
+                </div>
+                <div id="map" class="h-full w-full bg-[#050b07]"></div>
+            </div>
+
+            <!-- Lists Row 1: Products, Locations, Customers, Debtors -->
+            <div id="customer-lists" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Top Products -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">inventory_2</span> Top Products
+                    </h3>
+                    <div class="space-y-4" id="top-products-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Top Locations -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-purple-400">location_on</span> Top Locations
+                    </h3>
+                    <div class="space-y-4" id="top-locations-list">
+                        <p class="text-white/40 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Top Customers -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-blue-400">group</span> Top Customers
+                    </h3>
+                    <div class="space-y-4" id="top-customers-list">
+                        <p class="text-white/40 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Top Debtors -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-red-400">money_off</span> Top Debtors
+                    </h3>
+                    <div class="space-y-4" id="top-debtors-list">
+                        <p class="text-white/40 text-sm">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lists Row 2: Creditors & Transactions -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Top Creditors -->
+                <div class="glass-panel p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-yellow-400">account_balance_wallet</span> Top Creditors
+                    </h3>
+                    <div class="space-y-4" id="top-creditors-list">
+                        <p class="text-white/40 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="md:col-span-2 glass-panel p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-white">Recent Transactions</h3>
+                        <button class="text-xs text-primary hover:text-primary/80 font-medium">View All</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/5 text-xs text-white/40 uppercase tracking-wider">
+                                    <th class="px-6 py-3 font-medium">Customer</th>
+                                    <th class="px-6 py-3 font-medium">Source</th>
+                                    <th class="px-6 py-3 font-medium text-right">Amount</th>
+                                    <th class="px-6 py-3 font-medium text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5 text-sm" id="transactions-table-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, getDocs, query, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Enable Offline Persistence
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.warn('Persistence failed: Multiple tabs open');
+            } else if (err.code == 'unimplemented') {
+                console.warn('Persistence failed: Browser not supported');
+            }
+        });
+
+        const auth = getAuth(app);
+
+        let map, markerCluster, heatLayer;
+        let allOrdersData = [];
+        let onlineOrdersData = [];
+        let storeSalesData = [];
+        let currentDaysFilter = '30'; // Default to 30 days
+        let charts = {};
+
+        // --- Helper Functions ---
+        const getDate = (ts) => {
+            if (!ts) return new Date();
+            if (ts.toDate) return ts.toDate(); // Firestore Timestamp
+            return new Date(ts); // String or Number
+        };
+
+        const mergeData = () => {
+            const normalizedOnline = onlineOrdersData.map(o => ({
+                ...o,
+                source: 'Online',
+                price: parseFloat(o.price) || 0,
+                timestamp: o.timestamp
+            }));
+
+            const normalizedStore = storeSalesData.map(s => ({
+                ...s,
+                source: 'Store',
+                price: parseFloat(s.total || s.price) || 0,
+                status: 'Paid', // Store sales are typically paid immediately
+                clientName: s.clientName || s.customerName || 'Walk-in Customer',
+                address: s.address || s.customerAddress || null,
+                timestamp: s.timestamp || s.scannedAt || (s.date ? new Date(s.date + (s.time ? ' ' + s.time : '')).getTime() : Date.now())
+            }));
+
+            allOrdersData = [...normalizedOnline, ...normalizedStore];
+            // Sort by date desc
+            allOrdersData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            updateAnalytics();
+            updateMap();
+        };
+
+        const addressCache = {};
+
+        const geocodeAddress = async (address) => {
+            if (!address) return null;
+            if (addressCache[address]) return addressCache[address];
+
+            try {
+                // Throttle requests to respect Nominatim's usage policy (1 req/sec)
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Append Albania and restrict to country code 'al' to avoid USA/Kosovo results
+                const query = `${address}, Albania`;
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=al&limit=1`);
+                
+                if (!response.ok) return null;
+                
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                    addressCache[address] = coords;
+                    // Save to local storage
+                    localStorage.setItem('danfosal_address_cache', JSON.stringify(addressCache));
+                    return coords;
+                }
+            } catch (error) {
+                console.error("Geocoding error:", error);
+            }
+            return null;
+        };
+
+        // --- Map Initialization ---
+        const initMap = () => {
+            map = L.map('map', {
+                center: [41.3275, 19.8187], // Center on Albania (Tirana)
+                zoom: 7,
+                zoomControl: false,
+                attributionControl: false
+            });
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            markerCluster = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                maxClusterRadius: 50,
+                iconCreateFunction: function(cluster) {
+                    return L.divIcon({ 
+                        html: `<div style="background: rgba(74, 222, 128, 0.2); border: 1px solid #4ade80; color: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${cluster.getChildCount()}</div>`, 
+                        className: 'custom-cluster-icon', 
+                        iconSize: [30, 30] 
+                    });
+                }
+            });
+            map.addLayer(markerCluster);
+        };
+
+        const updateMap = async () => {
+            if (markerCluster) markerCluster.clearLayers();
+            if (heatLayer) map.removeLayer(heatLayer);
+
+            let startDate;
+            if (currentDaysFilter !== 'all') {
+                startDate = new Date();
+                startDate.setDate(startDate.getDate() - parseInt(currentDaysFilter));
+            }
+            
+            const filteredOrders = currentDaysFilter === 'all' 
+                ? allOrdersData 
+                : allOrdersData.filter(order => {
+                    const d = getDate(order.timestamp);
+                    return d.getTime() >= startDate.getTime();
+                });
+
+            const heatData = [];
+
+            // Process all orders with addresses (removed slice limit)
+            // Using cache to speed up repetitive addresses
+            const ordersWithAddress = filteredOrders.filter(o => o.address);
+
+            for (const order of ordersWithAddress) {
+                const coords = await geocodeAddress(order.address);
+                if (coords) {
+                    heatData.push([coords.lat, coords.lng, 1]);
+                    const marker = L.marker([coords.lat, coords.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background: #4ade80; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #050b07; box-shadow: 0 0 10px #4ade80;"></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        })
+                    }).bindPopup(`
+                        <div style="color: #000;">
+                            <strong>${order.clientName}</strong><br>
+                            ${order.address}<br>
+                            €${order.price.toFixed(2)}
+                        </div>
+                    `);
+                    markerCluster.addLayer(marker);
+                }
+            }
+
+            if (heatData.length > 0) {
+                heatLayer = L.heatLayer(heatData, {
+                    radius: 25,
+                    blur: 15,
+                    maxZoom: 17,
+                    max: 1.0,
+                    gradient: { 0.4: '#4ade80', 0.65: '#a855f7', 1: '#f43f5e' }
+                }).addTo(map);
+                
+                // Fit bounds to show all points
+                if (markerCluster.getBounds().isValid()) {
+                    map.fitBounds(markerCluster.getBounds(), { padding: [50, 50] });
+                }
+            }
+        };
+
+        // --- Chart Rendering ---
+        const destroyCharts = () => {
+            Object.values(charts).forEach(chart => { if (chart) chart.destroy(); });
+        };
+
+        const renderChart = (id, type, labels, data, label, backgroundColors, isLine = false) => {
+            const ctx = document.getElementById(id).getContext('2d');
+            
+            let bg = backgroundColors;
+            if (isLine) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(74, 222, 128, 0.5)');
+                gradient.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                bg = gradient;
+            }
+
+            charts[id] = new Chart(ctx, {
+                type: type,
+                data: { 
+                    labels, 
+                    datasets: [{ 
+                        label, 
+                        data, 
+                        backgroundColor: bg, 
+                        borderColor: isLine ? '#4ade80' : 'transparent', 
+                        borderWidth: isLine ? 2 : 0, 
+                        fill: isLine,
+                        tension: 0.4,
+                        pointBackgroundColor: '#050b07',
+                        pointBorderColor: '#4ade80',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }] 
+                },
+                options: {
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: !isLine, labels: { color: '#9ca3af', font: { family: 'Manrope' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 31, 21, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true
+                        }
+                    },
+                    scales: { 
+                        y: { 
+                            display: isLine,
+                            beginAtZero: true, 
+                            grid: { color: 'rgba(255,255,255,0.05)' }, 
+                            ticks: { color: '#6b7280', font: { family: 'Manrope' } } 
+                        }, 
+                        x: { 
+                            display: isLine,
+                            grid: { display: false }, 
+                            ticks: { color: '#6b7280', font: { family: 'Manrope' } } 
+                        } 
+                    },
+                    cutout: type === 'doughnut' ? '70%' : 0
+                }
+            });
+        };
+
+        // --- Main Update Logic ---
+        window.scrollToSection = (id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
+        window.updateAnalytics = () => {
+            destroyCharts();
+
+            // Filter Data
+            let startDate;
+            if (currentDaysFilter !== 'all') {
+                startDate = new Date();
+                startDate.setDate(startDate.getDate() - parseInt(currentDaysFilter));
+            }
+            
+            const filteredOrders = currentDaysFilter === 'all' 
+                ? allOrdersData 
+                : allOrdersData.filter(order => {
+                    const d = getDate(order.timestamp);
+                    return d.getTime() >= startDate.getTime();
+                });
+            
+            const paidOrders = filteredOrders.filter(order => order.status === 'Paid');
+
+            // 1. Update KPI Cards
+            const totalRevenue = paidOrders.reduce((sum, order) => sum + order.price, 0);
+            const totalCost = paidOrders.reduce((sum, order) => sum + (order.cost || 0) + (order.courierCost || 0), 0);
+            const totalProfit = totalRevenue - totalCost;
+            const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
+
+            document.getElementById('kpi-revenue').textContent = `€${totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('kpi-profit').textContent = `€${totalProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('kpi-avg-order').textContent = `€${avgOrderValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('kpi-acquisition').textContent = filteredOrders.length;
+
+            // 2. Revenue Chart (Line) - Group by YYYY-MM
+            const monthlyRevenue = paidOrders.reduce((acc, order) => {
+                const date = getDate(order.paidTimestamp || order.timestamp);
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                acc[key] = (acc[key] || 0) + order.price;
+                return acc;
+            }, {});
+            
+            const sortedKeys = Object.keys(monthlyRevenue).sort();
+            const labels = sortedKeys.map(key => {
+                const [y, m] = key.split('-');
+                const d = new Date(y, m - 1);
+                return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+            });
+            const data = sortedKeys.map(k => monthlyRevenue[k]);
+            
+            renderChart('revenueChart', 'line', labels, data, 'Revenue (€)', null, true);
+
+            // 3. Acquisition Chart (Doughnut - Order Status)
+            const statusCounts = filteredOrders.reduce((acc, order) => { 
+                const status = order.status || 'Unknown'; 
+                acc[status] = (acc[status] || 0) + 1; 
+                return acc; 
+            }, {});
+            renderChart('acquisitionChart', 'doughnut', Object.keys(statusCounts), Object.values(statusCounts), 'Orders', ['#4ade80', '#a855f7', '#3b82f6', '#f43f5e', '#facc15']);
+            document.getElementById('chart-total-orders').textContent = filteredOrders.length;
+
+            // 4. Top Products List (Sorted by Revenue)
+            const productCounts = filteredOrders.reduce((acc, order) => {
+                (order.items || []).forEach(item => {
+                    acc[item.name] = (acc[item.name] || 0) + item.quantity;
+                    acc[item.name + '_rev'] = (acc[item.name + '_rev'] || 0) + (item.price * item.quantity);
+                });
+                return acc;
+            }, {});
+            
+            const uniqueProducts = Object.keys(productCounts).filter(k => !k.endsWith('_rev'));
+            // Sort by Revenue instead of Quantity
+            const sortedProducts = uniqueProducts.sort((a, b) => productCounts[b + '_rev'] - productCounts[a + '_rev']).slice(0, 5);
+            const maxRevenue = sortedProducts.length > 0 ? productCounts[sortedProducts[0] + '_rev'] : 1;
+
+            const productsListHtml = sortedProducts.map(name => {
+                const count = productCounts[name];
+                const revenue = productCounts[name + '_rev'];
+                const percentage = (revenue / maxRevenue) * 100;
+                
+                return `
+                <div class="flex items-center gap-4 group p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+                    <div class="size-10 rounded-lg bg-surface-dark border border-white/10 flex items-center justify-center text-white/20 shrink-0">
+                        <span class="material-symbols-outlined text-lg">inventory_2</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <h4 class="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">${name}</h4>
+                            <span class="text-xs font-mono text-primary font-bold">€${revenue.toFixed(0)}</span>
+                        </div>
+                        <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-gradient-to-r from-primary to-emerald-400 h-full rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                        <p class="text-[10px] text-white/40 mt-1">${count} units sold</p>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('top-products-list').innerHTML = productsListHtml || '<p class="text-white/40 text-sm p-4">No sales data available.</p>';
+
+            // 5. Top Locations List
+            const cityMapping = {
+                'tirana': 'Tirana', 'tirane': 'Tirana', 'tiranë': 'Tirana',
+                'durres': 'Durres', 'durrës': 'Durres', 'durresi': 'Durres',
+                'vlore': 'Vlore', 'vlorë': 'Vlore', 'vlora': 'Vlore',
+                'shkoder': 'Shkoder', 'shkodër': 'Shkoder', 'shkodra': 'Shkoder',
+                'elbasan': 'Elbasan',
+                'fier': 'Fier',
+                'korce': 'Korce', 'korçë': 'Korce', 'korca': 'Korce',
+                'berat': 'Berat',
+                'lushnje': 'Lushnje', 'lushnjë': 'Lushnje', 'lushnja': 'Lushnje',
+                'kavaje': 'Kavaje', 'kavajë': 'Kavaje', 'kavaja': 'Kavaje',
+                'lezhe': 'Lezhe', 'lezhë': 'Lezhe', 'lezha': 'Lezhe',
+                'kukes': 'Kukes', 'kukës': 'Kukes', 'kukesi': 'Kukes',
+                'sarande': 'Sarande', 'sarandë': 'Sarande', 'saranda': 'Sarande',
+                'gjirokaster': 'Gjirokaster', 'gjirokastër': 'Gjirokaster', 'gjirokastra': 'Gjirokaster',
+                'pogradec': 'Pogradec', 'pogradeci': 'Pogradec',
+                'lac': 'Laç', 'laç': 'Laç', 'laci': 'Laç',
+                'patos': 'Patos',
+                'kruje': 'Kruje', 'krujë': 'Kruje', 'kruja': 'Kruje',
+                'kucove': 'Kuçove', 'kuçove': 'Kuçove', 'kuçova': 'Kuçove',
+                'burrel': 'Burrel', 'burreli': 'Burrel',
+                'peshkopi': 'Peshkopi', 'peshkopia': 'Peshkopi',
+                'divjake': 'Divjake', 'divjakë': 'Divjake', 'divjaka': 'Divjake',
+                'fushe-kruje': 'Fushe-Kruje', 'fushe kruje': 'Fushe-Kruje', 'fushë-krujë': 'Fushe-Kruje',
+                'gramsh': 'Gramsh', 'gramshi': 'Gramsh',
+                'librazhd': 'Librazhd', 'librazhdi': 'Librazhd',
+                'tepelene': 'Tepelene', 'tepelenë': 'Tepelene', 'tepelena': 'Tepelene',
+                'bulqize': 'Bulqize', 'bulqizë': 'Bulqize', 'bulqiza': 'Bulqize',
+                'permet': 'Permet', 'përmet': 'Permet', 'permeti': 'Permet',
+                'delvine': 'Delvine', 'delvinë': 'Delvine', 'delvina': 'Delvine',
+                'rreshen': 'Rreshen', 'rresheni': 'Rreshen',
+                'ballsh': 'Ballsh', 'ballshi': 'Ballsh',
+                'mamurras': 'Mamurras',
+                'bajram curri': 'Bajram Curri',
+                'erseke': 'Erseke', 'ersekë': 'Erseke', 'erseka': 'Erseke',
+                'peqin': 'Peqin', 'peqini': 'Peqin',
+                'bilisht': 'Bilisht', 'bilishti': 'Bilisht',
+                'roskovec': 'Roskovec',
+                'puke': 'Puke', 'pukë': 'Puke', 'puka': 'Puke',
+                'rrogozhine': 'Rrogozhine', 'rrogozhinë': 'Rrogozhine', 'rrogozhina': 'Rrogozhine',
+                'vore': 'Vore', 'vorë': 'Vore', 'vora': 'Vore',
+                'kamze': 'Kamze', 'kamzë': 'Kamze', 'kamza': 'Kamze', 'kamez': 'Kamze',
+                'himare': 'Himare', 'himarë': 'Himare', 'himara': 'Himare',
+                'konispol': 'Konispol',
+                'selenice': 'Selenice', 'selenicë': 'Selenice', 'selenica': 'Selenice',
+                'memaliaj': 'Memaliaj',
+                'kelcyre': 'Kelcyre', 'kelcyrë': 'Kelcyre', 'kelcyra': 'Kelcyre',
+                'maliq': 'Maliq', 'maliqi': 'Maliq',
+                'prrenjas': 'Prrenjas',
+                'cerrik': 'Cerrik', 'cërrik': 'Cerrik',
+                'belsh': 'Belsh', 'belshi': 'Belsh',
+                'polican': 'Polican', 'poliçan': 'Polican',
+                'skrapar': 'Skrapar',
+                'ura vajgurore': 'Ura Vajgurore',
+                'klos': 'Klos',
+                'mat': 'Mat',
+                'mirdite': 'Mirdite', 'mirditë': 'Mirdite',
+                'finiq': 'Finiq',
+                'dropull': 'Dropull',
+                'libohove': 'Libohove', 'libohovë': 'Libohove', 'libohova': 'Libohove',
+                'kolonje': 'Kolonje', 'kolonjë': 'Kolonje',
+                'devoll': 'Devoll',
+                'has': 'Has',
+                'tropoje': 'Tropoje', 'tropojë': 'Tropoje', 'tropoja': 'Tropoje',
+                'malesia e madhe': 'Malesia e Madhe',
+                'vau i dejes': 'Vau i Dejes'
+            };
+
+            const locationCounts = filteredOrders.reduce((acc, order) => {
+                if (order.address) {
+                    let address = order.address.toLowerCase();
+                    let city = 'Other';
+                    
+                    // Strategy: Split by comma, check parts from end to beginning
+                    // This avoids matching street names like "Rruga e Durresit" (in Tirana) as "Durres"
+                    const parts = address.split(',');
+                    let found = false;
+                    
+                    // Sort keys by length descending once
+                    const sortedKeys = Object.keys(cityMapping).sort((a, b) => b.length - a.length);
+
+                    // 1. Iterate parts from last to first (City is usually at the end)
+                    for (let i = parts.length - 1; i >= 0; i--) {
+                        const part = parts[i].trim();
+                        
+                        // Skip "Albania" or "Shqiperia" if it's the last part
+                        if (['albania', 'shqiperia', 'shqipëria'].includes(part)) continue;
+
+                        for (const key of sortedKeys) {
+                            // Check if the part contains the city name
+                            // We use word boundary check logic implicitly by checking inclusion in the part
+                            if (part.includes(key)) {
+                                city = cityMapping[key];
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) break;
+                    }
+                    
+                    // 2. Fallback: If no match in parts (e.g. no commas), check whole string
+                    // But prioritize Tirana to avoid "Rruga e Durresit" issue if Tirana is also present
+                    if (!found) {
+                        if (address.includes('tirana') || address.includes('tirane') || address.includes('tiranë')) {
+                            city = 'Tirana';
+                        } else {
+                            for (const key of sortedKeys) {
+                                if (address.includes(key)) {
+                                    city = cityMapping[key];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (city !== 'Other') {
+                        acc[city] = (acc[city] || 0) + order.price;
+                    }
+                }
+                return acc;
+            }, {});
+            
+            const sortedLocations = Object.keys(locationCounts).sort((a, b) => locationCounts[b] - locationCounts[a]).slice(0, 5);
+            const maxLocRevenue = sortedLocations.length > 0 ? locationCounts[sortedLocations[0]] : 1;
+
+            const locationsListHtml = sortedLocations.map(city => {
+                const revenue = locationCounts[city];
+                const percentage = (revenue / maxLocRevenue) * 100;
+                
+                return `
+                <div class="flex items-center gap-4 group p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+                    <div class="size-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+                        <span class="material-symbols-outlined text-lg">location_city</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <h4 class="text-sm font-bold text-white truncate group-hover:text-purple-400 transition-colors">${city}</h4>
+                            <span class="text-xs font-mono text-purple-400 font-bold">€${revenue.toFixed(0)}</span>
+                        </div>
+                        <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('top-locations-list').innerHTML = locationsListHtml || '<p class="text-white/40 text-sm p-4">No location data.</p>';
+
+            // 6. Top Customers List
+            const customerCounts = filteredOrders.reduce((acc, order) => {
+                const name = order.clientName || 'Guest';
+                acc[name] = (acc[name] || 0) + order.price;
+                return acc;
+            }, {});
+            const sortedCustomers = Object.keys(customerCounts).sort((a, b) => customerCounts[b] - customerCounts[a]).slice(0, 5);
+            
+            const customersListHtml = sortedCustomers.map(name => {
+                return `
+                <div class="flex items-center justify-between p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
+                            ${name.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="text-sm font-medium text-white/80">${name}</span>
+                    </div>
+                    <span class="text-sm font-mono font-bold text-white">€${customerCounts[name].toFixed(2)}</span>
+                </div>`;
+            }).join('');
+            document.getElementById('top-customers-list').innerHTML = customersListHtml || '<p class="text-white/40 text-sm">No customer data.</p>';
+
+            // 6. Transactions Table
+            const recentOrders = [...filteredOrders].sort((a, b) => {
+                return getDate(b.timestamp).getTime() - getDate(a.timestamp).getTime();
+            }).slice(0, 10);
+            
+            const transactionsHtml = recentOrders.map(order => {
+                let statusColor = 'bg-gray-500';
+                if (order.status === 'Paid') statusColor = 'bg-green-500';
+                if (order.status === 'Pending') statusColor = 'bg-yellow-500';
+                if (order.status === 'Cancelled') statusColor = 'bg-red-500';
+
+                return `
+                <tr class="hover:bg-white/5 transition-colors group cursor-pointer">
+                    <td class="px-6 py-3 font-mono text-xs text-white/50">${order.clientName || 'Guest'}</td>
+                    <td class="px-6 py-3">
+                        <div class="flex items-center gap-2">
+                            <span class="size-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_rgba(168,85,247,0.8)]"></span> 
+                            <span class="text-xs font-medium">${order.source || 'Direct'}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-3 text-right font-mono text-xs font-bold text-white">€${order.price.toFixed(2)}</td>
+                    <td class="px-6 py-3 text-center">
+                        <div class="size-2 rounded-full ${statusColor} mx-auto shadow-[0_0_5px_rgba(34,197,94,0.8)]" title="${order.status}"></div>
+                    </td>
+                </tr>`;
+            }).join('');
+            document.getElementById('transactions-table-body').innerHTML = transactionsHtml;
+        };
+
+        // --- Debtors & Creditors Logic ---
+        const updateDebtorsCreditors = async () => {
+            // Debtors
+            const debtorsRef = collection(db, 'debtors');
+            onSnapshot(query(debtorsRef), async (snapshot) => {
+                const debtors = [];
+                for (const doc of snapshot.docs) {
+                    const d = doc.data();
+                    const invoicesSnap = await getDocs(collection(db, `debtors/${doc.id}/invoices`));
+                    let balance = 0;
+                    invoicesSnap.forEach(inv => balance += (inv.data().remainingBalance || 0));
+                    if (balance > 0) debtors.push({ name: d.name, balance });
+                }
+                debtors.sort((a, b) => b.balance - a.balance);
+                
+                const debtorsHtml = debtors.slice(0, 5).map(d => `
+                    <div class="flex items-center justify-between p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <span class="text-sm font-medium text-white/80">${d.name}</span>
+                        <span class="text-sm font-mono font-bold text-red-400">€${d.balance.toFixed(2)}</span>
+                    </div>
+                `).join('');
+                document.getElementById('top-debtors-list').innerHTML = debtorsHtml || '<p class="text-white/40 text-sm">No outstanding debt.</p>';
+            });
+
+            // Creditors
+            const creditorsRef = collection(db, 'creditors');
+            onSnapshot(query(creditorsRef), async (snapshot) => {
+                const creditors = [];
+                for (const doc of snapshot.docs) {
+                    const c = doc.data();
+                    const invoicesSnap = await getDocs(collection(db, `creditors/${doc.id}/invoices`));
+                    let balance = 0;
+                    invoicesSnap.forEach(inv => balance += (inv.data().remainingBalance || 0));
+                    if (balance > 0) creditors.push({ name: c.name, balance });
+                }
+                creditors.sort((a, b) => b.balance - a.balance);
+
+                const creditorsHtml = creditors.slice(0, 5).map(c => `
+                    <div class="flex items-center justify-between p-2 -mx-2 rounded-xl hover:bg-white/5 transition-colors">
+                        <span class="text-sm font-medium text-white/80">${c.name}</span>
+                        <span class="text-sm font-mono font-bold text-yellow-400">€${c.balance.toFixed(2)}</span>
+                    </div>
+                `).join('');
+                document.getElementById('top-creditors-list').innerHTML = creditorsHtml || '<p class="text-white/40 text-sm">No outstanding bills.</p>';
+            });
+        };
+
+        // --- Initialization ---
+        const startApp = async () => {
+            
+            // Load Address Cache from LocalStorage (still useful for Map API limits)
+            const cachedAddress = localStorage.getItem('danfosal_address_cache');
+            if (cachedAddress) {
+                try {
+                    const parsed = JSON.parse(cachedAddress);
+                    Object.assign(addressCache, parsed);
+                } catch (e) { console.error("Address cache error", e); }
+            }
+
+            initMap();
+            
+            // 2. Listen for Online Orders (Persistence handled by Firebase)
+            onSnapshot(collection(db, 'onlineOrders'), (snapshot) => {
+                onlineOrdersData = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    if (data.timestamp && data.timestamp.toDate) data.timestamp = data.timestamp.toDate().getTime();
+                    if (data.paidTimestamp && data.paidTimestamp.toDate) data.paidTimestamp = data.paidTimestamp.toDate().getTime();
+                    return { id: doc.id, ...data };
+                });
+                mergeData();
+            });
+
+            // 3. Listen for Store Sales
+            onSnapshot(collection(db, 'storeSales'), (snapshot) => {
+                storeSalesData = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    if (data.timestamp && data.timestamp.toDate) data.timestamp = data.timestamp.toDate().getTime();
+                    return { id: doc.id, ...data };
+                });
+                mergeData();
+            });
+
+            updateDebtorsCreditors();
+
+            // Filter Listeners
+            const handleFilterChange = (e) => {
+                currentDaysFilter = e.target.value;
+                document.getElementById('sidebar-time-filter').value = currentDaysFilter;
+                document.getElementById('main-time-filter').value = currentDaysFilter;
+                updateAnalytics();
+                updateMap();
+            };
+
+            document.getElementById('sidebar-time-filter').addEventListener('change', handleFilterChange);
+            document.getElementById('main-time-filter').addEventListener('change', handleFilterChange);
+        };
+
+        // Wait for authentication before loading data
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                startApp();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

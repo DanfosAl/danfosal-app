@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debtors - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="keyboard-navigation.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <!-- Theme Toggle Removed -->
+
+    <!-- Red Dot Notification -->
+    <div class="red-dot" title="New notifications available"></div>
+
+    <div class="max-w-2xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold gradient-text">Debtors</h1>
+                <p class="theme-text-secondary">List of individuals who owe you money.</p>
+            </div>
+             <a href="debts.html" class="glass-btn inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                Back
+            </a>
+        </header>
+
+        <div class="glass-container mb-8">
+            <h3 class="text-xl font-bold mb-4 theme-text">Add New Debtor</h3>
+            <div class="flex gap-4">
+                <input type="text" id="debtor-name-input" placeholder="Enter new debtor's name" class="flex-grow bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                <button id="add-debtor-btn" class="glass-btn bg-orange-600 hover:bg-orange-700">Add Debtor</button>
+            </div>
+        </div>
+
+        <div id="debtors-list-container" class="space-y-3">
+            <p class="theme-text-secondary text-center">Loading debtors...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const startApp = async () => {
+
+            const debtorsRef = collection(db, 'debtors');
+            const debtorsListContainer = document.getElementById('debtors-list-container');
+            const addDebtorBtn = document.getElementById('add-debtor-btn');
+
+            onSnapshot(query(debtorsRef), async (snapshot) => {
+                debtorsListContainer.innerHTML = '<p class="text-gray-500 text-center">Calculating balances...</p>';
+                if (snapshot.empty) {
+                    debtorsListContainer.innerHTML = '<p class="text-gray-500 text-center">No debtors found. Add one above!</p>';
+                    return;
+                }
+
+                const debtorPromises = snapshot.docs.map(async (debtorDoc) => {
+                    const debtor = { id: debtorDoc.id, ...debtorDoc.data() };
+                    const invoicesRef = collection(db, `debtors/${debtor.id}/invoices`);
+                    const invoicesSnap = await getDocs(invoicesRef);
+                    let totalBalance = 0;
+                    invoicesSnap.forEach(invoiceDoc => {
+                        totalBalance += invoiceDoc.data().remainingBalance || 0;
+                    });
+                    return { ...debtor, totalBalance };
+                });
+
+                const debtorsWithBalances = await Promise.all(debtorPromises);
+
+                debtorsListContainer.innerHTML = '';
+                debtorsWithBalances.forEach(debtor => {
+                    const link = document.createElement('a');
+                    link.href = `invoices_list.html?debtorId=${debtor.id}&debtorName=${encodeURIComponent(debtor.name)}`;
+                    link.className = 'block glass-card p-4 hover:bg-white/5 transition-colors flex justify-between items-center';
+                    link.innerHTML = `
+                        <div>
+                            <h2 class="text-xl font-bold theme-text">${debtor.name}</h2>
+                        </div>
+                        <span class="text-lg font-semibold ${debtor.totalBalance > 0 ? 'text-red-400' : 'text-green-400'}">
+                            €${debtor.totalBalance.toFixed(2)}
+                        </span>
+                    `;
+                    debtorsListContainer.appendChild(link);
+                });
+            });
+
+            addDebtorBtn.addEventListener('click', async () => {
+                const nameInput = document.getElementById('debtor-name-input');
+                if (nameInput.value.trim()) {
+                    await addDoc(debtorsRef, { name: nameInput.value.trim() });
+                    nameInput.value = '';
+                }
+            });
+        };
+
+        // Wait for authentication before loading data
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                startApp();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

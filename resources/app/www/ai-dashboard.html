@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Dashboard - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="glassmorphism.css">
+</head>
+<body class="min-h-screen">
+    
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 shadow-2xl">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='index.html'" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-all">
+                    <i class="fas fa-arrow-left mr-2"></i> Back
+                </button>
+                <div>
+                    <h1 class="text-3xl font-bold flex items-center gap-3">
+                        <i class="fas fa-robot"></i>
+                        AI Command Center
+                    </h1>
+                    <p class="text-purple-100 mt-1">Smart insights and automated actions for your business</p>
+                </div>
+            </div>
+            <button onclick="refreshAllAI()" class="bg-white/20 hover:bg-white/30 px-6 py-3 rounded-lg transition-all font-semibold">
+                <i class="fas fa-sync mr-2"></i> Refresh All
+            </button>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-6">
+        
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            
+            <!-- Next Actions Summary -->
+            <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-2xl p-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">📋 Next Actions</h3>
+                    <div id="actionsCount" class="bg-white/30 px-4 py-2 rounded-lg text-2xl font-bold">-</div>
+                </div>
+                <p id="actionsDescription" class="text-green-50">Loading recommendations...</p>
+                <div class="mt-4 flex gap-2">
+                    <div id="criticalActions" class="bg-white/20 px-3 py-1 rounded text-sm">0 Critical</div>
+                    <div id="highActions" class="bg-white/20 px-3 py-1 rounded text-sm">0 High</div>
+                </div>
+            </div>
+
+            <!-- Anomalies Summary -->
+            <div class="bg-gradient-to-br from-red-500 to-pink-600 rounded-xl shadow-2xl p-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">⚠️ Anomalies</h3>
+                    <div id="anomaliesCount" class="bg-white/30 px-4 py-2 rounded-lg text-2xl font-bold">-</div>
+                </div>
+                <p id="anomaliesDescription" class="text-red-50">Scanning for unusual patterns...</p>
+                <div class="mt-4 flex gap-2">
+                    <div id="criticalAnomalies" class="bg-white/20 px-3 py-1 rounded text-sm">0 Critical</div>
+                                        <div id="warningAnomalies" class="bg-white/20 px-3 py-1 rounded text-sm">0 Warning</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Next Best Actions Panel -->
+            <div class="bg-white rounded-xl shadow-2xl p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-tasks text-green-600"></i>
+                        Recommended Actions
+                    </h2>
+                    <span id="actionsTimestamp" class="text-sm text-gray-500"></span>
+                </div>
+                
+                <div id="actionsLoading" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600">Analyzing business data...</p>
+                </div>
+                
+                <div id="actionsList" class="space-y-4 hidden"></div>
+                
+                <div id="noActions" class="text-center py-12 hidden">
+                    <i class="fas fa-check-circle text-6xl text-green-400 mb-4"></i>
+                    <p class="text-gray-600 text-lg font-semibold">All caught up!</p>
+                    <p class="text-gray-500">No urgent actions needed right now</p>
+                </div>
+            </div>
+
+            <!-- Anomaly Detection Panel -->
+            <div class="bg-white rounded-xl shadow-2xl p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-red-600"></i>
+                        Anomaly Alerts
+                    </h2>
+                    <span id="anomaliesTimestamp" class="text-sm text-gray-500"></span>
+                </div>
+                
+                <div id="anomaliesLoading" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600">Detecting anomalies...</p>
+                </div>
+                
+                <div id="anomaliesList" class="space-y-4 hidden"></div>
+                
+                <div id="noAnomalies" class="text-center py-12 hidden">
+                    <i class="fas fa-shield-alt text-6xl text-green-400 mb-4"></i>
+                    <p class="text-gray-600 text-lg font-semibold">All Clear!</p>
+                    <p class="text-gray-500">No anomalies detected in your business data</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & AI Scripts -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        window.db = db;
+        window.firebaseImports = { collection, getDocs, query, where, orderBy, limit, addDoc };
+
+        // Wait for authentication before initializing
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                if (window.setAuthReady) window.setAuthReady();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+    
+    <script src="anomaly-detection.js"></script>
+    <script src="next-action-ai.js"></script>
+    
+    <script>
+        let anomalyDetector = null;
+        let nextActionAI = null;
+        
+        // Initialize AI systems
+        async function initializeAI() {
+            anomalyDetector = new AnomalyDetection(window.db, window.firebaseImports);
+            nextActionAI = new NextActionAI(window.db, window.firebaseImports);
+            
+            await refreshAllAI();
+        }
+        
+        // Refresh all AI insights
+        async function refreshAllAI() {
+            await Promise.all([
+                loadNextActions(),
+                loadAnomalies()
+            ]);
+        }
+        
+        // Load Next Actions
+        async function loadNextActions() {
+            const loadingEl = document.getElementById('actionsLoading');
+            const listEl = document.getElementById('actionsList');
+            const noActionsEl = document.getElementById('noActions');
+            
+            loadingEl.classList.remove('hidden');
+            listEl.classList.add('hidden');
+            noActionsEl.classList.add('hidden');
+            
+            try {
+                const result = await nextActionAI.generateDailyActions();
+                const actions = result.actions;
+                
+                // Update summary cards
+                document.getElementById('actionsCount').textContent = actions.length;
+                document.getElementById('criticalActions').textContent = result.summary.byPriority.Critical + ' Critical';
+                document.getElementById('highActions').textContent = result.summary.byPriority.High + ' High';
+                
+                if (actions.length > 0) {
+                    document.getElementById('actionsDescription').textContent = 
+                        `Top priority: ${actions[0].title.substring(0, 50)}...`;
+                } else {
+                    document.getElementById('actionsDescription').textContent = 'All tasks complete!';
+                }
+                
+                document.getElementById('actionsTimestamp').textContent = 
+                    'Updated ' + new Date().toLocaleTimeString();
+                
+                loadingEl.classList.add('hidden');
+                
+                if (actions.length === 0) {
+                    noActionsEl.classList.remove('hidden');
+                } else {
+                    listEl.innerHTML = actions.slice(0, 10).map(action => renderAction(action)).join('');
+                    listEl.classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Error loading actions:', error);
+                loadingEl.innerHTML = '<p class="text-red-600">Error loading actions. Please try again.</p>';
+            }
+        }
+        
+        // Render Action Card
+        function renderAction(action) {
+            const priorityColors = {
+                'Critical': 'bg-red-100 border-red-500 text-red-800',
+                'High': 'bg-orange-100 border-orange-500 text-orange-800',
+                'Medium': 'bg-yellow-100 border-yellow-500 text-yellow-800',
+                'Low': 'bg-blue-100 border-blue-500 text-blue-800'
+            };
+            
+            const priorityIcons = {
+                'Critical': 'fa-exclamation-circle',
+                'High': 'fa-arrow-up',
+                'Medium': 'fa-minus',
+                'Low': 'fa-arrow-down'
+            };
+            
+            const colorClass = priorityColors[action.priority] || priorityColors['Medium'];
+            const iconClass = priorityIcons[action.priority] || priorityIcons['Medium'];
+            
+            let actionButton = '';
+            if (action.actionType === 'whatsapp_message' && action.actionData && action.actionData.phone) {
+                const phone = action.actionData.phone.replace(/\D/g, '');
+                const msg = encodeURIComponent(action.actionData.message || '');
+                const url = `https://wa.me/${phone}?text=${msg}`;
+                
+                actionButton = `
+                    <a href="${url}" target="_blank" class="mt-3 inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors">
+                        <i class="fab fa-whatsapp mr-2"></i> Send Message
+                    </a>
+                `;
+            } else if (action.actionType === 'reorder' && action.actionData && action.actionData.productId) {
+                 actionButton = `
+                    <button onclick="window.location.href='to_order.html'" class="mt-3 inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors">
+                        <i class="fas fa-shopping-cart mr-2"></i> Add to Order List
+                    </button>
+                `;
+            }
+            
+            return `
+                <div class="border-l-4 ${colorClass} rounded-lg p-4 hover:shadow-lg transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i class="fas ${iconClass}"></i>
+                                <span class="text-xs font-semibold px-2 py-1 rounded">${action.priority}</span>
+                                <span class="text-xs text-gray-500">${action.category}</span>
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-lg">${action.title}</h3>
+                            <p class="text-gray-600 text-sm mt-1">${action.description}</p>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-2xl font-bold text-gray-700">${action.score}</div>
+                            <div class="text-xs text-gray-500">score</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-white/50 p-3 rounded">
+                        <p class="text-sm text-gray-700"><strong>Action:</strong> ${action.actionRequired}</p>
+                    </div>
+                    ${actionButton}
+                    ${renderActionContext(action.context)}
+                </div>
+            `;
+        }
+        
+        function renderActionContext(context) {
+            if (!context) return '';
+            
+            let contextHtml = '<div class="mt-2 flex flex-wrap gap-2 text-xs">';
+            
+            if (context.customer) {
+                contextHtml += `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">👤 ${context.customer}</span>`;
+            }
+            if (context.phone) {
+                contextHtml += `<span class="bg-green-100 text-green-800 px-2 py-1 rounded">📞 ${context.phone}</span>`;
+            }
+            if (context.amount) {
+                contextHtml += `<span class="bg-purple-100 text-purple-800 px-2 py-1 rounded">💰 €${context.amount.toFixed(2)}</span>`;
+            }
+            if (context.product) {
+                contextHtml += `<span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded">📦 ${context.product}</span>`;
+            }
+            
+            contextHtml += '</div>';
+            return contextHtml;
+        }
+        
+        // Load Anomalies
+        async function loadAnomalies() {
+            const loadingEl = document.getElementById('anomaliesLoading');
+            const listEl = document.getElementById('anomaliesList');
+            const noAnomaliesEl = document.getElementById('noAnomalies');
+            
+            loadingEl.classList.remove('hidden');
+            listEl.classList.add('hidden');
+            noAnomaliesEl.classList.add('hidden');
+            
+            try {
+                const anomalies = await anomalyDetector.detectAllAnomalies();
+                const allAnomalies = [...anomalies.critical, ...anomalies.warning, ...anomalies.info];
+                
+                // Update summary cards
+                const totalCount = allAnomalies.length;
+                document.getElementById('anomaliesCount').textContent = totalCount;
+                document.getElementById('criticalAnomalies').textContent = anomalies.critical.length + ' Critical';
+                document.getElementById('warningAnomalies').textContent = anomalies.warning.length + ' Warning';
+                
+                if (allAnomalies.length > 0) {
+                    document.getElementById('anomaliesDescription').textContent = 
+                        allAnomalies[0].title.substring(0, 50) + '...';
+                } else {
+                    document.getElementById('anomaliesDescription').textContent = 'All systems normal';
+                }
+                
+                document.getElementById('anomaliesTimestamp').textContent = 
+                    'Updated ' + new Date().toLocaleTimeString();
+                
+                loadingEl.classList.add('hidden');
+                
+                if (totalCount === 0) {
+                    noAnomaliesEl.classList.remove('hidden');
+                } else {
+                    listEl.innerHTML = allAnomalies.map(anomaly => renderAnomaly(anomaly)).join('');
+                    listEl.classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Error loading anomalies:', error);
+                loadingEl.innerHTML = '<p class="text-red-600">Error detecting anomalies. Please try again.</p>';
+            }
+        }
+        
+        // Render Anomaly Card
+        function renderAnomaly(anomaly) {
+            const severityColors = {
+                'critical': 'bg-red-100 border-red-500 text-red-800',
+                'warning': 'bg-orange-100 border-orange-500 text-orange-800',
+                'info': 'bg-blue-100 border-blue-500 text-blue-800'
+            };
+            
+            const severityIcons = {
+                'critical': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            };
+            
+            const colorClass = severityColors[anomaly.severity] || severityColors['info'];
+            const iconClass = severityIcons[anomaly.severity] || severityIcons['info'];
+            
+            return `
+                <div class="border-l-4 ${colorClass} rounded-lg p-4 hover:shadow-lg transition-all">
+                    <div class="flex items-start gap-3">
+                        <i class="fas ${iconClass} text-2xl mt-1"></i>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-semibold px-2 py-1 rounded uppercase">${anomaly.severity}</span>
+                                <span class="text-xs text-gray-500">${anomaly.type.replace('_', ' ')}</span>
+                            </div>
+                            <h3 class="font-bold text-gray-800">${anomaly.title}</h3>
+                            <p class="text-gray-600 text-sm mt-1">${anomaly.description}</p>
+                            <div class="mt-3 bg-white/50 p-3 rounded">
+                                <p class="text-sm text-gray-700"><strong>Recommendation:</strong> ${anomaly.recommendation}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Open Invoice Scanner
+        function openInvoiceScanner() {
+            window.location.href = 'invoice-scanner.html';
+        }
+        
+        // Make functions globally accessible
+        window.refreshAllAI = refreshAllAI;
+        window.openInvoiceScanner = openInvoiceScanner;
+        
+        // Wait for both page load AND authentication
+        let pageLoaded = false;
+        let userAuthenticated = false;
+        
+        function checkAndInitialize() {
+            if (pageLoaded && userAuthenticated) {
+                initializeAI();
+            }
+        }
+        
+        window.addEventListener('load', () => {
+            pageLoaded = true;
+            checkAndInitialize();
+        });
+        
+        // Auth check in module script above will set userAuthenticated = true
+        window.setAuthReady = () => {
+            userAuthenticated = true;
+            checkAndInitialize();
+        };
+    </script>
+</body>
+</html>

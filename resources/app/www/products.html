@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Product Management - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366F1", // Indigo/Blurple
+                        secondary: "#EC4899", // Pink/Magenta
+                        success: "#10B981", // Green
+                        warning: "#F59E0B", // Amber
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#0F111A",
+                        "surface-dark": "#1E2030",
+                        "surface-hover": "#2D3045",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1E2030; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4B5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6B7280; 
+        }
+        .glow-effect {
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.15);
+        }
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 font-sans min-h-screen flex flex-col transition-colors duration-300">
+    
+    <!-- Header -->
+    <header class="w-full bg-white dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex justify-between items-center z-10 sticky top-0">
+        <div class="flex items-center gap-4">
+            <a href="store-sales.html" class="flex items-center gap-2 group">
+                <div class="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                    <span class="material-icons-outlined">arrow_back</span>
+                </div>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+                    Danfosal Products
+                </h1>
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-300 border border-primary/20">
+                        Store Management
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="relative hidden md:block group">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 group-focus-within:text-primary transition-colors">
+                    <span class="material-icons-outlined text-[20px]">search</span>
+                </span>
+                <input id="global-search" class="pl-10 pr-4 py-2 bg-gray-100 dark:bg-[#151725] border-transparent focus:border-primary focus:ring-primary rounded-lg text-sm w-64 focus:w-80 transition-all duration-300 dark:text-white placeholder-gray-500" placeholder="Search products..." type="text"/>
+            </div>
+            <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-hover text-gray-500 dark:text-gray-400 transition-colors relative">
+                <span class="material-icons-outlined">notifications</span>
+                <span class="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full"></span>
+            </button>
+            <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-primary to-secondary p-[2px] cursor-pointer">
+                <div class="h-full w-full rounded-full bg-surface-dark flex items-center justify-center overflow-hidden">
+                    <img alt="User Avatar" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANwC-5VPr1b-o1ZXtDGcGyvSejeb2QB9LNcOMKI71-tw_LMjh7JvI7ClMeHnEUjMAGscuyAEdwgtyMaKVT84Z1fpsUQm3OGb5OYjPY9LbbASFXxeXOxORZxf8SC3j4vifIAxps6grNcw3xr922qOlRXPB6_Vgy5YNK0yN8n-Tuv3lCk8Q6nZEAufoGMkIrZg6BpieelqqcLqxCLdeh9SmnNiSVmdcYj2PJRRbrYxneg2NuCbX71R7RFwbutJujWtfIS3QFSihwxGlA"/>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 p-6 overflow-hidden flex gap-6">
+        <!-- Main Content: Product List -->
+        <section class="flex-1 flex flex-col min-w-0">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Inventory</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" id="inventory-count-label">Loading items...</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="resetForm()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors shadow-lg shadow-primary/20">
+                        <span class="material-icons-outlined text-sm">add</span>
+                        New Product
+                    </button>
+                    <button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-surface-hover transition-colors">
+                        <span class="material-icons-outlined text-sm">filter_list</span>
+                        Filter
+                    </button>
+                    <button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-surface-hover transition-colors">
+                        <span class="material-icons-outlined text-sm">file_download</span>
+                        Export
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-lg flex-1 flex flex-col">
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 dark:bg-[#25283D] text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+                            <tr>
+                                <th class="px-6 py-4">Product Name</th>
+                                <th class="px-6 py-4">SKU / Code</th>
+                                <th class="px-6 py-4 text-center">Stock</th>
+                                <th class="px-6 py-4 text-right">Price</th>
+                                <th class="px-6 py-4 text-center">Status</th>
+                                <th class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table-body" class="divide-y divide-gray-200 dark:divide-gray-700/50">
+                            <!-- Products injected here -->
+                            <tr><td colspan="6" class="text-center py-10 text-gray-500">Loading products...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination (Visual only for now) -->
+                <div class="mt-auto px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-[#25283D]">
+                    <span class="text-xs text-gray-500 dark:text-gray-400" id="showing-label">Showing all products</span>
+                    <div class="flex gap-2">
+                        <button class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 disabled:opacity-50">
+                            <span class="material-icons-outlined text-sm">chevron_left</span>
+                        </button>
+                        <button class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+                            <span class="material-icons-outlined text-sm">chevron_right</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar: Edit/Add Product -->
+        <aside class="w-96 flex flex-col gap-6 shrink-0">
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gradient-to-br from-secondary to-pink-600 rounded-xl p-4 text-white shadow-lg glow-effect">
+                    <div class="flex items-start justify-between">
+                        <span class="material-icons-outlined opacity-80">inventory_2</span>
+                        <span class="text-xs font-medium bg-white/20 px-2 py-0.5 rounded">Total</span>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-2xl font-bold" id="stat-total-items">0</h3>
+                        <p class="text-xs opacity-80">Items in stock</p>
+                    </div>
+                </div>
+                <div class="bg-surface-dark border border-gray-700 rounded-xl p-4 text-white shadow-lg">
+                    <div class="flex items-start justify-between text-warning">
+                        <span class="material-icons-outlined">warning</span>
+                        <span class="text-xs font-medium bg-warning/10 px-2 py-0.5 rounded border border-warning/20">Low</span>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-2xl font-bold text-gray-200" id="stat-low-stock">0</h3>
+                        <p class="text-xs text-gray-400">Need reorder</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <div class="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl flex flex-col flex-1 h-full overflow-hidden">
+                <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 class="font-semibold text-lg text-gray-900 dark:text-white" id="form-title">New Product</h3>
+                    <div class="flex gap-2">
+                        <span class="text-xs text-gray-500 dark:text-gray-400" id="form-id-display"></span>
+                    </div>
+                </div>
+                
+                <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                    <!-- Image Upload (Visual) -->
+                    <div class="flex justify-center">
+                        <div class="relative group cursor-pointer">
+                            <div class="w-32 h-32 rounded-xl bg-gray-100 dark:bg-[#151725] border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center hover:border-primary dark:hover:border-primary transition-colors overflow-hidden">
+                                <img id="form-image-preview" alt="Product Preview" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity hidden" src=""/>
+                                <span class="material-icons-outlined text-gray-400 group-hover:text-primary z-10">cloud_upload</span>
+                                <span class="text-xs text-gray-500 mt-1 z-10">Image URL</span>
+                            </div>
+                            <div class="absolute -bottom-2 -right-2 bg-primary text-white rounded-full p-1.5 shadow-md">
+                                <span class="material-icons-outlined text-sm">edit</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Image URL</label>
+                            <input id="form-image" class="w-full bg-gray-50 dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary px-3 py-2.5" type="text" placeholder="https://..."/>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Product Name</label>
+                            <input id="form-name" class="w-full bg-gray-50 dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary px-3 py-2.5" type="text" placeholder="e.g. Nike Air Max"/>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Producer</label>
+                                <input id="form-producer" list="producers-list" class="w-full bg-gray-50 dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary px-3 py-2.5" placeholder="Select or type..."/>
+                                <datalist id="producers-list"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">SKU / Code</label>
+                                <input id="form-code" class="w-full bg-gray-50 dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary px-3 py-2.5 uppercase font-mono" type="text" placeholder="CODE-123"/>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-gray-50 dark:bg-[#151725]/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Inventory Details</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Price (€)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-500">€</span>
+                                    <input id="form-price" class="w-full pl-7 bg-white dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary py-2.5" type="number" step="0.01" placeholder="0.00"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Base Cost (€)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-500">€</span>
+                                    <input id="form-cost" class="w-full pl-7 bg-white dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary py-2.5" type="number" step="0.01" placeholder="0.00"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Stock Level</label>
+                            <div class="flex items-center gap-2">
+                                <button onclick="adjustFormStock(-1)" class="w-8 h-8 rounded bg-white dark:bg-[#151725] border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:text-primary transition-colors">
+                                    <span class="material-icons-outlined text-sm">remove</span>
+                                </button>
+                                <input id="form-stock" class="flex-1 text-center bg-white dark:bg-[#151725] border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-primary focus:border-primary py-1.5" type="number" value="0"/>
+                                <button onclick="adjustFormStock(1)" class="w-8 h-8 rounded bg-white dark:bg-[#151725] border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:text-primary transition-colors">
+                                    <span class="material-icons-outlined text-sm">add</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#151725]/30 rounded-b-xl flex gap-3">
+                    <button onclick="resetForm()" class="flex-1 px-4 py-2 bg-white dark:bg-transparent border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="saveProduct()" class="flex-1 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-primary/30 transition-all transform active:scale-95">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, deleteDoc, updateDoc, where, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.allProducts = [];
+        let currentEditId = null;
+
+        // Initialize
+        function init() {
+            const productsRef = collection(db, 'products');
+            onSnapshot(query(productsRef), (snapshot) => {
+                window.allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTable(window.allProducts);
+                updateStats();
+                updateProducersList();
+            });
+        }
+
+        function renderTable(products) {
+            const tbody = document.getElementById('products-table-body');
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500">No products found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = products.map(p => {
+                const stock = p.stock || 0;
+                let statusHtml = '';
+                if (stock === 0) {
+                    statusHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Out of Stock</span>`;
+                } else if (stock < 5) {
+                    statusHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Low Stock</span>`;
+                } else {
+                    statusHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>Active</span>`;
+                }
+
+                return `
+                <tr class="hover:bg-gray-50 dark:hover:bg-surface-hover transition-colors group cursor-pointer ${currentEditId === p.id ? 'bg-primary/5 dark:bg-primary/5 border-l-2 border-primary' : ''}" onclick="editProduct('${p.id}')">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-700">
+                                <img alt="${p.name}" class="h-full w-full object-cover" src="${p.image || 'https://via.placeholder.com/100?text=No+Img'}"/>
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white group-hover:text-primary transition-colors">${p.name}</div>
+                                <div class="text-xs text-gray-500">${p.producer || 'Unknown'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-mono">${p.code || '-'}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 rounded-md ${stock < 5 ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'} text-xs font-semibold">${stock}</span>
+                    </td>
+                    <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">€${(p.price || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-center">${statusHtml}</td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="event.stopPropagation(); editProduct('${p.id}')" class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-primary dark:text-gray-400 transition-colors">
+                                <span class="material-icons-outlined text-lg">edit</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteProduct('${p.id}')" class="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors">
+                                <span class="material-icons-outlined text-lg">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+            
+            document.getElementById('inventory-count-label').textContent = `Manage your catalog of ${products.length} items`;
+            document.getElementById('showing-label').textContent = `Showing ${products.length} products`;
+        }
+
+        window.editProduct = function(id) {
+            const p = window.allProducts.find(x => x.id === id);
+            if (!p) return;
+            
+            currentEditId = id;
+            document.getElementById('form-title').textContent = 'Edit Product';
+            document.getElementById('form-id-display').textContent = `ID: #${id.substring(0,6)}`;
+            
+            document.getElementById('form-name').value = p.name || '';
+            document.getElementById('form-code').value = p.code || '';
+            document.getElementById('form-producer').value = p.producer || '';
+            document.getElementById('form-price').value = p.price || 0;
+            document.getElementById('form-cost').value = p.baseCost || p.cost || 0;
+            document.getElementById('form-stock').value = p.stock || 0;
+            document.getElementById('form-image').value = p.image || '';
+            
+            updateImagePreview(p.image);
+            renderTable(window.allProducts); // Re-render to show active state
+        };
+
+        window.resetForm = function() {
+            currentEditId = null;
+            document.getElementById('form-title').textContent = 'New Product';
+            document.getElementById('form-id-display').textContent = '';
+            
+            document.getElementById('form-name').value = '';
+            document.getElementById('form-code').value = '';
+            document.getElementById('form-producer').value = '';
+            document.getElementById('form-price').value = '';
+            document.getElementById('form-cost').value = '';
+            document.getElementById('form-stock').value = '0';
+            document.getElementById('form-image').value = '';
+            
+            updateImagePreview('');
+            renderTable(window.allProducts);
+        };
+
+        window.saveProduct = async function() {
+            const name = document.getElementById('form-name').value.trim();
+            const code = document.getElementById('form-code').value.trim();
+            const producer = document.getElementById('form-producer').value.trim();
+            const price = parseFloat(document.getElementById('form-price').value) || 0;
+            const baseCost = parseFloat(document.getElementById('form-cost').value) || 0;
+            const stock = parseInt(document.getElementById('form-stock').value) || 0;
+            const image = document.getElementById('form-image').value.trim();
+
+            if (!name || !producer) {
+                alert('Name and Producer are required.');
+                return;
+            }
+
+            const data = {
+                name, code, producer, price, baseCost, stock, image,
+                cost: baseCost * 1.20 // Auto calc VAT cost
+            };
+
+            try {
+                if (currentEditId) {
+                    await updateDoc(doc(db, 'products', currentEditId), data);
+                    // alert('Product updated');
+                } else {
+                    await addDoc(collection(db, 'products'), data);
+                    // alert('Product created');
+                    resetForm();
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error saving product: ' + e.message);
+            }
+        };
+
+        window.deleteProduct = async function(id) {
+            if (confirm('Delete this product?')) {
+                try {
+                    await deleteDoc(doc(db, 'products', id));
+                    if (currentEditId === id) resetForm();
+                } catch (e) {
+                    console.error(e);
+                    alert('Error deleting product');
+                }
+            }
+        };
+
+        window.adjustFormStock = function(delta) {
+            const input = document.getElementById('form-stock');
+            let val = parseInt(input.value) || 0;
+            val += delta;
+            if (val < 0) val = 0;
+            input.value = val;
+        };
+
+        function updateImagePreview(url) {
+            const img = document.getElementById('form-image-preview');
+            if (url) {
+                img.src = url;
+                img.classList.remove('hidden');
+            } else {
+                img.classList.add('hidden');
+            }
+        }
+        
+        document.getElementById('form-image').addEventListener('input', (e) => updateImagePreview(e.target.value));
+
+        function updateStats() {
+            const total = window.allProducts.length;
+            const low = window.allProducts.filter(p => (p.stock || 0) < 5).length;
+            document.getElementById('stat-total-items').textContent = total;
+            document.getElementById('stat-low-stock').textContent = low;
+        }
+
+        function updateProducersList() {
+            const producers = [...new Set(window.allProducts.map(p => p.producer).filter(Boolean))];
+            document.getElementById('producers-list').innerHTML = producers.map(p => `<option value="${p}">`).join('');
+        }
+
+        // Search
+        document.getElementById('global-search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = window.allProducts.filter(p => 
+                p.name.toLowerCase().includes(term) || 
+                (p.code && p.code.toLowerCase().includes(term)) ||
+                (p.producer && p.producer.toLowerCase().includes(term))
+            );
+            renderTable(filtered);
+        });
+
+        // Wait for authentication before initializing
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                init();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

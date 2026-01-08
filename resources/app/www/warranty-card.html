@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warranty Card - Kärcher</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            font-size: 9pt;
+            line-height: 1.3;
+        }
+        
+        .page-container {
+            width: 297mm;
+            height: 210mm;
+            padding: 4mm 8mm;
+            margin: 0 auto;
+            background: white;
+            display: flex;
+            gap: 10mm;
+            align-items: stretch;
+        }
+        
+        .left-column {
+            flex: 1;
+            font-size: 8pt;
+            line-height: 1.3;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .right-column {
+            width: 48%;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .logo {
+            text-align: right;
+            margin-bottom: 12px;
+        }
+        
+        .logo-text {
+            font-size: 40pt;
+            font-weight: 900;
+            font-family: Arial, sans-serif;
+            letter-spacing: 3px;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 4px;
+        }
+        
+        .logo-text::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: #FFD700;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+        
+        .warranty-card {
+            border: 2px solid #000;
+            margin-bottom: 15px;
+        }
+        
+        .header-text {
+            font-size: 8pt;
+            padding: 8px 10px;
+            line-height: 1.3;
+            border-bottom: 2px solid #000;
+            background: white;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        td {
+            border: none;
+            border-bottom: 2px solid #000;
+            padding: 6px 10px;
+            font-size: 9pt;
+            vertical-align: middle;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .label {
+            width: 140px;
+            background: #d6e4f5;
+            font-weight: normal;
+            color: #000;
+            border-right: 2px solid #000;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+        
+        .value {
+            font-weight: bold;
+            font-size: 10pt;
+            background: white;
+            color: #000;
+        }
+        
+        .repairs-section {
+            border: 2px solid #000;
+        }
+        
+        .repairs-header {
+            font-size: 8pt;
+            padding: 6px 10px;
+            border-bottom: 2px solid #000;
+            font-weight: normal;
+        }
+        
+        .repairs-table td {
+            padding: 5px 10px;
+            font-size: 8pt;
+        }
+        
+        .repairs-label {
+            background: #d6e4f5;
+            border-right: 2px solid #000;
+            width: 60px;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+        
+        .company-info {
+            margin-top: 8px;
+            font-size: 7.5pt;
+            line-height: 1.3;
+        }
+        
+        h3 {
+            font-size: 10pt;
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+        
+        p {
+            margin: 2px 0;
+            text-align: justify;
+        }
+        
+        ul {
+            margin: 2px 0;
+            padding-left: 15px;
+        }
+        
+        li {
+            margin: 1px 0;
+        }
+        
+        ul {
+            margin: 2px 0;
+            padding-left: 12px;
+        }
+        
+        li {
+            margin: 1px 0;
+        }
+        
+        strong {
+            font-weight: bold;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: right; padding: 15px; background: #f5f5f5; border-bottom: 2px solid #ddd;">
+        <button onclick="window.print()" style="background: #4285f4; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            🖨️ Print Warranty Card
+        </button>
+        <button onclick="goBack()" style="background: #666; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 8px;">
+            ← Back to Store Sales
+        </button>
+    </div>
+
+    <div class="page-container">
+        <!-- Left Column - Terms and Conditions -->
+        <div class="left-column">
+            <h3>Të drejtat e përdoruesit për produktet KÄRCHER</h3>
+            <p>Pajisjet KÄRCHER prodhohen me kujdes të veçantë dhe i nënshtrohen kontrollit të detajuar të cilësisë para dorëzimit. Megjithatë, nëse pajisja juaj paraqet një defekt prodhimi ose materiali, ju keni të drejtë të përfitoni nga garancia sipas kushteve të mëposhtme. Për të përfituar garancinë duhet të paraqisni pajisjen së bashku me faturën dhe kartën e garancisë të plotësuar.</p>
+
+            <p><strong>1.</strong> Gjatë periudhës së garancisë eliminojmë pa pagesë defektet e shkaktuara nga prodhimi ose materiali dhe pjesët e zëvendësuara që rezultojnë me defekt. Kjo garanci nuk cenon të drejtat tuaja të tjera ligjore (p.sh. përgjegjësia për defekte materiale).</p>
+
+            <p><strong>2.</strong> Nëse pajisja juaj KÄRCHER pëson defekt gjatë periudhës së garancisë (së bashku me aksesorët e dorëzuar me pajisjen), mund ta paraqisni në pikën e shitjes ku është blerë ose tek një partner i autorizuar i shërbimit KÄRCHER. Pikat e shërbimit mund të gjenden në faqen zyrtare: www.kaercher.com.</p>
+
+            <p><strong>3.</strong> Periudha e garancisë për pajisjet Home &amp; Garden (linja e verdhë dhe e bardhë) është <strong>12 muaj</strong>. Nëse përdoren për qëllime profesionale ose komerciale, periudha e garancisë është <strong>0 muaj</strong>. E drejta e garancisë vërtetohet vetëm me faturë blerjeje dhe kartë garancie të plotësuar. Riparimi i pajisjes duhet të kryhet brenda një afati maksimal prej 45 ditësh nga paraqitja/raportimi i defektit.</p>
+
+            <p><strong>4.</strong> Pajisjet portative KÄRCHER duhet të sillen ose të dërgohen së bashku me aksesorët standardë në pikën ku është blerë pajisja ose në një qendër të autorizuar shërbimi.</p>
+
+            <p><strong>5.</strong> Riparimi në vend (tek klienti) mund të kërkohet vetëm për pajisje KÄRCHER stacionare ose pajisje të mëdha, kur kjo është teknikisht e arsyeshme. Pas përfundimit të periudhës së garancisë, shpenzimet e transportit dhe të daljes në vend i mban klienti.</p>
+
+            <p><strong>6.</strong> E drejta e garancisë nuk zbatohet në rastet e mëposhtme:</p>
+            <ul>
+                <li>nëse defekti ka ardhur si pasojë e zjarrit, përmbytjes, tërmetit, rrufesë, vjedhjes ose rasteve të tjera të forcës madhore;</li>
+                <li>nëse pajisja është përdorur në mënyrë të pasaktë, jashtë udhëzimeve të prodhuesit, ose nuk është mirëmbajtur sipas manualit;</li>
+                <li>për dëmtime të shkaktuara nga përdorimi i karburantit, vajrave ose lubrifikantëve të papërshtatshëm;</li>
+                <li>për konsum normal të pjesëve (furça, gryka, gypa, filtra, gomina, bateri të konsumueshme);</li>
+                <li>nëse janë përdorur pjesë këmbimi ose aksesorë jo origjinalë ose riparimi është bërë nga persona të paautorizuar;</li>
+                <li>nëse është bërë ndërhyrje/modifikim në pajisje pa miratimin e prodhuesit.</li>
+            </ul>
+
+            <p><strong>7.</strong> Nëse i njëjti defekt shfaqet përsëri brenda 6 muajve nga riparimi i bërë gjatë garancisë, defekti do të riparohet sërish pa pagesë, nëse shkaku është i njëjtë me defektin fillestar ose ka ardhur si pasojë e riparimit të mëparshëm.</p>
+
+            <p><strong>8.</strong> Kërkesa të tjera për dëmshpërblim (p.sh. për ndërprerje pune, humbje fitimi, dëme pasuese) nuk pranohen, përveç rasteve kur kjo parashikohet shprehimisht me ligj.</p>
+
+            <p><strong>Garancia është e vlefshme në të gjithë territorin e Republikës së Shqipërisë.</strong></p>
+            <p><strong>** Në të gjitha rastet e tjera zbatohen kushtet standarde të garancisë së KÄRCHER.</strong></p>
+            <p><strong>DANFOS SH.P.K, Rr. "Konferenca e Pezës", Mistomame, Tiranë 1027, Shqipëri – Tel: +355 69 203 6908 – Email: info@danfosal.com – NIPT: M41828015A</strong></p>
+
+        </div>
+
+        <!-- Right Column - Warranty Card and Repairs -->
+        <div class="right-column">
+                <div class="logo">
+                    <div class="logo-text">KÄRCHER</div>
+                </div>
+                
+                <div class="warranty-card">
+                    <div class="header-text">
+                        Në mënyrë që garancia të jetë e vlefshme në rast të një defekti, është e nevojshme që shitësi të fusë të gjitha informacionet e kërkuara gjatë plotësimit të kartës së garancisë:
+                    </div>
+                    
+                    <table>
+                        <tr>
+                            <td class="label">Emri i produktit:</td>
+                            <td class="value" id="product-name"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Numri i katalogu të produktit:</td>
+                            <td class="value" id="catalog-number"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Numri serial i produktit:</td>
+                            <td class="value" id="serial-number"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Blerësi:</td>
+                            <td class="value" id="buyer-name"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Data e blerjes:</td>
+                            <td class="value" id="purchase-date"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Vendi i shitjes:</td>
+                            <td class="value" id="sale-location"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Nënshkrimi dhe vula e shitësit:</td>
+                            <td class="value" style="min-height: 25px;"></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="repairs-section">
+                    <div class="repairs-header">Riparimet e bëra:</div>
+                    <table class="repairs-table">
+                        <tr>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Data:</td>
+                            <td style="border-bottom: 2px solid #000; border-right: 2px solid #000; width: 70px;"></td>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Lloji i riparimit:</td>
+                            <td style="border-bottom: 2px solid #000;"></td>
+                        </tr>
+                        <tr>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Data:</td>
+                            <td style="border-bottom: 2px solid #000; border-right: 2px solid #000; width: 70px;"></td>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Lloji i riparimit:</td>
+                            <td style="border-bottom: 2px solid #000;"></td>
+                        </tr>
+                        <tr>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Data:</td>
+                            <td style="border-bottom: 2px solid #000; border-right: 2px solid #000; width: 70px;"></td>
+                            <td class="repairs-label" style="border-bottom: 2px solid #000;">Lloji i riparimit:</td>
+                            <td style="border-bottom: 2px solid #000;"></td>
+                        </tr>
+                        <tr>
+                            <td class="repairs-label">Data:</td>
+                            <td style="border-right: 2px solid #000; width: 70px;"></td>
+                            <td class="repairs-label">Lloji i riparimit:</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" style="height: 50px; vertical-align: top; padding-top: 5px;"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print styles to hide notifications when printing -->
+    <style media="print">        
+        /* Hide any notifications when printing */
+        div[style*="position: fixed"] {
+            display: none !important;
+        }
+    </style>
+
+    <script>
+        // Get data from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check for AI-sent data from localStorage
+        const fromAI = localStorage.getItem('warranty_from_ai');
+        
+        if (fromAI === 'true') {
+            // Use AI-sent data
+            const customerName = localStorage.getItem('warranty_customer_name') || '';
+            const productsData = JSON.parse(localStorage.getItem('warranty_products') || '[]');
+            const total = localStorage.getItem('warranty_total') || '';
+            
+            // Fill warranty card with AI data
+            document.getElementById('buyer-name').textContent = customerName;
+            
+            // Use first product for main product field
+            if (productsData.length > 0) {
+                document.getElementById('product-name').textContent = productsData[0].name || '';
+            }
+            
+            // Set current date as purchase date
+            const today = new Date();
+            const formatDate = today.getDate().toString().padStart(2, '0') + '/' + 
+                              (today.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                              today.getFullYear();
+            document.getElementById('purchase-date').textContent = formatDate;
+            document.getElementById('sale-location').textContent = 'Danfosal Store';
+            
+            // Show AI notification
+            showAIWarrantyNotification(customerName, total);
+            
+            // Clear stored data
+            localStorage.removeItem('warranty_customer_name');
+            localStorage.removeItem('warranty_products');
+            localStorage.removeItem('warranty_total');
+            localStorage.removeItem('warranty_from_ai');
+        } else {
+            // Use URL parameters (existing functionality)
+            document.getElementById('product-name').textContent = urlParams.get('product') || '';
+            document.getElementById('catalog-number').textContent = urlParams.get('catalog') || '';
+            document.getElementById('serial-number').textContent = urlParams.get('serial') || '';
+            document.getElementById('buyer-name').textContent = urlParams.get('buyer') || '';
+            document.getElementById('purchase-date').textContent = urlParams.get('date') || '';
+            document.getElementById('sale-location').textContent = urlParams.get('location') || '';
+        }
+        
+        function showAIWarrantyNotification(customerName, total) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+                color: white;
+                padding: 20px 24px;
+                border-radius: 12px;
+                font-weight: 600;
+                box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+                z-index: 10000;
+                animation: slideInRight 0.5s ease-out;
+                max-width: 400px;
+                font-family: Arial, sans-serif;
+                line-height: 1.4;
+            `;
+            
+            notification.innerHTML = `
+                🤖 <strong>AI Assistant Complete!</strong><br>
+                📄 Warranty card ready for ${customerName}<br>
+                💰 Order total: €${total}<br><br>
+                🎫 <strong>Print or save warranty card</strong><br>
+                <button onclick="this.parentElement.remove(); window.print();" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 8px; margin-right: 8px;">🖨️ Print</button>
+                <button onclick="this.parentElement.remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 8px;">✅ Done</button>
+            `;
+            
+            // Add animation styles
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 10 seconds if not manually closed
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOutRight 0.5s ease-out';
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 500);
+                }
+            }, 10000);
+        }
+        
+        // Navigation function
+        function goBack() {
+            // If user came from AI workflow, go back to store sales
+            const fromAI = localStorage.getItem('warranty_from_ai');
+            
+            if (window.history.length > 1) {
+                // Go back to previous page
+                window.history.back();
+            } else {
+                // Fallback to store sales page
+                window.location.href = 'store-sales.html';
+            }
+        }
+        
+        // Add keyboard shortcut for easy navigation
+        document.addEventListener('keydown', function(e) {
+            // ESC key to go back
+            if (e.key === 'Escape') {
+                goBack();
+            }
+            // Ctrl+P to print
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+        });
+    </script>
+</body>
+</html>

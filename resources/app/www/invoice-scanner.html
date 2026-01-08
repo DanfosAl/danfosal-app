@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 Invoice Scanner - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <!-- Tesseract.js OCR Library -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Header -->
+    <div class="bg-gray-900 border-b border-gray-800 text-white p-6 shadow-2xl">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='products.html'" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-all border border-gray-700">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Products
+                </button>
+                <div>
+                    <h1 class="text-3xl font-bold flex items-center gap-3">
+                        <i class="fas fa-barcode"></i>
+                        Smart Inventory Scanner
+                    </h1>
+                    <p class="text-gray-400 mt-1">Scan supplier invoices → Auto-update stock & costs</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-6">
+        
+        <!-- Step 1: Upload Invoice -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-8 mb-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">1</div>
+                <h2 class="text-2xl font-bold text-white">Upload Supplier Invoice</h2>
+            </div>
+            
+            <!-- Upload Section -->
+            <div id="uploadSection" class="text-center">
+                <div class="border-4 border-dashed border-gray-600 rounded-xl p-12 mb-6 hover:border-blue-500 transition-all cursor-pointer bg-gray-900/50" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-cloud-upload-alt text-6xl text-blue-400 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-white mb-2">Upload Invoice Image</h3>
+                    <p class="text-gray-300 mb-4 text-lg">Click to select or drag and drop your invoice photo</p>
+                    <p class="text-sm text-gray-400">Supports: JPG, PNG, PDF</p>
+                </div>
+                
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    accept="image/*,.pdf" 
+                    class="hidden"
+                    onchange="handleFileSelect(event)"
+                >
+                
+                <div class="flex gap-4 justify-center flex-wrap">
+                    <button onclick="document.getElementById('fileInput').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-file-upload mr-2"></i>
+                        Choose File
+                    </button>
+                    
+                    <button onclick="openCamera()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-camera mr-2"></i>
+                        Take Photo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Camera Section -->
+            <div id="cameraSection" class="hidden">
+                <div class="text-center mb-4">
+                    <h3 class="text-2xl font-bold text-white mb-2">Position Invoice in Frame</h3>
+                    <p class="text-gray-300 text-lg">Make sure text is clear and readable</p>
+                </div>
+                
+                <div class="relative">
+                    <video id="cameraPreview" autoplay playsinline class="w-full rounded-lg shadow-lg"></video>
+                    <canvas id="captureCanvas" class="hidden"></canvas>
+                </div>
+                
+                <div class="flex gap-4 justify-center mt-6">
+                    <button onclick="capturePhoto()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-camera mr-2"></i>
+                        Capture
+                    </button>
+                    <button onclick="closeCamera()" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-times mr-2"></i>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing Section -->
+            <div id="processingSection" class="hidden text-center py-12">
+                <i class="fas fa-spinner fa-spin text-6xl text-blue-500 mb-6"></i>
+                <h3 class="text-2xl font-bold text-white mb-2">Scanning Invoice...</h3>
+                <p class="text-gray-300 mb-4 text-lg" id="processingStatus">Initializing OCR engine...</p>
+                <div class="w-full bg-gray-700 rounded-full h-4 max-w-md mx-auto">
+                    <div id="processingProgress" class="bg-blue-600 h-4 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="previewSection" class="hidden">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">1</div>
+                    <h2 class="text-2xl font-bold text-white">Review Captured Image</h2>
+                </div>
+                <img id="previewImage" src="" alt="Invoice Preview" class="w-full rounded-lg shadow-lg mb-6 border-2 border-gray-200">
+                
+                <div class="flex gap-4 justify-center flex-wrap">
+                    <button onclick="processImage()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-magic mr-2"></i>
+                        Extract Data
+                    </button>
+                    <button onclick="resetScanner()" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transition-all">
+                        <i class="fas fa-redo mr-2"></i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            
+            <!-- Confidence Badge -->
+            <div id="confidenceBadge" class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-6 mb-6"></div>
+
+            <!-- Step 2: Extracted Data -->
+            <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-8">
+                <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">2</div>
+                        <h2 class="text-3xl font-bold text-white">Review Extracted Data</h2>
+                    </div>
+                    <button onclick="editData()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold text-lg transition-all">
+                        <i class="fas fa-edit mr-2"></i>
+                        Edit Data
+                    </button>
+                </div>
+
+                <!-- Invoice Header -->
+                <div class="bg-gray-900 border border-gray-700 rounded-xl p-6 mb-8">
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-info-circle text-blue-500"></i>
+                        Invoice Details
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-base font-bold text-gray-300 mb-2">Invoice Number</label>
+                            <input type="text" id="invoiceNumber" class="w-full border-2 border-gray-600 rounded-lg px-4 py-4 text-white font-semibold text-lg bg-gray-800" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-base font-bold text-gray-300 mb-2">Date</label>
+                            <input type="date" id="invoiceDate" class="w-full border-2 border-gray-600 rounded-lg px-4 py-4 text-white text-lg bg-gray-800" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-base font-bold text-gray-300 mb-2">Supplier</label>
+                            <input type="text" id="supplierName" class="w-full border-2 border-gray-600 rounded-lg px-4 py-4 text-white font-semibold text-lg bg-gray-800" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Items Table -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                        <h3 class="text-2xl font-bold text-white">Products Extracted</h3>
+                    </div>
+                    <div class="overflow-x-auto bg-gray-900 border border-gray-700 rounded-xl p-4">
+                        <table class="w-full" id="itemsTable">
+                            <thead class="bg-gray-800 border-b-2 border-gray-700">
+                                <tr>
+                                    <th class="text-left p-4 font-bold text-gray-200 text-base">Product</th>
+                                    <th class="text-center p-4 font-bold text-gray-200 text-base">Quantity</th>
+                                    <th class="text-right p-4 font-bold text-gray-200 text-base">Unit Price</th>
+                                    <th class="text-right p-4 font-bold text-gray-200 text-base">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody" class="text-base text-gray-200">
+                                <!-- Items will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="border-t-4 border-gray-700 pt-8">
+                    <div class="max-w-lg ml-auto bg-gray-900 border border-gray-700 rounded-xl p-6 space-y-4">
+                        <div class="flex justify-between text-xl">
+                            <span class="font-bold text-gray-300">Subtotal:</span>
+                            <span id="subtotal" class="font-bold text-white text-2xl">€0.00</span>
+                        </div>
+                        <div class="flex justify-between text-xl">
+                            <span class="font-bold text-gray-300">Tax/VAT:</span>
+                            <span id="tax" class="font-bold text-white text-2xl">€0.00</span>
+                        </div>
+                        <div class="flex justify-between text-2xl border-t-4 border-gray-700 pt-4">
+                            <span class="font-bold text-white">TOTAL:</span>
+                            <span id="total" class="font-bold text-blue-500 text-3xl">€0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-4 justify-center mt-10 flex-wrap">
+                    <button onclick="resetScanner()" class="bg-gray-500 hover:bg-gray-600 text-white px-8 py-4 rounded-lg font-bold text-xl shadow-lg transition-all">
+                        <i class="fas fa-times mr-2"></i>
+                        Cancel
+                    </button>
+                    <button onclick="saveToPurchaseOrders()" class="bg-green-600 hover:bg-green-700 text-white px-12 py-5 rounded-lg font-bold text-xl shadow-2xl transition-all transform hover:scale-105">
+                        <i class="fas fa-save mr-2"></i>
+                        Confirm & Save to Inventory
+                    </button>
+                </div>
+
+                <!-- Warnings -->
+                <div id="warningsSection" class="hidden mt-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & OCR Scripts -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.firebasestorage.app",
+            messagingSenderId: "105537088994",
+            appId: "1:105537088994:web:0bb3a6f30e0cdc5d318607"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        window.db = db;
+        window.firebaseImports = { collection, getDocs, addDoc };
+    </script>
+    
+    <script src="invoice-ocr.js"></script>
+    
+    <script>
+        let invoiceOCR = null;
+        let currentImage = null;
+        let extractedData = null;
+        let cameraStream = null;
+        
+        // Initialize OCR
+        function initOCR() {
+            invoiceOCR = new InvoiceOCR(window.db, window.firebaseImports);
+        }
+        
+        // Handle file selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImage = e.target.result;
+                    showPreview(currentImage);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // Open camera
+        async function openCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                cameraStream = stream;
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = stream;
+                
+                document.getElementById('uploadSection').classList.add('hidden');
+                document.getElementById('cameraSection').classList.remove('hidden');
+                
+            } catch (error) {
+                alert('Unable to access camera. Please use file upload instead.');
+                console.error('Camera error:', error);
+            }
+        }
+        
+        // Close camera
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            
+            document.getElementById('cameraSection').classList.add('hidden');
+            document.getElementById('uploadSection').classList.remove('hidden');
+        }
+        
+        // Capture photo from camera
+        function capturePhoto() {
+            const video = document.getElementById('cameraPreview');
+            const canvas = document.getElementById('captureCanvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            currentImage = canvas.toDataURL('image/png');
+            
+            closeCamera();
+            showPreview(currentImage);
+        }
+        
+        // Show preview
+        function showPreview(imageData) {
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('previewImage').src = imageData;
+            document.getElementById('previewSection').classList.remove('hidden');
+        }
+        
+        // Process image with OCR
+        async function processImage() {
+            if (!currentImage) return;
+            
+            // Initialize OCR if needed
+            if (!invoiceOCR) {
+                initOCR();
+            }
+            
+            // Show processing
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('processingSection').classList.remove('hidden');
+            
+            try {
+                // Update progress
+                updateProgress(10, 'Initializing OCR...');
+                await invoiceOCR.initialize();
+                
+                updateProgress(30, 'Scanning image...');
+                
+                // Perform OCR
+                const result = await invoiceOCR.scanInvoice(currentImage);
+                
+                updateProgress(70, 'Extracting data...');
+                
+                if (result.success) {
+                    extractedData = result.data;
+                    updateProgress(100, 'Complete!');
+                    
+                    setTimeout(() => {
+                        document.getElementById('processingSection').classList.add('hidden');
+                        displayResults(result);
+                    }, 500);
+                } else {
+                    throw new Error(result.error || 'OCR failed');
+                }
+                
+            } catch (error) {
+                console.error('Processing error:', error);
+                alert('Failed to process invoice. Please try again or enter data manually.');
+                resetScanner();
+            }
+        }
+        
+        // Update processing progress
+        function updateProgress(percent, status) {
+            document.getElementById('processingProgress').style.width = percent + '%';
+            document.getElementById('processingStatus').textContent = status;
+        }
+        
+        // Display results
+        function displayResults(result) {
+            const data = result.data;
+            
+            // Show confidence
+            displayConfidence(result.confidence);
+            
+            // Fill form fields
+            document.getElementById('invoiceNumber').value = data.invoiceNumber || '';
+            document.getElementById('invoiceDate').value = data.date || '';
+            document.getElementById('supplierName').value = data.supplier || '';
+            
+            // Fill items table
+            const tbody = document.getElementById('itemsTableBody');
+            tbody.innerHTML = '';
+            
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td class="p-3 border-b">${item.product}</td>
+                        <td class="p-3 border-b text-center">${item.quantity}</td>
+                        <td class="p-3 border-b text-right">€${item.unitPrice.toFixed(2)}</td>
+                        <td class="p-3 border-b text-right font-semibold">€${item.total.toFixed(2)}</td>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">No items detected - please add manually</td></tr>';
+            }
+            
+            // Fill totals
+            document.getElementById('subtotal').textContent = '€' + (data.subtotal || 0).toFixed(2);
+            document.getElementById('tax').textContent = '€' + (data.tax || 0).toFixed(2);
+            document.getElementById('total').textContent = '€' + (data.total || 0).toFixed(2);
+            
+            // Show warnings if any
+            if (data.warnings && data.warnings.length > 0) {
+                const warningsDiv = document.getElementById('warningsSection');
+                warningsDiv.innerHTML = '<div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded"><h4 class="font-bold text-yellow-800 mb-2">⚠️ Warnings</h4><ul class="list-disc list-inside text-yellow-700">' + 
+                    data.warnings.map(w => `<li>${w}</li>`).join('') + '</ul></div>';
+                warningsDiv.classList.remove('hidden');
+            }
+            
+            // Show results section
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+        
+        // Display confidence badge
+        function displayConfidence(confidence) {
+            const badge = document.getElementById('confidenceBadge');
+            
+            let color = 'green';
+            let icon = 'check-circle';
+            
+            if (confidence.level === 'Low') {
+                color = 'red';
+                icon = 'exclamation-circle';
+            } else if (confidence.level === 'Medium') {
+                color = 'yellow';
+                icon = 'exclamation-triangle';
+            }
+            
+            badge.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-${icon} text-4xl text-${color}-600"></i>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">OCR Confidence: ${confidence.level}</h3>
+                            <p class="text-gray-600">Accuracy: ${confidence.percentage}% (${confidence.score}/${confidence.maxScore} points)</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-4xl font-bold text-${color}-600">${confidence.percentage}%</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Enable editing
+        function editData() {
+            document.querySelectorAll('#invoiceNumber, #invoiceDate, #supplierName').forEach(input => {
+                input.removeAttribute('readonly');
+                input.classList.add('border-blue-400');
+            });
+            
+            alert('✏️ You can now edit the fields. Click "Save" when done.');
+        }
+        
+        // Save to purchase orders
+        async function saveToPurchaseOrders() {
+            if (!extractedData) return;
+            
+            // Get updated values from form
+            extractedData.invoiceNumber = document.getElementById('invoiceNumber').value;
+            extractedData.date = document.getElementById('invoiceDate').value;
+            extractedData.supplier = document.getElementById('supplierName').value;
+            
+            try {
+                const result = await invoiceOCR.saveInvoiceToDatabase({
+                    ...extractedData,
+                    confidence: extractedData.confidence || { percentage: 0 }
+                });
+                
+                if (result.success) {
+                    alert('✅ Invoice saved successfully!');
+                    resetScanner();
+                } else {
+                    throw new Error(result.error);
+                }
+                
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('❌ Failed to save invoice. Please try again.');
+            }
+        }
+        
+        // Reset scanner
+        function resetScanner() {
+            currentImage = null;
+            extractedData = null;
+            
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('processingSection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('uploadSection').classList.remove('hidden');
+            
+            document.getElementById('fileInput').value = '';
+        }
+        
+        // Make functions globally accessible
+        window.handleFileSelect = handleFileSelect;
+        window.openCamera = openCamera;
+        window.closeCamera = closeCamera;
+        window.capturePhoto = capturePhoto;
+        window.processImage = processImage;
+        window.editData = editData;
+        window.saveToPurchaseOrders = saveToPurchaseOrders;
+        window.resetScanner = resetScanner;
+    </script>
+</body>
+</html>

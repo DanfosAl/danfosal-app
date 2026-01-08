@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creditor Details - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="keyboard-navigation.js"></script>
+    <script src="payment-reminder-service.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .product-paid { text-decoration: line-through; color: #6b7280; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+        </svg>
+    </button>
+
+    <!-- Red Dot Notification -->
+    <div class="red-dot" title="New notifications available"></div>
+
+    <div id="app-container" class="max-w-6xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 id="creditor-name-header" class="text-3xl md:text-4xl font-extrabold text-red-400">Loading...</h1>
+                <p class="theme-text-secondary">Manage products and payments for this creditor.</p>
+            </div>
+            <a href="creditors_list.html" class="glass-btn inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                Back to Creditors List
+            </a>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Invoices Section -->
+                <section class="glass-container">
+                    <h3 class="text-xl font-bold mb-4 theme-text">📄 Invoices</h3>
+                    <div id="invoices-list" class="space-y-4 mb-6"></div>
+                </section>
+
+                <!-- Payment History -->
+                <section class="glass-container">
+                    <h3 class="text-xl font-bold mb-4 theme-text">Payment History</h3>
+                    <div id="payment-history-list" class="space-y-3"></div>
+                </section>
+            </div>
+
+            <!-- Financial Summary -->
+            <aside class="glass-container self-start">
+                <h3 class="text-xl font-bold mb-6 text-center theme-text">Financial Summary</h3>
+                <div class="space-y-5">
+                    <div>
+                        <p class="text-sm theme-text-secondary">Total Debt</p>
+                        <p id="total-debt" class="text-3xl font-bold text-red-400">€0.00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm theme-text-secondary">Amount Paid</p>
+                        <p id="amount-paid" class="text-3xl font-bold text-green-400">€0.00</p>
+                    </div>
+                    <hr class="border-white/10">
+                    <div>
+                        <p class="text-sm theme-text-secondary">Remaining Balance</p>
+                        <p id="remaining-balance" class="text-4xl font-extrabold theme-text">€0.00</p>
+                    </div>
+                </div>
+                <div id="paid-in-full-badge" class="mt-6 text-center bg-green-500/20 text-green-300 font-bold py-3 px-4 rounded-lg hidden">PAID IN FULL</div>
+            </aside>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot, query, updateDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Initialize payment reminder service
+        const reminderService = new PaymentReminderService();
+
+        const startApp = async () => {
+            
+            // Start reminder service
+            await reminderService.initialize(db);
+
+            const params = new URLSearchParams(window.location.search);
+            const creditorId = params.get('id');
+            if (!creditorId) {
+                document.getElementById('app-container').innerHTML = '<h1 class="text-2xl text-red-500">Error: No creditor ID provided.</h1>';
+                return;
+            }
+
+            const creditorRef = doc(db, 'creditors', creditorId);
+            const productsRef = collection(db, `creditors/${creditorId}/products`);
+            const paymentsRef = collection(db, `creditors/${creditorId}/payments`);
+            const invoicesRef = collection(db, `creditors/${creditorId}/invoices`);
+
+            window.allProducts = [];
+            let allPayments = [];
+            let allInvoices = [];
+
+            // Fetch creditor name
+            const creditorSnap = await getDoc(creditorRef);
+            if (creditorSnap.exists()) {
+                document.getElementById('creditor-name-header').textContent = creditorSnap.data().name;
+            }
+
+            const render = () => {
+                // Render invoices
+                const invoicesList = document.getElementById('invoices-list');
+                invoicesList.innerHTML = '';
+                if (allInvoices.length === 0) {
+                    invoicesList.innerHTML = '<p class="text-gray-500 text-center">No invoices yet.</p>';
+                } else {
+                    [...allInvoices].sort((a,b) => b.timestamp - a.timestamp).forEach(invoice => {
+                        const isPaid = invoice.paid || invoice.remainingBalance <= 0;
+                        const div = document.createElement('div');
+                        div.className = 'bg-gray-900 p-4 rounded-lg border-l-4 ' + (isPaid ? 'border-green-500' : 'border-red-500');
+                        div.innerHTML = `
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <p class="font-bold text-lg text-orange-400">Invoice #${invoice.invoiceNumber}</p>
+                                        ${isPaid ? '<span class="text-xs bg-green-500 text-white px-2 py-1 rounded">PAID</span>' : '<span class="text-xs bg-red-500 text-white px-2 py-1 rounded">UNPAID</span>'}
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <p class="text-gray-400">Date: <span class="text-white">${invoice.date || 'N/A'}</span></p>
+                                        <p class="text-gray-400">Total: <span class="text-white font-semibold">€${invoice.totalAmount.toFixed(2)}</span></p>
+                                        <p class="text-gray-400">Remaining: <span class="text-white font-semibold">€${(invoice.remainingBalance || invoice.totalAmount).toFixed(2)}</span></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 ${isPaid ? 'hidden' : ''}">
+                                    <input type="number" min="0.01" max="${(invoice.remainingBalance || invoice.totalAmount).toFixed(2)}" step="0.01" placeholder="€${(invoice.remainingBalance || invoice.totalAmount).toFixed(2)}" class="invoice-payment-input w-32 bg-gray-700 border border-gray-600 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                    <button data-invoice-id="${invoice.id}" data-invoice-number="${invoice.invoiceNumber}" class="pay-invoice-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Pay</button>
+                                </div>
+                            </div>
+                        `;
+                        invoicesList.appendChild(div);
+                    });
+                }
+                
+                // Render payments
+                const paymentHistoryList = document.getElementById('payment-history-list');
+                paymentHistoryList.innerHTML = '';
+                 if (allPayments.length === 0) {
+                    paymentHistoryList.innerHTML = '<p class="text-gray-500 text-center">No payments made yet.</p>';
+                } else {
+                    [...allPayments].sort((a,b) => b.timestamp - a.timestamp).forEach(payment => {
+                         const div = document.createElement('div');
+                         div.className = 'bg-gray-900 p-3 rounded-lg flex justify-between items-center';
+                         div.innerHTML = `
+                            <div>
+                                <p class="font-semibold">Paid €${payment.amount.toFixed(2)}</p>
+                                <p class="text-sm text-gray-400">${payment.invoiceNumber ? `Invoice #${payment.invoiceNumber}` : `For: ${payment.productName}`}</p>
+                            </div>
+                            <span class="text-sm text-gray-500">${new Date(payment.timestamp).toLocaleDateString()}</span>
+                         `;
+                         paymentHistoryList.appendChild(div);
+                    });
+                }
+
+                // Render financial summary - INCLUDE INVOICES ONLY
+                const totalInvoiceDebt = allInvoices.reduce((acc, inv) => acc + (inv.remainingBalance || inv.totalAmount), 0);
+                const totalDebt = totalInvoiceDebt;
+                const totalPaid = allPayments.reduce((acc, p) => acc + p.amount, 0);
+                const remainingBalance = totalDebt - totalPaid;
+                
+                document.getElementById('total-debt').textContent = `€${totalDebt.toFixed(2)}`;
+                document.getElementById('amount-paid').textContent = `€${totalPaid.toFixed(2)}`;
+                document.getElementById('remaining-balance').textContent = `€${remainingBalance.toFixed(2)}`;
+
+                if (remainingBalance <= 0 && totalDebt > 0) {
+                    document.getElementById('paid-in-full-badge').classList.remove('hidden');
+                } else {
+                    document.getElementById('paid-in-full-badge').classList.add('hidden');
+                }
+            };
+
+            onSnapshot(query(paymentsRef), snapshot => {
+                allPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+
+            onSnapshot(query(invoicesRef), snapshot => {
+                allInvoices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            
+            // Invoice payment handler
+            document.getElementById('invoices-list').addEventListener('click', async (e) => {
+                const payBtn = e.target.closest('.pay-invoice-btn');
+                if (payBtn) {
+                    const invoiceId = payBtn.dataset.invoiceId;
+                    const invoiceNumber = payBtn.dataset.invoiceNumber;
+                    const amountInput = payBtn.parentElement.querySelector('.invoice-payment-input');
+                    const amount = parseFloat(amountInput.value);
+                    
+                    if (!isNaN(amount) && amount > 0 && amount <= parseFloat(amountInput.max)) {
+                        // Get invoice
+                        const invoice = allInvoices.find(inv => inv.id === invoiceId);
+                        if (!invoice) return;
+                        
+                        const currentRemaining = invoice.remainingBalance || invoice.totalAmount;
+                        const newRemaining = currentRemaining - amount;
+                        
+                        // Update invoice remaining balance
+                        const invoiceRef = doc(db, `creditors/${creditorId}/invoices`, invoiceId);
+                        await updateDoc(invoiceRef, {
+                            remainingBalance: newRemaining,
+                            paid: newRemaining <= 0
+                        });
+                        
+                        // Record payment
+                        await addDoc(paymentsRef, {
+                            invoiceId,
+                            invoiceNumber,
+                            amount,
+                            timestamp: Date.now()
+                        });
+                        
+                        alert(`Payment of €${amount.toFixed(2)} recorded for Invoice #${invoiceNumber}`);
+                    } else {
+                        alert('Please enter a valid amount to pay.');
+                    }
+                }
+            });
+        };
+        // Wait for authentication before loading data
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                startApp();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

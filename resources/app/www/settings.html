@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Theme System -->
+    <link rel="stylesheet" href="glassmorphism.css">
+    <script src="keyboard-navigation.js"></script>
+    <script src="back-button-handler.js" defer></script>
+    <script src="notifications.js"></script>
+    <script src="whatsapp-integration.js"></script>
+</head>
+<body class="text-white min-h-screen p-4 md:p-8">
+
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+        </svg>
+    </button>
+
+    <div class="max-w-6xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold gradient-text">Settings</h1>
+                <p class="text-gray-400">Customize your Danfosal experience</p>
+            </div>
+            <a href="index.html" class="glass-btn inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                Dashboard
+            </a>
+        </header>
+
+        <!-- Theme Style Section -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">🎨</span>
+                Appearance Theme
+            </h2>
+            <div class="space-y-4">
+                <div class="p-4 glass-card">
+                    <label class="block font-semibold text-lg mb-2">Theme Style</label>
+                    <select id="style-switcher" class="w-full p-3 rounded-lg border-2 border-gray-600 bg-gray-800 text-white focus:border-orange-500 focus:outline-none">
+                        <option value="glassmorphism">🌟 Glassmorphism (Modern)</option>
+                        <option value="steampunk">⚙️ Steampunk (Victorian)</option>
+                        <option value="diorama">🎨 Diorama (3D Futuristic)</option>
+                    </select>
+                    <p class="text-sm text-gray-400 mt-2">Choose your preferred visual style. Changes apply instantly!</p>
+                </div>
+                
+                <div class="p-4 glass-card">
+                    <div class="grid grid-cols-3 gap-4">
+                        <!-- Glassmorphism Preview -->
+                        <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='glassmorphism'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
+                            <div class="aspect-video rounded-lg border-2 border-gray-600 overflow-hidden mb-2" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%); backdrop-filter: blur(10px);">
+                                <div class="h-full flex items-center justify-center">
+                                    <div class="text-4xl">🌟</div>
+                                </div>
+                            </div>
+                            <p class="text-sm font-semibold">Glassmorphism</p>
+                        </div>
+                        
+                        <!-- Steampunk Preview -->
+                        <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='steampunk'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
+                            <div class="aspect-video rounded-lg border-2 border-gray-600 overflow-hidden mb-2" style="background: linear-gradient(135deg, #2d1b0e 0%, #4a2c1a 50%); border-color: #b8860b;">
+                                <div class="h-full flex items-center justify-center">
+                                    <div class="text-4xl">⚙️</div>
+                                </div>
+                            </div>
+                            <p class="text-sm font-semibold">Steampunk</p>
+                        </div>
+                        
+                        <!-- Diorama Preview -->
+                        <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='diorama'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
+                            <div class="aspect-video rounded-lg border-2 overflow-hidden mb-2" style="background: linear-gradient(135deg, #0a192f 0%, #2d5a7b 50%); border-color: #4fd1c5; box-shadow: 0 0 20px rgba(79, 209, 197, 0.3);">
+                                <div class="h-full flex items-center justify-center">
+                                    <div class="text-4xl">🎨</div>
+                                </div>
+                            </div>
+                            <p class="text-sm font-semibold">Diorama</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
+                    <p class="text-sm text-blue-300">
+                        💡 <strong>Tip:</strong> Use <code class="bg-black/30 px-2 py-1 rounded">Ctrl+Shift+S</code> to quickly switch between themes!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Section -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">🔔</span>
+                Push Notifications
+            </h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Enable Notifications</h3>
+                        <p class="text-sm text-gray-400">Get alerts for new orders in real-time</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="enable-notifications" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Notification Sound</h3>
+                        <p class="text-sm text-gray-400">Play sound with notifications</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="notification-sound" class="sr-only peer" checked>
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                </div>
+
+                <button id="test-notification" class="glass-btn w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-semibold">
+                    🧪 Test Notification
+                </button>
+            </div>
+        </div>
+
+        <!-- WhatsApp Integration -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">📱</span>
+                WhatsApp Integration
+            </h2>
+            <div class="space-y-4">
+                <div class="p-4 glass-card">
+                    <h3 class="font-semibold text-lg mb-3">Business WhatsApp Number</h3>
+                    <p class="text-sm text-gray-400 mb-3">Enter your business WhatsApp number (optional)</p>
+                    <input 
+                        type="text" 
+                        id="whatsapp-number" 
+                        placeholder="e.g., +355691234567" 
+                        class="glass-input w-full"
+                        value="">
+                    <button id="save-whatsapp" class="glass-btn mt-3 bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-semibold">
+                        💾 Save Number
+                    </button>
+                </div>
+
+                <div class="p-4 glass-card">
+                    <h3 class="font-semibold text-lg mb-2">Auto-Send Order Confirmations</h3>
+                    <p class="text-sm text-gray-400 mb-3">Automatically send WhatsApp messages when orders are created</p>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="auto-whatsapp" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Customization -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">🎨</span>
+                Theme Customization
+            </h2>
+            
+            <div class="mb-6">
+                <h3 class="font-semibold text-lg mb-4">Choose Your Theme</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="theme-gallery">
+                    <!-- Themes will be populated here -->
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="export-theme" class="glass-btn bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex-1">
+                    📤 Export Current Theme
+                </button>
+                <button id="import-theme" class="glass-btn bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold flex-1">
+                    📥 Import Theme
+                </button>
+            </div>
+            <input type="file" id="theme-file-input" accept=".json" class="hidden">
+        </div>
+
+        <!-- Advanced Analytics Settings -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">📈</span>
+                Advanced Analytics
+            </h2>
+            <div class="space-y-4">
+                <div class="p-4 glass-card">
+                    <h3 class="font-semibold text-lg mb-2">Enable Advanced Analytics</h3>
+                    <p class="text-sm text-gray-400 mb-3">Track profit margins, forecasts, and customer insights</p>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="enable-analytics" class="sr-only peer" checked>
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                </div>
+
+                <a href="advanced-analytics.html" class="glass-btn block text-center bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
+                    📊 View Advanced Analytics Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Advanced Features -->
+        <div class="glass-container mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">⚡</span>
+                Advanced Features
+            </h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Auto Dark Mode 🌙</h3>
+                        <p class="text-sm text-gray-400">Automatically switch to dark mode at night (8 PM - 6 AM)</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="auto-dark-mode" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Follow System Theme 🖥️</h3>
+                        <p class="text-sm text-gray-400">Use your device's dark/light mode preference</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="follow-system" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Pull to Refresh 🔄</h3>
+                        <p class="text-sm text-gray-400">Swipe down to refresh pages on mobile</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="pull-refresh" class="sr-only peer" checked>
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Long Press Menus 👆</h3>
+                        <p class="text-sm text-gray-400">Hold items for quick actions (copy, share, delete)</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="long-press" class="sr-only peer" checked>
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between p-4 glass-card">
+                    <div>
+                        <h3 class="font-semibold text-lg">Reading Mode 📖</h3>
+                        <p class="text-sm text-gray-400">Larger text and better spacing for easy reading</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="reading-mode" class="sr-only peer">
+                        <div class="w-14 h-7 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-500"></div>
+                    </label>
+                </div>
+
+                <div class="p-3 bg-purple-900/30 border border-purple-500/50 rounded-lg">
+                    <p class="text-sm text-purple-300">
+                        💡 <strong>Tip:</strong> These features enhance your mobile and desktop experience!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Information -->
+        <div class="glass-container">
+            <h2 class="text-2xl font-bold mb-4 flex items-center">
+                <span class="text-3xl mr-3">ℹ️</span>
+                App Information
+            </h2>
+            <div class="space-y-3 text-gray-300">
+                <p><strong>Version:</strong> 1.4.0 (Phase 2 Complete!)</p>
+                <p><strong>Last Updated:</strong> October 31, 2025</p>
+                <p><strong>Latest Features:</strong></p>
+                <ul class="list-disc list-inside ml-4 space-y-1 text-sm">
+                    <li>📱 Customer Portal with order tracking</li>
+                    <li>🤖 Smart Order System with AI suggestions</li>
+                    <li>🌙 Auto dark mode at night</li>
+                    <li>🔄 Pull to refresh</li>
+                    <li>👆 Long press menus</li>
+                    <li>📖 Reading mode</li>
+                    <li>⭐ Reorder favorite products</li>
+                    <li>📍 Saved delivery addresses</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="advanced-features.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.firebasestorage.app",
+            messagingSenderId: "990940018522",
+            appId: "1:990940018522:web:c78d98e8f1b928e924f5c6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Load saved settings on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Load theme style
+            const savedStyle = localStorage.getItem('themeStyle') || 'glassmorphism';
+            const styleSwitcher = document.getElementById('style-switcher');
+            if (styleSwitcher) {
+                styleSwitcher.value = savedStyle;
+            }
+            
+            // Load notification settings
+            const notifEnabled = localStorage.getItem('notificationsEnabled');
+            // Default to true if never set
+            const isEnabled = notifEnabled === null ? true : notifEnabled === 'true';
+            document.getElementById('enable-notifications').checked = isEnabled;
+            
+            const soundEnabled = localStorage.getItem('notificationSound');
+            document.getElementById('notification-sound').checked = soundEnabled !== 'false'; // default true
+            
+            // Load WhatsApp settings
+            document.getElementById('whatsapp-number').value = localStorage.getItem('whatsappBusinessNumber') || '';
+            document.getElementById('auto-whatsapp').checked = localStorage.getItem('autoWhatsApp') === 'true';
+            
+            // Load analytics settings
+            const analyticsEnabled = localStorage.getItem('advancedAnalytics');
+            document.getElementById('enable-analytics').checked = analyticsEnabled !== 'false'; // default true
+        });
+
+        // Notifications - Save on toggle
+        document.getElementById('enable-notifications').addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                // Check if running on Capacitor (mobile)
+                if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                    // On mobile, just save the setting - permissions handled by OS
+                    localStorage.setItem('notificationsEnabled', 'true');
+                    
+                    // Start monitoring if manager exists
+                    if (window.notificationManager) {
+                        window.notificationManager.startMonitoring();
+                    }
+                } else {
+                    // On web, request permission
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        e.target.checked = false;
+                        localStorage.setItem('notificationsEnabled', 'false');
+                        alert('Notification permission denied');
+                        return;
+                    }
+                    localStorage.setItem('notificationsEnabled', 'true');
+                    
+                    // Start monitoring if manager exists
+                    if (window.notificationManager) {
+                        window.notificationManager.startMonitoring();
+                    }
+                }
+            } else {
+                localStorage.setItem('notificationsEnabled', 'false');
+                
+                // Stop monitoring if manager exists
+                if (window.notificationManager) {
+                    window.notificationManager.stopMonitoring();
+                }
+            }
+        });
+
+        document.getElementById('notification-sound').addEventListener('change', (e) => {
+            localStorage.setItem('notificationSound', e.target.checked.toString());
+            if (window.notificationManager) {
+                window.notificationManager.toggleSound(e.target.checked);
+            }
+        });
+
+        document.getElementById('test-notification').addEventListener('click', async () => {
+            // Check if running on mobile with Capacitor
+            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                try {
+                    // Import Local Notifications plugin
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    
+                    // Request permissions
+                    const permResult = await LocalNotifications.requestPermissions();
+                    
+                    if (permResult.display === 'granted') {
+                        // Schedule a notification
+                        await LocalNotifications.schedule({
+                            notifications: [
+                                {
+                                    title: "🛒 Test Notification",
+                                    body: "This is a test notification from Danfosal!",
+                                    id: Math.floor(Math.random() * 100000),
+                                    schedule: { at: new Date(Date.now() + 1000) }, // 1 second from now
+                                    sound: localStorage.getItem('notificationSound') !== 'false' ? 'default' : null,
+                                    smallIcon: "ic_launcher"
+                                }
+                            ]
+                        });
+                        alert('Test notification scheduled! You should see it in 1 second.');
+                    } else {
+                        alert('Please enable notifications in your device settings.');
+                    }
+                } catch (error) {
+                    console.error('Notification error:', error);
+                    alert('Error: ' + error.message);
+                }
+            } else {
+                // Web notification fallback
+                if (window.notificationManager) {
+                    window.notificationManager.notify('🛒 Test Notification', {
+                        body: 'This is a test notification from Danfosal!',
+                        tag: 'test'
+                    });
+                } else if (Notification.permission === 'granted') {
+                    new Notification('🛒 Test Notification', {
+                        body: 'This is a test notification from Danfosal!',
+                        icon: '/icon.png'
+                    });
+                } else {
+                    alert('Notifications not available. Please enable them first.');
+                }
+            }
+        });
+
+        // WhatsApp
+        const whatsappInput = document.getElementById('whatsapp-number');
+        whatsappInput.value = localStorage.getItem('whatsappBusinessNumber') || '';
+
+        document.getElementById('save-whatsapp').addEventListener('click', () => {
+            const number = whatsappInput.value.trim();
+            if (window.whatsAppManager) {
+                window.whatsAppManager.setBusinessNumber(number);
+                alert('WhatsApp number saved!');
+            }
+        });
+
+        document.getElementById('auto-whatsapp').checked = 
+            localStorage.getItem('autoWhatsApp') === 'true';
+        
+        document.getElementById('auto-whatsapp').addEventListener('change', (e) => {
+            localStorage.setItem('autoWhatsApp', e.target.checked.toString());
+        });
+
+        // Theme Gallery
+        if (window.themeCustomizer) {
+            const gallery = document.getElementById('theme-gallery');
+            const themes = window.themeCustomizer.getThemesList();
+            
+            themes.forEach(theme => {
+                const card = document.createElement('div');
+                card.className = 'glass-card cursor-pointer p-4 text-center hover:scale-105 transition-transform';
+                card.innerHTML = `
+                    <div class="w-full h-16 rounded-lg mb-3" style="background: ${theme.preview.background}"></div>
+                    <div class="flex justify-center gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-full" style="background: ${theme.preview.primary}"></div>
+                        <div class="w-8 h-8 rounded-full" style="background: ${theme.preview.secondary}"></div>
+                    </div>
+                    <h4 class="font-semibold">${theme.name}</h4>
+                `;
+                
+                card.addEventListener('click', () => {
+                    window.themeCustomizer.applyTheme(theme.key);
+                    alert(`Theme "${theme.name}" applied!`);
+                });
+                
+                gallery.appendChild(card);
+            });
+        }
+
+        // Export/Import Theme
+        document.getElementById('export-theme').addEventListener('click', () => {
+            if (window.themeCustomizer) {
+                window.themeCustomizer.exportTheme();
+            }
+        });
+
+        document.getElementById('import-theme').addEventListener('click', () => {
+            document.getElementById('theme-file-input').click();
+        });
+
+        document.getElementById('theme-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    if (window.themeCustomizer) {
+                        const result = window.themeCustomizer.importTheme(event.target.result);
+                        if (result) {
+                            alert('Theme imported successfully!');
+                            window.location.reload();
+                        } else {
+                            alert('Failed to import theme. Please check the file format.');
+                        }
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Analytics
+        document.getElementById('enable-analytics').addEventListener('change', (e) => {
+            localStorage.setItem('advancedAnalytics', e.target.checked.toString());
+        });
+
+        // Advanced Features - Load saved settings
+        const autoDarkEnabled = localStorage.getItem('autoDarkMode') === 'true';
+        const followSystemEnabled = localStorage.getItem('followSystem') === 'true';
+        const pullRefreshEnabled = localStorage.getItem('pullRefresh') !== 'false';
+        const longPressEnabled = localStorage.getItem('longPress') !== 'false';
+        const readingModeEnabled = localStorage.getItem('readingMode') === 'true';
+
+        document.getElementById('auto-dark-mode').checked = autoDarkEnabled;
+        document.getElementById('follow-system').checked = followSystemEnabled;
+        document.getElementById('pull-refresh').checked = pullRefreshEnabled;
+        document.getElementById('long-press').checked = longPressEnabled;
+        document.getElementById('reading-mode').checked = readingModeEnabled;
+
+        // Auto Dark Mode toggle
+        document.getElementById('auto-dark-mode').addEventListener('change', (e) => {
+            localStorage.setItem('autoDarkMode', e.target.checked);
+            if (window.autoThemeManager) {
+                window.autoThemeManager.toggleAutoDarkMode(e.target.checked);
+            }
+            alert(e.target.checked ? '🌙 Auto dark mode enabled! Theme will change at 8 PM' : 'Auto dark mode disabled');
+        });
+
+        // Follow System Theme toggle
+        document.getElementById('follow-system').addEventListener('change', (e) => {
+            localStorage.setItem('followSystem', e.target.checked);
+            if (window.autoThemeManager) {
+                window.autoThemeManager.toggleFollowSystem(e.target.checked);
+            }
+            alert(e.target.checked ? '🖥️ Following system theme preference' : 'System theme sync disabled');
+        });
+
+        // Pull to Refresh toggle
+        document.getElementById('pull-refresh').addEventListener('change', (e) => {
+            localStorage.setItem('pullRefresh', e.target.checked);
+            if (!e.target.checked) {
+                alert('Pull to refresh disabled. Reload app to apply changes.');
+            } else {
+                alert('Pull to refresh enabled! Swipe down from top to reload pages.');
+            }
+        });
+
+        // Long Press toggle
+        document.getElementById('long-press').addEventListener('change', (e) => {
+            localStorage.setItem('longPress', e.target.checked);
+            if (e.target.checked) {
+                alert('Long press menus enabled! Hold items for quick actions.');
+            } else {
+                alert('Long press disabled. Reload app to apply changes.');
+            }
+        });
+
+        // Reading Mode toggle
+        document.getElementById('reading-mode').addEventListener('change', (e) => {
+            localStorage.setItem('readingMode', e.target.checked);
+            if (window.readingMode) {
+                window.readingMode.toggle();
+            }
+            alert(e.target.checked ? '📖 Reading mode enabled' : 'Reading mode disabled');
+        });
+    </script>
+</body>
+</html>

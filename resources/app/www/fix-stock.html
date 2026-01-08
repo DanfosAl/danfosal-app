@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Stock Quantities</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.firebasestorage.app",
+            messagingSenderId: "133549285091",
+            appId: "1:133549285091:web:a2b8f5f5869d43e0f40e30"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.fixStock = async () => {
+            const productsRef = collection(db, 'products');
+            const snapshot = await getDocs(productsRef);
+            
+            console.log('=== CURRENT STOCK STATUS ===');
+            const products = [];
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                products.push({
+                    id: doc.id,
+                    name: data.name,
+                    producer: data.producer,
+                    stock: data.stock || 0
+                });
+                console.log(`${data.producer} ${data.name}: ${data.stock || 0}`);
+            });
+            
+            // Display in the UI
+            const list = document.getElementById('product-list');
+            list.innerHTML = products.map(p => `
+                <div style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                    <strong>${p.producer} ${p.name}</strong><br>
+                    Current Stock: <span style="color: ${p.stock < 0 ? 'red' : 'green'}; font-weight: bold;">${p.stock}</span><br>
+                    <label>New Stock: <input type="number" id="stock-${p.id}" value="${Math.max(0, p.stock)}" style="width: 80px; padding: 5px;"></label>
+                    <button onclick="updateStock('${p.id}')" style="padding: 5px 10px; margin-left: 10px;">Update</button>
+                </div>
+            `).join('');
+            
+            return products;
+        };
+
+        window.updateStock = async (productId) => {
+            const newStock = parseInt(document.getElementById(`stock-${productId}`).value);
+            if (isNaN(newStock) || newStock < 0) {
+                alert('Please enter a valid stock quantity (0 or greater)');
+                return;
+            }
+            
+            const productRef = doc(db, 'products', productId);
+            await updateDoc(productRef, { stock: newStock });
+            console.log(`✅ Updated stock for product ${productId} to ${newStock}`);
+            alert(`Stock updated to ${newStock}`);
+            
+            // Reload the list
+            fixStock();
+        };
+
+        window.setAllToZero = async () => {
+            if (!confirm('Are you sure you want to set ALL products to stock 0?')) return;
+            
+            const productsRef = collection(db, 'products');
+            const snapshot = await getDocs(productsRef);
+            
+            for (const docSnap of snapshot.docs) {
+                await updateDoc(doc(db, 'products', docSnap.id), { stock: 0 });
+                console.log(`Reset ${docSnap.data().name} to 0`);
+            }
+            
+            alert('All products set to stock 0');
+            fixStock();
+        };
+
+        // Auto-load on page load
+        window.addEventListener('load', () => {
+            fixStock();
+        });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .buttons {
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .danger {
+            background: #f44336;
+        }
+        .danger:hover {
+            background: #da190b;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Stock Quantities</h1>
+    <p>This tool helps you correct stock quantities that were incorrectly deducted.</p>
+    
+    <div class="buttons">
+        <button onclick="fixStock()">🔄 Refresh List</button>
+        <button class="danger" onclick="setAllToZero()">⚠️ Set All to Zero</button>
+    </div>
+    
+    <div id="product-list">
+        <p>Loading products...</p>
+    </div>
+    
+    <hr style="margin: 30px 0;">
+    <h3>Instructions:</h3>
+    <ol>
+        <li>Review the current stock for each product</li>
+        <li>Enter the correct stock quantity</li>
+        <li>Click "Update" to save</li>
+        <li>Products with negative stock are shown in <span style="color: red;">red</span></li>
+    </ol>
+</body>
+</html>

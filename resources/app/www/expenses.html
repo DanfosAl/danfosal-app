@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Expenses & Profit - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <script src="keyboard-navigation.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Glassmorphism cards */
+        .glass-card {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-400">
+                    Expenses & Profit
+                </h1>
+                <p class="text-gray-400 mt-2">Track your business spending and net profit.</p>
+            </div>
+            <a href="index.html" class="inline-flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors border border-gray-700">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+                Dashboard
+            </a>
+        </header>
+
+        <!-- Financial Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Revenue Card -->
+            <div class="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <svg class="w-24 h-24 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
+                </div>
+                <h3 class="text-gray-400 font-medium mb-1">Total Revenue (Sales)</h3>
+                <p id="total-revenue" class="text-3xl font-bold text-green-400">€0.00</p>
+                <p class="text-xs text-gray-500 mt-2">From Store & Online Sales</p>
+            </div>
+
+            <!-- Expenses Card -->
+            <div class="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <svg class="w-24 h-24 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                </div>
+                <h3 class="text-gray-400 font-medium mb-1">Total Expenses</h3>
+                <p id="total-expenses" class="text-3xl font-bold text-red-400">€0.00</p>
+                <p class="text-xs text-gray-500 mt-2">Rent, Utilities, Salaries, etc.</p>
+            </div>
+
+            <!-- Net Profit Card -->
+            <div class="glass-card rounded-2xl p-6 relative overflow-hidden group border-t-4 border-t-blue-500">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <svg class="w-24 h-24 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"/></svg>
+                </div>
+                <h3 class="text-gray-400 font-medium mb-1">Net Profit</h3>
+                <p id="net-profit" class="text-4xl font-extrabold text-white">€0.00</p>
+                <p class="text-xs text-gray-500 mt-2">Revenue - Expenses</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Add Expense Form -->
+            <div class="lg:col-span-1">
+                <div class="glass-card p-6 rounded-xl sticky top-8">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <span class="bg-red-500/20 text-red-400 p-2 rounded-lg mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </span>
+                        Add New Expense
+                    </h2>
+                    
+                    <form id="expense-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                            <select id="expense-category" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none">
+                                <option value="Rent">Rent</option>
+                                <option value="Utilities">Utilities (Electricity, Water, Internet)</option>
+                                <option value="Salaries">Salaries</option>
+                                <option value="Maintenance">Maintenance & Repairs</option>
+                                <option value="Marketing">Marketing & Ads</option>
+                                <option value="Supplies">Office/Store Supplies</option>
+                                <option value="Taxes">Taxes</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Amount (€)</label>
+                            <input type="number" id="expense-amount" step="0.01" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none" placeholder="0.00">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Date</label>
+                            <input type="date" id="expense-date" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Description (Optional)</label>
+                            <textarea id="expense-description" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none" placeholder="e.g., October Electricity Bill"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-red-900/30">
+                            Add Expense
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Recent Expenses List -->
+            <div class="lg:col-span-2">
+                <div class="glass-card p-6 rounded-xl min-h-[500px]">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold">Recent Expenses</h2>
+                        <div class="flex space-x-2">
+                            <button id="filter-month" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors">This Month</button>
+                            <button id="filter-all" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 rounded text-sm transition-colors text-gray-400">All Time</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-gray-400 border-b border-gray-700">
+                                    <th class="pb-3 font-medium pl-2">Date</th>
+                                    <th class="pb-3 font-medium">Category</th>
+                                    <th class="pb-3 font-medium">Description</th>
+                                    <th class="pb-3 font-medium text-right pr-2">Amount</th>
+                                    <th class="pb-3 font-medium text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-table-body" class="text-sm">
+                                <!-- Rows will be populated by JS -->
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500">Loading expenses...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="expenses.js"></script>
+</body>
+</html>

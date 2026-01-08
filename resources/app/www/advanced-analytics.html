@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Analytics - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <script src="back-button-handler.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="advanced-analytics.js"></script>
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+        </svg>
+    </button>
+
+    <!-- Red Dot Notification -->
+    <div class="red-dot" title="New notifications available"></div>
+
+    <div class="max-w-7xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold gradient-text">Advanced Analytics</h1>
+                <p class="theme-text-secondary">Business Intelligence & Sales Forecasting</p>
+            </div>
+            <div class="flex gap-3">
+                <button id="export-report" class="glass-btn bg-green-600 hover:bg-green-700">
+                    <svg class="w-5 h-5 inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Export Report
+                </button>
+                <a href="index.html" class="glass-btn inline-flex items-center">
+                    <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                    Dashboard
+                </a>
+            </div>
+        </header>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="glass-container text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <p class="mt-4 text-gray-300">Loading analytics data...</p>
+        </div>
+
+        <!-- Main Analytics Container -->
+        <div id="analytics-container" class="hidden space-y-6">
+            
+            <!-- Profit Margin Analysis -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('profit-margin-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">💰</span>
+                        Profit Margin Analysis
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="profit-margin-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Product Performance -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('product-performance-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">📦</span>
+                        Product Performance
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="product-performance-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Sales Forecast -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('forecast-wrapper', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">🔮</span>
+                        Sales Forecast (Next 30 Days)
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="forecast-wrapper" class="hidden">
+                    <div id="forecast-content">
+                        <!-- Content will be populated here -->
+                    </div>
+                    <canvas id="forecast-chart" class="mt-6" height="100"></canvas>
+                </div>
+            </div>
+
+            <!-- Customer Lifetime Value -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('ltv-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">👥</span>
+                        Customer Lifetime Value (LTV)
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="ltv-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Peak Hours Analysis -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('peak-hours-wrapper', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">⏰</span>
+                        Peak Hours Analysis
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="peak-hours-wrapper" class="hidden">
+                    <div id="peak-hours-content">
+                        <!-- Content will be populated here -->
+                    </div>
+                    <canvas id="peak-hours-chart" class="mt-6" height="100"></canvas>
+                </div>
+            </div>
+
+            <!-- Geographic Analysis -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('geographic-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">🗺️</span>
+                        Geographic Analysis
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="geographic-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Dead Stock Analysis -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('dead-stock-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center text-red-400">
+                        <span class="text-3xl mr-3">🧟</span>
+                        Dead Stock (Unsold > 60 Days)
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="dead-stock-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Competitor Price Monitor -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="toggleSection('competitor-content-wrapper', this)">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <span class="text-3xl mr-3">🕵️</span>
+                        Competitor Spy
+                    </h2>
+                    <div class="flex items-center gap-3">
+                        <button onclick="event.stopPropagation(); checkPrices()" id="check-prices-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            Check Prices
+                        </button>
+                        <button onclick="event.stopPropagation(); openAddCompetitorModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+                            + Track New
+                        </button>
+                        <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+                <div id="competitor-content-wrapper" class="overflow-x-auto hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="p-3">Product</th>
+                                <th class="p-3">Competitor</th>
+                                <th class="p-3 text-right">Their Price</th>
+                                <th class="p-3 text-right">My Price</th>
+                                <th class="p-3 text-center">Last Checked</th>
+                                <th class="p-3 text-center">Status</th>
+                                <th class="p-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="competitor-list-body" class="text-sm">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-500">Loading tracked items...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Add Competitor Modal -->
+    <div id="competitor-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-md border border-gray-700 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-white">Track Competitor Price</h3>
+            <form id="competitor-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Product Name</label>
+                    <input type="text" id="comp-product" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Competitor Name</label>
+                    <input type="text" id="comp-name" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Megatek" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Their Price (€)</label>
+                        <input type="number" step="0.01" id="comp-price" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">My Price (€)</label>
+                        <input type="number" step="0.01" id="my-price" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Product URL (Optional)</label>
+                    <input type="url" id="comp-url" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="https://...">
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="closeCompetitorModal()" class="px-4 py-2 text-gray-300 hover:text-white">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold">Save Tracker</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        window.toggleSection = (id, header) => {
+            const content = document.getElementById(id);
+            const icon = header.querySelector('.chevron-icon');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+    </script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let analytics;
+
+        async function loadAnalytics() {
+            try {
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('analytics-container').classList.add('hidden');
+
+                // Initialize analytics
+                analytics = new AdvancedAnalytics(db);
+                await analytics.initialize();
+
+                console.log('Analytics initialized with:', analytics.orders.length, 'orders and', analytics.products.length, 'products');
+
+                // Check if we have data
+                if (analytics.orders.length === 0 || analytics.products.length === 0) {
+                    document.getElementById('loading').innerHTML = `
+                        <div class="text-center py-12">
+                            <div class="text-6xl mb-4">📊</div>
+                            <h3 class="text-2xl font-bold mb-2">No Data Available</h3>
+                            <p class="text-gray-400 mb-4">You need orders and products to see analytics</p>
+                            <a href="index.html" class="glass-btn bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-lg">Go to Dashboard</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render all sections
+                renderProfitMargins();
+                renderProductPerformance();
+                renderForecast();
+                renderCustomerLTV();
+                renderPeakHours();
+                renderGeographic();
+                renderDeadStock();
+                renderCompetitorSpy();
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('analytics-container').classList.remove('hidden');
+            } catch (error) {
+                console.error('Analytics loading error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">⚠️</div>
+                        <h3 class="text-2xl font-bold mb-2">Error Loading Analytics</h3>
+                        <p class="text-gray-400 mb-4">${error.message}</p>
+                        <button onclick="window.location.reload()" class="glass-btn bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-lg">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderProfitMargins() {
+            const data = analytics.calculateProfitMargins();
+            const container = document.getElementById('profit-margin-content');
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No product data available</p>';
+                return;
+            }
+            
+            let html = '<table class="w-full text-sm"><thead><tr class="border-b border-gray-600"><th class="text-left p-3">Product</th><th class="text-right p-3">Cost</th><th class="text-right p-3">Price</th><th class="text-right p-3">Margin</th><th class="text-right p-3">%</th><th class="text-right p-3">Rating</th></tr></thead><tbody>';
+            
+            data.forEach(item => {
+                const ratingColors = { Low: 'red', Medium: 'yellow', Good: 'orange', Excellent: 'green' };
+                const cost = parseFloat(item.cost) || 0;
+                const price = parseFloat(item.price) || 0;
+                const profit = parseFloat(item.profit) || 0;
+                const marginPercent = parseFloat(item.marginPercent) || 0;
+                
+                html += `
+                    <tr class="border-b border-gray-700">
+                        <td class="p-3">${item.name || 'Unknown'}</td>
+                        <td class="text-right p-3">${cost.toFixed(2)} €</td>
+                        <td class="text-right p-3">${price.toFixed(2)} €</td>
+                        <td class="text-right p-3 font-semibold text-green-400">${profit.toFixed(2)} €</td>
+                        <td class="text-right p-3">${marginPercent.toFixed(1)}%</td>
+                        <td class="text-right p-3"><span class="px-3 py-1 rounded-full text-xs font-semibold" style="background: ${ratingColors[item.rating || 'Low']}20; color: ${ratingColors[item.rating || 'Low']}">${item.rating || 'N/A'}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderProductPerformance() {
+            const data = analytics.analyzeProductPerformance();
+            const container = document.getElementById('product-performance-content');
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No order data available</p>';
+                return;
+            }
+            
+            let html = '<table class="w-full text-sm"><thead><tr class="border-b border-gray-600"><th class="text-left p-3">Product</th><th class="text-right p-3">Units Sold</th><th class="text-right p-3">Revenue</th><th class="text-right p-3">Cost</th><th class="text-right p-3">Profit</th></tr></thead><tbody>';
+            
+            data.forEach(item => {
+                const revenue = parseFloat(item.revenue) || 0;
+                const cost = parseFloat(item.cost) || 0;
+                const profit = parseFloat(item.profit) || 0;
+                
+                html += `
+                    <tr class="border-b border-gray-700">
+                        <td class="p-3">${item.name || 'Unknown'}</td>
+                        <td class="text-right p-3">${item.unitsSold || 0}</td>
+                        <td class="text-right p-3">${revenue.toFixed(2)} €</td>
+                        <td class="text-right p-3">${cost.toFixed(2)} €</td>
+                        <td class="text-right p-3 font-semibold text-green-400">${profit.toFixed(2)} €</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderForecast() {
+            const data = analytics.forecastSales(30);
+            const container = document.getElementById('forecast-content');
+            
+            if (!data || data.forecast === undefined) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">Insufficient data for forecasting</p>';
+                return;
+            }
+            
+            const forecast = parseFloat(data.forecast) || 0;
+            const growthRate = parseFloat(data.growthRate) || 0;
+            
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-card p-4 text-center">
+                        <div class="text-3xl mb-2">📈</div>
+                        <div class="text-2xl font-bold theme-text">${forecast.toFixed(2)} €</div>
+                        <div class="text-sm theme-text-secondary">Forecasted Revenue</div>
+                    </div>
+                    <div class="glass-card p-4 text-center">
+                        <div class="text-3xl mb-2">📊</div>
+                        <div class="text-2xl font-bold theme-text">${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%</div>
+                        <div class="text-sm theme-text-secondary">Growth Rate</div>
+                    </div>
+                    <div class="glass-card p-4 text-center">
+                        <div class="text-3xl mb-2">🎯</div>
+                        <div class="text-2xl font-bold theme-text">${data.confidence || 'Low'}</div>
+                        <div class="text-sm theme-text-secondary">Confidence Level</div>
+                    </div>
+                </div>
+            `;
+
+            // Create chart
+            const ctx = document.getElementById('forecast-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Day 1', 'Day 7', 'Day 14', 'Day 21', 'Day 30'],
+                    datasets: [{
+                        label: 'Projected Revenue',
+                        data: [
+                            forecast * 0.8,
+                            forecast * 0.85,
+                            forecast * 0.9,
+                            forecast * 0.95,
+                            forecast
+                        ],
+                        borderColor: 'rgb(251, 146, 60)',
+                        backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCustomerLTV() {
+            const data = analytics.calculateCustomerLTV();
+            const container = document.getElementById('ltv-content');
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No customer data available</p>';
+                return;
+            }
+            
+            let html = '<table class="w-full text-sm"><thead><tr class="border-b border-gray-600"><th class="text-left p-3">Customer</th><th class="text-right p-3">Orders</th><th class="text-right p-3">Total Spent</th><th class="text-right p-3">Avg Order</th><th class="text-right p-3">Days Active</th></tr></thead><tbody>';
+            
+            data.slice(0, 10).forEach(item => {
+                const totalSpent = parseFloat(item.totalSpent) || 0;
+                const averageOrder = parseFloat(item.averageOrder) || 0;
+                
+                html += `
+                    <tr class="border-b border-gray-700">
+                        <td class="p-3">${item.name || 'Unknown'}</td>
+                        <td class="text-right p-3">${item.orderCount || item.orders || 0}</td>
+                        <td class="text-right p-3 font-semibold text-green-400">${totalSpent.toFixed(2)} €</td>
+                        <td class="text-right p-3">${averageOrder.toFixed(2)} €</td>
+                        <td class="text-right p-3">${item.daysSinceFirst || 0}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderPeakHours() {
+            const data = analytics.analyzePeakHours();
+            const container = document.getElementById('peak-hours-content');
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No time-based data available</p>';
+                return;
+            }
+            
+            // Find peak hour
+            let peakHour = 0;
+            let peakOrders = 0;
+            data.forEach((item, index) => {
+                if (item.orders > peakOrders) {
+                    peakOrders = item.orders;
+                    peakHour = index;
+                }
+            });
+
+            container.innerHTML = `
+                <div class="glass-card p-4 mb-4 text-center">
+                    <div class="text-3xl mb-2">⭐</div>
+                    <div class="text-2xl font-bold theme-text">${peakHour}:00 - ${peakHour + 1}:00</div>
+                    <div class="text-sm theme-text-secondary">Peak Hour (${peakOrders} orders)</div>
+                </div>
+            `;
+
+            // Create chart
+            const ctx = document.getElementById('peak-hours-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => `${d.hour}:00`),
+                    datasets: [{
+                        label: 'Orders',
+                        data: data.map(d => d.orders),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#9ca3af', stepSize: 1 },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderGeographic() {
+            const data = analytics.analyzeGeographic();
+            const container = document.getElementById('geographic-content');
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No geographic data available</p>';
+                return;
+            }
+            
+            let html = '<div class="space-y-6">';
+            
+            data.forEach(item => {
+                const revenue = parseFloat(item.revenue) || 0;
+                const avgOrder = parseFloat(item.avgOrder) || 0;
+                
+                html += `
+                    <div class="glass-card">
+                        <h3 class="text-xl font-bold mb-4 text-orange-400">${item.city}</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold theme-text">${item.orders}</div>
+                                <div class="text-sm theme-text-secondary">Orders</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-400">${revenue.toFixed(2)} €</div>
+                                <div class="text-sm theme-text-secondary">Revenue</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold theme-text">${avgOrder.toFixed(2)} €</div>
+                                <div class="text-sm theme-text-secondary">Avg Order</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold theme-text">${item.customers}</div>
+                                <div class="text-sm theme-text-secondary">Customers</div>
+                            </div>
+                        </div>
+                `;
+                
+                // Show area breakdown for cities with multiple areas (especially Tirana)
+                if (item.areas && item.areas.length > 1) {
+                    html += `
+                        <div class="mt-4">
+                            <h4 class="text-lg font-semibold mb-3 text-blue-400">Areas in ${item.city}:</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-gray-600">
+                                            <th class="text-left p-2 theme-text">Area</th>
+                                            <th class="text-right p-2 theme-text">Orders</th>
+                                            <th class="text-right p-2 theme-text">Revenue</th>
+                                            <th class="text-right p-2 theme-text">Customers</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+                    
+                    item.areas.forEach(area => {
+                        const areaRevenue = parseFloat(area.revenue) || 0;
+                        html += `
+                            <tr class="border-b border-gray-700">
+                                <td class="p-2 text-orange-300">${area.area}</td>
+                                <td class="text-right p-2 theme-text">${area.orders}</td>
+                                <td class="text-right p-2 text-green-400">${areaRevenue.toFixed(2)} €</td>
+                                <td class="text-right p-2 theme-text">${area.customers}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderDeadStock() {
+            const deadStock = analytics.identifyDeadStock(60);
+            const deadStockContainer = document.getElementById('dead-stock-content');
+            
+            if (deadStock.length === 0) {
+                deadStockContainer.innerHTML = '<p class="text-green-400 p-4">✅ No dead stock found! Inventory is moving well.</p>';
+            } else {
+                const totalDeadValue = deadStock.reduce((sum, item) => sum + item.value, 0);
+                
+                let html = `
+                    <div class="mb-4 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+                        <p class="text-red-200">⚠️ You have <strong>€${totalDeadValue.toFixed(2)}</strong> tied up in non-moving inventory.</p>
+                    </div>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="p-3">Product</th>
+                                <th class="p-3">Stock</th>
+                                <th class="p-3">Value (Cost)</th>
+                                <th class="p-3">Last Sold</th>
+                                <th class="p-3">Inactive Days</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm">
+                `;
+                
+                deadStock.slice(0, 10).forEach(item => {
+                    html += `
+                        <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+                            <td class="p-3 font-medium text-white">${item.name}</td>
+                            <td class="p-3 text-gray-300">${item.stock}</td>
+                            <td class="p-3 text-gray-300">€${item.value.toFixed(2)}</td>
+                            <td class="p-3 text-gray-400">${item.lastSold}</td>
+                            <td class="p-3 text-red-400 font-bold">${item.daysInactive} days</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                if (deadStock.length > 10) {
+                    html += `<p class="text-center text-gray-500 mt-2 text-xs">Showing top 10 of ${deadStock.length} items</p>`;
+                }
+                deadStockContainer.innerHTML = html;
+            }
+        }
+
+        function renderCompetitorSpy() {
+            const container = document.getElementById('competitor-list-body');
+            
+            // Clear existing content
+            container.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">Loading tracked items...</td></tr>';
+            
+            // Fetch competitor data
+            analytics.fetchCompetitorData().then(data => {
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No competitor data found</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                
+                data.forEach(item => {
+                    const lastChecked = item.lastChecked ? new Date(item.lastChecked).toLocaleDateString() + ' ' + new Date(item.lastChecked).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Never';
+                    
+                    html += `
+                        <tr class="border-b border-gray-700">
+                            <td class="p-3">${item.productName || 'Unknown'}</td>
+                            <td class="p-3">${item.competitorName || 'N/A'}</td>
+                            <td class="p-3 text-right">${item.theirPrice !== undefined ? item.theirPrice.toFixed(2) + ' €' : 'N/A'}</td>
+                            <td class="p-3 text-right">${item.myPrice !== undefined ? item.myPrice.toFixed(2) + ' €' : 'N/A'}</td>
+                            <td class="p-3 text-center text-xs text-gray-400">${lastChecked}</td>
+                            <td class="p-3 text-center">
+                                ${item.status === 'Active' ? '<span class="text-green-400 font-semibold">✔️ Tracking</span>' : '<span class="text-red-400 font-semibold">✖️ Not Tracking</span>'}
+                            </td>
+                            <td class="p-3 text-right">
+                                <button onclick="toggleCompetitorTracking('${item.id}', this)" class="text-sm font-semibold ${item.status === 'Active' ? 'text-red-400' : 'text-green-400'} hover:underline mr-3">
+                                    ${item.status === 'Active' ? 'Stop Tracking' : 'Track'}
+                                </button>
+                                <button onclick="deleteCompetitor('${item.id}')" class="text-gray-400 hover:text-red-500" title="Delete">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }).catch(error => {
+                console.error('Error fetching competitor data:', error);
+                container.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-400">Error loading data</td></tr>';
+            });
+        }
+
+        // Check Prices Function
+        window.checkPrices = async function() {
+            const btn = document.getElementById('check-prices-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Checking...';
+            
+            try {
+                // Request notification permission if needed
+                if ('Notification' in window && Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+
+                const result = await analytics.checkCompetitorPrices();
+                alert(`Price check complete!\nChecked: ${result.checked} items\nUpdated: ${result.updated} prices`);
+                renderCompetitorSpy(); // Refresh list
+            } catch (error) {
+                console.error('Error checking prices:', error);
+                alert('Failed to check prices. See console for details.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        };
+
+        // Competitor Tracking Function
+        window.toggleCompetitorTracking = async function(id, btn) {
+            if (!confirm('Are you sure you want to change the tracking status?')) return;
+            
+            const isStopping = btn.textContent.trim() === 'Stop Tracking';
+            const newStatus = isStopping ? 'Inactive' : 'Active';
+
+            try {
+                await analytics.updateCompetitorStatus(id, newStatus);
+                
+                // Visual update
+                const row = btn.closest('tr');
+                const statusCell = row.cells[4];
+                
+                if (isStopping) {
+                    statusCell.innerHTML = '<span class="text-red-400 font-semibold">✖️ Not Tracking</span>';
+                    btn.textContent = 'Track';
+                    btn.className = 'text-sm font-semibold text-green-400 hover:underline';
+                } else {
+                    statusCell.innerHTML = '<span class="text-green-400 font-semibold">✔️ Tracking</span>';
+                    btn.textContent = 'Stop Tracking';
+                    btn.className = 'text-sm font-semibold text-red-400 hover:underline';
+                }
+                console.log(`Toggled tracking for ${id} to ${newStatus}`);
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status. Please try again.');
+            }
+        };
+
+        // Competitor Spy Logic
+        const competitorModal = document.getElementById('competitor-modal');
+        const competitorForm = document.getElementById('competitor-form');
+        const competitorList = document.getElementById('competitor-list-body');
+        
+        window.openAddCompetitorModal = function() {
+            competitorModal.classList.remove('hidden');
+            competitorModal.classList.add('flex');
+        }
+
+        window.closeCompetitorModal = function() {
+            competitorModal.classList.add('hidden');
+            competitorModal.classList.remove('flex');
+            competitorForm.reset();
+        }
+
+        competitorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newItem = {
+                productName: document.getElementById('comp-product').value,
+                competitorName: document.getElementById('comp-name').value,
+                theirPrice: parseFloat(document.getElementById('comp-price').value),
+                myPrice: parseFloat(document.getElementById('my-price').value),
+                url: document.getElementById('comp-url').value,
+                status: 'Active',
+                lastChecked: new Date().toISOString()
+            };
+            
+            try {
+                await analytics.addCompetitor(newItem);
+                renderCompetitorSpy();
+                closeCompetitorModal();
+            } catch (error) {
+                console.error('Error adding competitor:', error);
+                alert('Failed to add competitor. Please try again.');
+            }
+        });
+
+        window.deleteCompetitor = async function(id) {
+            if(confirm('Stop tracking this item?')) {
+                try {
+                    await analytics.deleteCompetitor(id);
+                    renderCompetitorSpy();
+                } catch (error) {
+                    console.error('Error deleting competitor:', error);
+                    alert('Failed to delete competitor. Please try again.');
+                }
+            }
+        }
+
+
+
+        // Export Report
+        document.getElementById('export-report').addEventListener('click', () => {
+            if (analytics) {
+                analytics.exportReport();
+            }
+        });
+
+        // Wait for authentication before loading
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                loadAnalytics();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

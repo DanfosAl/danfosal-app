@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Orders Online - Danfosal App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Theme System -->
+    <link rel="stylesheet" href="glassmorphism.css">
+    <script src="back-button-handler.js" defer></script>
+    <script src="whatsapp-integration.js" defer></script>
+    <style>
+        .status-select {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%239ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        #edit-order-modal { 
+            background-color: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+        }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] > summary .arrow { transform: rotate(90deg); }
+        
+        /* Order card glassmorphism */
+        .order-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.3);
+            border-color: rgba(249, 115, 22, 0.4);
+        }
+        
+        body.light-mode .order-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen p-4 md:p-8">
+
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+        </svg>
+    </button>
+
+    <div class="max-w-7xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold gradient-text">Orders Online</h1>
+                <p class="text-gray-400">Manage and track customer orders.</p>
+            </div>
+            <a href="index.html" class="glass-btn inline-flex items-center">
+                <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                Dashboard
+            </a>
+        </header>
+
+        <!-- Add New Order Form -->
+        <div class="glass-container mb-8">
+            <h3 class="text-xl font-bold mb-4 text-orange-500">Create New Order</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <input type="text" id="client-name" placeholder="Client Name" class="glass-input">
+                <input type="text" id="telephone" placeholder="Telephone" class="glass-input">
+                <input type="text" id="address" placeholder="Address" class="glass-input">
+            </div>
+            <div class="glass-card bg-opacity-50 p-4 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                    <input type="text" id="product-select" list="products-datalist" placeholder="Select a Product" class="md:col-span-2 glass-input">
+                    <datalist id="products-datalist"></datalist>
+                    <input type="number" id="product-quantity" placeholder="Qty" min="1" value="1" class="glass-input">
+                    <button id="add-product-to-order-btn" class="glass-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Add to Order</button>
+                </div>
+                <div id="current-order-items" class="mt-4 space-y-2"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <input type="number" id="courier-cost" placeholder="Courier Cost (€)" class="glass-input">
+                <div class="md:col-span-2 flex justify-end items-center gap-4">
+                    <span class="text-xl font-bold">Total: <span id="total-order-price" class="text-green-400">€0.00</span></span>
+                    <button id="submit-order-btn" class="glass-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">Submit Order</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter Section -->
+        <div class="glass-container mb-6">
+            <div class="flex flex-col md:flex-row gap-4 items-center">
+                <div class="flex-1 relative">
+                    <input type="text" id="search-orders" placeholder="🔍 Search by customer name, phone, address, or order ID..." class="glass-input w-full pr-10">
+                    <button id="clear-search" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <select id="status-filter" class="glass-input w-full md:w-auto">
+                    <option value="">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Returned">Returned</option>
+                </select>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-sm">
+                <span id="results-count" class="text-gray-400">Loading orders...</span>
+                <button id="reset-filters" class="hidden glass-btn text-orange-500 hover:text-orange-400 text-sm">
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Orders List Container -->
+        <div id="orders-list-container" class="space-y-4"></div>
+    </div>
+    
+    <!-- Edit Order Modal -->
+    <div id="edit-order-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="glass-container w-full max-w-3xl">
+            <h3 class="text-2xl font-bold mb-4 text-orange-500">Edit Order</h3>
+            <input type="hidden" id="edit-order-id">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <input type="text" id="edit-client-name" placeholder="Client Name" class="glass-input">
+                <input type="text" id="edit-telephone" placeholder="Telephone" class="glass-input">
+                <input type="text" id="edit-address" placeholder="Address" class="glass-input">
+            </div>
+            <div class="glass-card bg-opacity-50 p-4 rounded-lg">
+                <div id="edit-order-items" class="space-y-2 mb-4"></div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                    <input type="text" id="edit-product-select" list="products-datalist" placeholder="Add Product" class="md:col-span-2 glass-input">
+                    <input type="number" id="edit-product-quantity" placeholder="Qty" min="1" value="1" class="glass-input">
+                    <button id="add-product-to-edit-btn" class="glass-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">Add</button>
+                </div>
+            </div>
+            <div class="flex justify-end items-center gap-4 mt-6">
+                <button id="cancel-edit-btn" class="glass-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg">Cancel</button>
+                <button id="save-edit-btn" class="glass-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, getDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const startApp = async () => {
+
+            const ordersRef = collection(db, 'onlineOrders');
+            const productsRef = collection(db, 'products');
+            
+            let masterProductList = [];
+            let allOrders = [];
+            let currentOrderItems = [];
+            let editingOrderItems = [];
+
+            const ordersListContainer = document.getElementById('orders-list-container');
+            const productsDatalist = document.getElementById('products-datalist');
+            const addProductBtn = document.getElementById('add-product-to-order-btn');
+            const currentOrderItemsDiv = document.getElementById('current-order-items');
+            const totalOrderPriceEl = document.getElementById('total-order-price');
+            const submitOrderBtn = document.getElementById('submit-order-btn');
+            
+            const editModal = document.getElementById('edit-order-modal');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            const saveEditBtn = document.getElementById('save-edit-btn');
+            const addProductToEditBtn = document.getElementById('add-product-to-edit-btn');
+            const editOrderItemsDiv = document.getElementById('edit-order-items');
+
+            
+            // Unified Warranty System
+            let currentWarrantyOrder = null;
+
+            window.openWarrantyModal = function(orderId) {
+                const order = allOrders.find(o => o.id === orderId);
+                if (!order) {
+                    alert('Order not found!');
+                    return;
+                }
+                
+                currentWarrantyOrder = order;
+                
+                // Use all items for warranty eligibility
+                const itemsForWarranty = order.items || [];
+                
+                if (itemsForWarranty.length === 0) {
+                    alert('No items found in this order!');
+                    return;
+                }
+                
+                // Populate items list with checkboxes
+                const itemsList = document.getElementById('warranty-items-list');
+                itemsList.innerHTML = itemsForWarranty.map((item, index) => {
+                    const serialDisplay = item.serialNumber ? `SN: ${item.serialNumber}` : 'No SN';
+                    return `
+                        <label class="warranty-checkbox">
+                            <input type="checkbox" id="warranty-item-${index}" value="${index}" checked>
+                            <span style="flex: 1; font-weight: 600;">${item.name} × ${item.quantity}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">${serialDisplay}</span>
+                        </label>
+                    `;
+                }).join('');
+                
+                // Pre-fill customer name
+                document.getElementById('warranty-customer-name').value = order.clientName || '';
+                
+                // Pre-fill serial numbers
+                const serialNumbers = itemsForWarranty
+                    .filter(item => item.serialNumber && item.serialNumber.trim())
+                    .map(item => item.serialNumber)
+                    .join(', ');
+                document.getElementById('warranty-serial-numbers').value = serialNumbers;
+                
+                // Show modal
+                document.getElementById('warranty-modal').style.display = 'flex';
+            };
+
+            window.closeWarrantyModal = function() {
+                document.getElementById('warranty-modal').style.display = 'none';
+                currentWarrantyOrder = null;
+            };
+
+            window.printUnifiedWarrantyCard = function() {
+                if (!currentWarrantyOrder) {
+                    alert('No order selected!');
+                    return;
+                }
+                
+                // Get selected items
+                const selectedItems = [];
+                const allItems = currentWarrantyOrder.items || [];
+                
+                allItems.forEach((item, index) => {
+                    const checkbox = document.getElementById(`warranty-item-${index}`);
+                    if (checkbox && checkbox.checked) {
+                        const productNameWithProducer = `${item.producer || ''} ${item.name}`.trim();
+                        selectedItems.push(productNameWithProducer);
+                    }
+                });
+                
+                if (selectedItems.length === 0) {
+                    alert('Please select at least one item for the warranty card!');
+                    return;
+                }
+                
+                const customerName = document.getElementById('warranty-customer-name').value.trim();
+                if (!customerName) {
+                    alert('Please enter the customer name!');
+                    return;
+                }
+                
+                const serialNumbers = document.getElementById('warranty-serial-numbers').value.trim();
+                if (!serialNumbers) {
+                    alert('Please enter serial numbers!');
+                    return;
+                }
+                
+                // Combine selected products into a single string
+                const productNames = selectedItems.join(', ');
+                
+                // Extract city from address and capitalize first letter
+                let city = 'Vlore';
+                if (currentWarrantyOrder.address) {
+                    const addressParts = currentWarrantyOrder.address.split(',');
+                    city = addressParts[addressParts.length - 1].trim();
+                    // Capitalize first letter
+                    city = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
+                }
+                
+                const currentDate = new Date().toLocaleDateString('en-GB');
+                
+                // Build warranty card URL
+                const url = `warranty-card.html?product=${encodeURIComponent(productNames)}&catalog=&serial=${encodeURIComponent(serialNumbers)}&buyer=${encodeURIComponent(customerName)}&date=${currentDate}&location=${encodeURIComponent(city)}`;
+                
+                // Open warranty card in new window
+                window.open(url, '_blank');
+                
+                // Close modal
+                closeWarrantyModal();
+                
+                console.log('✅ Unified warranty card generated successfully');
+            };
+            
+            // Close modal when clicking outside
+            document.getElementById('warranty-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeWarrantyModal();
+                }
+            });
+
+            // Global function to print warranty card (keep for compatibility)
+            window.printWarrantyCard = function(product, serial, buyer, date, location) {
+                const url = `warranty-card.html?product=${product}&catalog=&serial=${serial}&buyer=${encodeURIComponent(buyer)}&date=${date}&location=${encodeURIComponent(location)}`;
+                window.open(url, '_blank');
+            };
+
+            // Listen for serial number changes
+            ordersListContainer.addEventListener('blur', async (e) => {
+                if (e.target.classList.contains('serial-number-input')) {
+                    const orderId = e.target.dataset.orderId;
+                    const itemIndex = parseInt(e.target.dataset.itemIndex);
+                    const serialNumber = e.target.value.trim();
+                    
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (order && order.items[itemIndex]) {
+                        order.items[itemIndex].serialNumber = serialNumber;
+                        await updateDoc(doc(db, 'onlineOrders', orderId), {
+                            items: order.items
+                        });
+                        console.log(`Serial number saved: ${serialNumber} for ${order.items[itemIndex].name}`);
+                        
+                        // Re-render to show/hide warranty button
+                        const activeOrders = allOrders.filter(o => o.status === 'Ordered' || o.status === 'Shipped');
+                        const completedOrders = allOrders.filter(o => o.status === 'Paid' || o.status === 'Returned');
+                        ordersListContainer.innerHTML = '';
+                        activeOrders.forEach(ord => ordersListContainer.appendChild(createOrderCard(ord)));
+                        if (completedOrders.length > 0) {
+                            const details = document.createElement('details');
+                            details.className = 'mt-8';
+                            details.innerHTML = `<summary class="cursor-pointer text-xl font-bold mb-4 text-gray-400 hover:text-white">Completed Orders (${completedOrders.length})</summary>`;
+                            const completedDiv = document.createElement('div');
+                            completedDiv.className = 'space-y-4';
+                            completedOrders.forEach(ord => completedDiv.appendChild(createOrderCard(ord)));
+                            details.appendChild(completedDiv);
+                            ordersListContainer.appendChild(details);
+                        }
+                    }
+                }
+            }, true);
+
+            function getStatusColor(status) {
+                switch (status) {
+                    case 'Ordered': return 'bg-blue-600 text-blue-100';
+                    case 'Shipped': return 'bg-yellow-600 text-yellow-100';
+                    case 'Paid': return 'bg-green-600 text-green-100';
+                    case 'Returned': return 'bg-red-600 text-red-100';
+                    default: return 'bg-gray-600 text-gray-100';
+                }
+            }
+
+            function createOrderCard(order) {
+                const card = document.createElement('div');
+                card.className = "order-card p-4 rounded-xl grid grid-cols-1 md:grid-cols-12 gap-4 items-center fade-in";
+                
+                // Create products HTML with serial number inputs (no individual warranty buttons)
+                const productsHtml = (order.items || []).map((item, index) => {
+                    const itemSerial = item.serialNumber || '';
+                    
+                    return `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span>${item.name} (x${item.quantity})</span>
+                            <input 
+                                type="text" 
+                                placeholder="SN" 
+                                value="${itemSerial}"
+                                data-order-id="${order.id}" 
+                                data-item-index="${index}"
+                                class="serial-number-input"
+                                style="width: 100px; padding: 2px 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; font-size: 11px;"
+                            />
+                        </div>
+                    `;
+                }).join('');
+                
+                // Check if order has any items for warranty eligibility
+                const hasItems = (order.items || []).length > 0;
+                
+                // Instagram badge if order is from chatbot
+                const instagramBadge = order.source === 'Instagram Chatbot' 
+                    ? '<span class="inline-flex items-center px-2 py-1 text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 rounded-full ml-2">📱 Instagram</span>' 
+                    : '';
+                
+                card.innerHTML = `
+                    <div class="md:col-span-4">
+                        <p class="font-bold text-lg flex items-center">
+                            ${order.clientName}
+                            ${instagramBadge}
+                        </p>
+                        <p class="text-sm text-gray-400">${order.telephone || 'No phone'}</p>
+                        <p class="text-sm text-gray-400">${order.address || 'No address'}</p>
+                        ${hasItems ? `
+                            <button 
+                                onclick="openWarrantyModal('${order.id}')"
+                                class="unified-warranty-btn mt-2"
+                                style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);"
+                                title="Create Unified Warranty Card"
+                            >🛡️ Create Warranty</button>
+                        ` : ''}
+                    </div>
+                    <div class="md:col-span-3 text-gray-300">${productsHtml}</div>
+                    <div class="md:col-span-2 text-center"><p class="font-extrabold text-xl text-green-400">€${parseFloat(order.price).toFixed(2)}</p></div>
+                    <div class="md:col-span-2"><select data-id="${order.id}" class="status-select glass-input w-full p-2"></select></div>
+                    <div class="md:col-span-1 flex justify-center gap-2">
+                        <button data-id="${order.id}" data-phone="${order.telephone}" data-name="${order.clientName}" data-order="${order.id}" class="whatsapp-btn text-gray-400 hover:text-green-500 p-2" title="Send WhatsApp">
+                            <svg class="w-5 h-5 pointer-events-none" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                        </button>
+                        <button data-id="${order.id}" class="edit-order-btn text-gray-400 hover:text-orange-500 p-2">
+                            <svg class="w-5 h-5 pointer-events-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        </button>
+                        <button data-id="${order.id}" class="delete-order-btn text-gray-400 hover:text-red-500 p-2">
+                            <svg class="w-5 h-5 pointer-events-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.134H8.09a2.09 2.09 0 00-2.09 2.134v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        </button>
+                    </div>
+                `;
+                const select = card.querySelector('.status-select');
+                select.dataset.oldStatus = order.status; // Store current status
+                ['Ordered', 'Shipped', 'Paid', 'Returned'].forEach(status => {
+                    const option = document.createElement('option');
+                    option.value = status; option.textContent = status;
+                    if (order.status === status) option.selected = true;
+                    select.appendChild(option);
+                });
+                select.className += ` ${getStatusColor(order.status)}`;
+                return card;
+            }
+
+            onSnapshot(query(productsRef), (snapshot) => {
+                masterProductList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                productsDatalist.innerHTML = masterProductList.map(p => `<option value="${p.name}"></option>`).join('');
+            });
+
+            // Function to restore stock for order items
+            const restoreStockForOrder = async (order) => {
+                if (!order.items || order.items.length === 0) {
+                    console.log('⚠️ No items to restore for order:', order.id);
+                    return;
+                }
+                
+                console.log('🔄 RESTORING STOCK FOR ORDER:', order.id);
+                
+                for (const item of order.items) {
+                    let productRef = null;
+                    
+                    // Try to find product by ID first (web app orders)
+                    if (item.id) {
+                        productRef = doc(db, 'products', item.id);
+                        console.log(`  Using product ID: ${item.id} for ${item.name}`);
+                    } else {
+                        // For Instagram orders without ID, match by producer and name
+                        const productName = item.name;
+                        const producer = item.producer || '';
+                        const product = masterProductList.find(p => 
+                            p.name === productName && (p.producer === producer || !producer)
+                        );
+                        if (product) {
+                            productRef = doc(db, 'products', product.id);
+                            console.log(`  Matched by name+producer: ${productName} (${producer}) -> ID: ${product.id}`);
+                        } else {
+                            console.warn(`  ❌ Could not find product: ${productName} by ${producer}`);
+                        }
+                    }
+                    
+                    if (productRef) {
+                        const productDoc = await getDoc(productRef);
+                        if (productDoc.exists()) {
+                            const currentStock = productDoc.data().stock || 0;
+                            const newStock = currentStock + item.quantity;
+                            await updateDoc(productRef, {
+                                stock: newStock
+                            });
+                            console.log(`  ✅ Restored ${item.quantity} units of ${item.name} (${currentStock} → ${newStock})`);
+                        }
+                    }
+                }
+                console.log('✅ STOCK RESTORATION COMPLETE');
+            };
+
+            // Search and filter functionality
+            let searchTerm = '';
+            let statusFilter = '';
+            
+            const filterOrders = (orders) => {
+                return orders.filter(order => {
+                    // Status filter
+                    if (statusFilter && order.status !== statusFilter) return false;
+                    
+                    // Search filter
+                    if (searchTerm) {
+                        const searchLower = searchTerm.toLowerCase();
+                        const clientName = (order.clientName || '').toLowerCase();
+                        const phone = (order.phoneNumber || order.telephone || order.phone || '').toLowerCase();
+                        const address = (order.address || order.deliveryAddress || '').toLowerCase();
+                        const orderId = (order.id || '').toLowerCase();
+                        
+                        return clientName.includes(searchLower) || 
+                               phone.includes(searchLower) || 
+                               address.includes(searchLower) ||
+                               orderId.includes(searchLower);
+                    }
+                    
+                    return true;
+                });
+            };
+            
+            const renderOrders = (orders) => {
+                ordersListContainer.innerHTML = ''; 
+
+                const statusOrder = { 'Ordered': 1, 'Shipped': 2, 'Paid': 3, 'Returned': 4 };
+                const sortedOrders = [...orders].sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+
+                const activeOrders = sortedOrders.filter(o => o.status === 'Ordered' || o.status === 'Shipped');
+                const completedOrders = sortedOrders.filter(o => o.status === 'Paid' || o.status === 'Returned');
+                
+                // Update results count
+                document.getElementById('results-count').textContent = 
+                    `Showing ${sortedOrders.length} of ${allOrders.length} orders`;
+                
+                // Show/hide reset button
+                const resetBtn = document.getElementById('reset-filters');
+                if (searchTerm || statusFilter) {
+                    resetBtn.classList.remove('hidden');
+                } else {
+                    resetBtn.classList.add('hidden');
+                }
+
+                if (activeOrders.length === 0 && completedOrders.length === 0) {
+                    ordersListContainer.innerHTML = `<p class="text-center text-gray-500">No orders found matching your filters.</p>`;
+                    return;
+                }
+                
+                activeOrders.forEach(order => {
+                    ordersListContainer.appendChild(createOrderCard(order));
+                });
+
+                if (completedOrders.length > 0) {
+                    const details = document.createElement('details');
+                    details.className = "glass-container";
+                    details.innerHTML = `
+                        <summary class="cursor-pointer flex justify-between items-center">
+                            <span class="text-lg font-bold text-gray-400">Completed Orders (${completedOrders.length})</span>
+                            <span class="arrow transition-transform duration-200">▶</span>
+                        </summary>
+                        <div class="mt-4 space-y-4"></div>
+                    `;
+                    const completedContainer = details.querySelector('div');
+                    completedOrders.forEach(order => {
+                        completedContainer.appendChild(createOrderCard(order));
+                    });
+                    ordersListContainer.appendChild(details);
+                }
+            };
+
+            onSnapshot(query(ordersRef), (snapshot) => {
+                allOrders = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                
+                const filteredOrders = filterOrders(allOrders);
+                renderOrders(filteredOrders);
+                
+                // Check for pending warranty action from AI Chatbot
+                const pendingOrderId = sessionStorage.getItem('pendingWarrantyOrder');
+                if (pendingOrderId) {
+                    const order = allOrders.find(o => o.id === pendingOrderId);
+                    if (order) {
+                        console.log('🛡️ Opening pending warranty for order:', pendingOrderId);
+                        sessionStorage.removeItem('pendingWarrantyOrder');
+                        setTimeout(() => {
+                            if (typeof window.openWarrantyModal === 'function') {
+                                window.openWarrantyModal(pendingOrderId);
+                            }
+                        }, 500);
+                    }
+                }
+            });
+            
+            // Search input event listener
+            document.getElementById('search-orders').addEventListener('input', (e) => {
+                searchTerm = e.target.value.trim();
+                const clearBtn = document.getElementById('clear-search');
+                if (searchTerm) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+                const filteredOrders = filterOrders(allOrders);
+                renderOrders(filteredOrders);
+            });
+            
+            // Clear search button
+            document.getElementById('clear-search').addEventListener('click', () => {
+                document.getElementById('search-orders').value = '';
+                searchTerm = '';
+                document.getElementById('clear-search').classList.add('hidden');
+                const filteredOrders = filterOrders(allOrders);
+                renderOrders(filteredOrders);
+            });
+            
+            // Status filter dropdown
+            document.getElementById('status-filter').addEventListener('change', (e) => {
+                statusFilter = e.target.value;
+                const filteredOrders = filterOrders(allOrders);
+                renderOrders(filteredOrders);
+            });
+            
+            // Reset filters button
+            document.getElementById('reset-filters').addEventListener('click', () => {
+                document.getElementById('search-orders').value = '';
+                document.getElementById('status-filter').value = '';
+                document.getElementById('clear-search').classList.add('hidden');
+                searchTerm = '';
+                statusFilter = '';
+                const filteredOrders = filterOrders(allOrders);
+                renderOrders(filteredOrders);
+            });
+            
+            const updateOrderTotal = () => {
+                const total = currentOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                totalOrderPriceEl.textContent = `€${total.toFixed(2)}`;
+            };
+
+            const renderCurrentOrderItems = () => {
+                currentOrderItemsDiv.innerHTML = '';
+                currentOrderItems.forEach((item) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center bg-gray-700 p-2 rounded';
+                    itemDiv.innerHTML = `<span>${item.name} (x${item.quantity})</span><span>€${(item.price * item.quantity).toFixed(2)}</span>`;
+                    currentOrderItemsDiv.appendChild(itemDiv);
+                });
+                updateOrderTotal();
+            };
+
+            addProductBtn.addEventListener('click', () => {
+                const productName = document.getElementById('product-select').value;
+                const quantity = parseInt(document.getElementById('product-quantity').value);
+                const product = masterProductList.find(p => p.name.toLowerCase() === productName.toLowerCase());
+                if (!product || isNaN(quantity) || quantity <= 0) {
+                    alert("Please select a valid product and quantity.");
+                    return;
+                }
+                currentOrderItems.push({ ...product, quantity });
+                renderCurrentOrderItems();
+                document.getElementById('product-select').value = '';
+                document.getElementById('product-quantity').value = '1';
+            });
+
+            submitOrderBtn.addEventListener('click', async () => {
+                const clientName = document.getElementById('client-name').value.trim();
+                const telephone = document.getElementById('telephone').value.trim();
+                const address = document.getElementById('address').value.trim();
+                const courierCost = parseFloat(document.getElementById('courier-cost').value) || 0;
+                if (!clientName || currentOrderItems.length === 0) {
+                    alert("Please enter a client name and add at least one product.");
+                    return;
+                }
+                const totalCost = currentOrderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+                const totalPrice = currentOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                
+                console.log('📝 CREATING WEB ORDER (Stock will be deducted when marked as Shipped)');
+                
+                await addDoc(ordersRef, {
+                    clientName, telephone, address, courierCost,
+                    items: currentOrderItems,
+                    price: totalPrice, cost: totalCost, status: 'Ordered',
+                    timestamp: Date.now(), source: 'App',
+                    stockDeducted: false  // Will be set to true when changed to Shipped
+                });
+                console.log('✅ Order created successfully');
+                currentOrderItems = [];
+                renderCurrentOrderItems();
+                document.getElementById('client-name').value = '';
+                document.getElementById('telephone').value = '';
+                document.getElementById('address').value = '';
+                document.getElementById('courier-cost').value = '';
+            });
+
+            const openEditModal = (order) => {
+                editingOrderItems = JSON.parse(JSON.stringify(order.items || []));
+                document.getElementById('edit-order-id').value = order.id;
+                document.getElementById('edit-client-name').value = order.clientName;
+                document.getElementById('edit-telephone').value = order.telephone;
+                document.getElementById('edit-address').value = order.address;
+                renderEditingItems();
+                editModal.classList.remove('hidden');
+            };
+
+            const closeEditModal = () => editModal.classList.add('hidden');
+            
+            const renderEditingItems = () => {
+                editOrderItemsDiv.innerHTML = '';
+                editingOrderItems.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-gray-700 p-2 rounded';
+                    div.innerHTML = `<span>${item.name} (x${item.quantity})</span><button data-index="${index}" class="remove-item-btn text-red-500 font-bold text-lg">&times;</button>`;
+                    editOrderItemsDiv.appendChild(div);
+                });
+            };
+
+            ordersListContainer.addEventListener('click', async (e) => {
+                const editBtn = e.target.closest('.edit-order-btn');
+                if (editBtn) {
+                    const orderId = editBtn.dataset.id;
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (order) openEditModal(order);
+                }
+                const deleteBtn = e.target.closest('.delete-order-btn');
+                if (deleteBtn) {
+                    const orderId = deleteBtn.dataset.id;
+                    const order = allOrders.find(o => o.id === orderId);
+                    if (confirm('Are you sure you want to delete this order?')) {
+                        // Restore stock before deleting
+                        if (order) {
+                            await restoreStockForOrder(order);
+                        }
+                        await deleteDoc(doc(db, 'onlineOrders', orderId));
+                    }
+                }
+            });
+            
+            ordersListContainer.addEventListener('change', async (e) => {
+                if(e.target.classList.contains('status-select')) {
+                    const orderId = e.target.dataset.id;
+                    const newStatus = e.target.value;
+                    const oldStatus = e.target.dataset.oldStatus || 'Ordered';
+                    const order = allOrders.find(o => o.id === orderId);
+                    
+                    console.log('🔄 Status change:', { orderId, oldStatus, newStatus, source: order?.source });
+                    
+                    // Deduct stock when order is changed to "Shipped" (only if not already deducted)
+                    if (newStatus === 'Shipped' && oldStatus !== 'Shipped' && order) {
+                        // Check database to see if stock was already deducted
+                        const orderDoc = await getDoc(doc(db, 'onlineOrders', orderId));
+                        const stockAlreadyDeducted = orderDoc.data()?.stockDeducted || false;
+                        
+                        if (!stockAlreadyDeducted) {
+                            console.log(`📉 DEDUCTING STOCK - ${order.source} order marked as Shipped:`, orderId);
+                            
+                            for (const item of order.items) {
+                                let productRef = null;
+                                
+                                // Try to find product by ID first
+                                if (item.id) {
+                                    productRef = doc(db, 'products', item.id);
+                                    console.log(`  Using product ID: ${item.id} for ${item.name}`);
+                                } else {
+                                    // For Instagram orders without ID, match by producer and name
+                                    const productName = item.name;
+                                    const producer = item.producer || '';
+                                    const product = masterProductList.find(p => 
+                                        p.name === productName && (p.producer === producer || !producer)
+                                    );
+                                    if (product) {
+                                        productRef = doc(db, 'products', product.id);
+                                        console.log(`  Matched by name+producer: ${productName} (${producer}) -> ID: ${product.id}`);
+                                    } else {
+                                        console.warn(`  ❌ Could not match product: ${productName} by ${producer}`);
+                                    }
+                                }
+                                
+                                if (productRef) {
+                                    const productDoc = await getDoc(productRef);
+                                    if (productDoc.exists()) {
+                                        const currentStock = productDoc.data().stock || 0;
+                                        const newStock = currentStock - item.quantity;
+                                        
+                                        if (newStock < 0) {
+                                            console.warn(`  ⚠️ WARNING: Stock for ${item.name} will be negative! (${currentStock} - ${item.quantity} = ${newStock})`);
+                                        }
+                                        
+                                        await updateDoc(productRef, { stock: newStock });
+                                        console.log(`  ✅ ${item.name}: ${currentStock} → ${newStock} (-${item.quantity})`);
+                                    }
+                                }
+                            }
+                            
+                            // Mark order as stock deducted
+                            await updateDoc(doc(db, 'onlineOrders', orderId), { stockDeducted: true, status: newStatus });
+                            console.log('✅ STOCK DEDUCTION COMPLETE - Flag saved to database');
+                            
+                            // Update the oldStatus for next change
+                            e.target.dataset.oldStatus = newStatus;
+                            return; // Exit early since we already updated status
+                        } else {
+                            console.log('⏭️ Stock already deducted for this order, skipping...');
+                        }
+                    }
+                    
+                    // Restore stock if status is changed to "Returned" (only if stock was deducted)
+                    if (newStatus === 'Returned' && order) {
+                        const orderDoc = await getDoc(doc(db, 'onlineOrders', orderId));
+                        const stockWasDeducted = orderDoc.data()?.stockDeducted || false;
+                        
+                        if (stockWasDeducted) {
+                            await restoreStockForOrder(order);
+                            // Clear the flag so stock can be deducted again if needed
+                            await updateDoc(doc(db, 'onlineOrders', orderId), { stockDeducted: false, status: newStatus });
+                            console.log('🔓 Stock flag cleared - can be deducted again if changed back to Shipped');
+                            e.target.dataset.oldStatus = newStatus;
+                            return;
+                        }
+                    }
+                    
+                    // Update the oldStatus for next change
+                    e.target.dataset.oldStatus = newStatus;
+                    
+                    const updateData = { status: newStatus };
+                    if (newStatus === 'Paid') updateData.paidTimestamp = Date.now();
+                    await updateDoc(doc(db, 'onlineOrders', orderId), updateData);
+                }
+
+                // WhatsApp button handler
+                if(e.target.classList.contains('whatsapp-btn')) {
+                    const phone = e.target.dataset.phone;
+                    const name = e.target.dataset.name;
+                    const orderId = e.target.dataset.order;
+                    
+                    if (window.whatsAppManager && phone) {
+                        const order = allOrders.find(o => o.id === orderId);
+                        if (order) {
+                            window.whatsAppManager.sendOrderConfirmation(phone, name, order.items, order.price);
+                        }
+                    } else {
+                        alert('WhatsApp integration not available or no phone number');
+                    }
+                }
+            });
+            
+            cancelEditBtn.addEventListener('click', closeEditModal);
+
+            saveEditBtn.addEventListener('click', async () => {
+                const orderId = document.getElementById('edit-order-id').value;
+                const newClientName = document.getElementById('edit-client-name').value;
+                const newTelephone = document.getElementById('edit-telephone').value;
+                const newAddress = document.getElementById('edit-address').value;
+                const newPrice = editingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const newCost = editingOrderItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+                await updateDoc(doc(db, 'onlineOrders', orderId), {
+                    clientName: newClientName, telephone: newTelephone, address: newAddress,
+                    items: editingOrderItems, price: newPrice, cost: newCost
+                });
+                closeEditModal();
+            });
+            
+            addProductToEditBtn.addEventListener('click', () => {
+                const productName = document.getElementById('edit-product-select').value;
+                const quantity = parseInt(document.getElementById('edit-product-quantity').value);
+                const product = masterProductList.find(p => p.name.toLowerCase() === productName.toLowerCase());
+                if (!product || isNaN(quantity) || quantity <= 0) {
+                    alert("Please select a valid product and quantity.");
+                    return;
+                }
+                editingOrderItems.push({ ...product, quantity });
+                renderEditingItems();
+                document.getElementById('edit-product-select').value = '';
+                document.getElementById('edit-product-quantity').value = '1';
+            });
+
+            editOrderItemsDiv.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-item-btn')) {
+                    const index = parseInt(e.target.dataset.index);
+                    editingOrderItems.splice(index, 1);
+                    renderEditingItems();
+                }
+            });
+        };
+
+        // Wait for authentication before loading data
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                startApp();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+        
+        // Unified Warranty System
+        let currentWarrantyOrder = null;
+
+        window.openWarrantyModal = function(orderId) {
+            const order = allOrders.find(o => o.id === orderId);
+            if (!order) {
+                alert('Order not found!');
+                return;
+            }
+            
+            currentWarrantyOrder = order;
+            
+            // Filter items that have serial numbers
+            const itemsWithSerial = (order.items || []).filter(item => item.serialNumber && item.serialNumber.trim());
+            
+            if (itemsWithSerial.length === 0) {
+                alert('No items with serial numbers found in this order!');
+                return;
+            }
+            
+            // Populate items list with checkboxes
+            const itemsList = document.getElementById('warranty-items-list');
+            itemsList.innerHTML = itemsWithSerial.map((item, index) => {
+                // Find the original index in the order.items array
+                const originalIndex = order.items.findIndex(orderItem => orderItem === item);
+                return `
+                    <label class="warranty-checkbox">
+                        <input type="checkbox" id="warranty-item-${originalIndex}" value="${originalIndex}" checked>
+                        <span style="flex: 1; font-weight: 600;">${item.name} × ${item.quantity}</span>
+                        <span style="font-size: 12px; color: #94a3b8;">SN: ${item.serialNumber}</span>
+                    </label>
+                `;
+            }).join('');
+            
+            // Pre-fill customer name
+            document.getElementById('warranty-customer-name').value = order.clientName || '';
+            
+            // Pre-fill serial numbers
+            const serialNumbers = itemsWithSerial.map(item => item.serialNumber).join(', ');
+            document.getElementById('warranty-serial-numbers').value = serialNumbers;
+            
+            // Show modal
+            document.getElementById('warranty-modal').style.display = 'flex';
+        };
+
+        window.closeWarrantyModal = function() {
+            document.getElementById('warranty-modal').style.display = 'none';
+            currentWarrantyOrder = null;
+        };
+
+        window.printUnifiedWarrantyCard = function() {
+            if (!currentWarrantyOrder) {
+                alert('No order selected!');
+                return;
+            }
+            
+            // Get selected items
+            const selectedItems = [];
+            const itemsWithSerial = (currentWarrantyOrder.items || []).filter(item => item.serialNumber && item.serialNumber.trim());
+            
+            itemsWithSerial.forEach((item, index) => {
+                const originalIndex = currentWarrantyOrder.items.findIndex(orderItem => orderItem === item);
+                const checkbox = document.getElementById(`warranty-item-${originalIndex}`);
+                if (checkbox && checkbox.checked) {
+                    const productNameWithProducer = `${item.producer || ''} ${item.name}`.trim();
+                    selectedItems.push(productNameWithProducer);
+                }
+            });
+            
+            if (selectedItems.length === 0) {
+                alert('Please select at least one item for the warranty card!');
+                return;
+            }
+            
+            const customerName = document.getElementById('warranty-customer-name').value.trim();
+            if (!customerName) {
+                alert('Please enter the customer name!');
+                return;
+            }
+            
+            const serialNumbers = document.getElementById('warranty-serial-numbers').value.trim();
+            if (!serialNumbers) {
+                alert('Please enter serial numbers!');
+                return;
+            }
+            
+            // Combine selected products into a single string
+            const productNames = selectedItems.join(', ');
+            
+            // Extract city from address and capitalize first letter
+            let city = 'Vlore';
+            if (currentWarrantyOrder.address) {
+                const addressParts = currentWarrantyOrder.address.split(',');
+                city = addressParts[addressParts.length - 1].trim();
+                // Capitalize first letter
+                city = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
+            }
+            
+            const currentDate = new Date().toLocaleDateString('en-GB');
+            
+            // Build warranty card URL
+            const url = `warranty-card.html?product=${encodeURIComponent(productNames)}&catalog=&serial=${encodeURIComponent(serialNumbers)}&buyer=${encodeURIComponent(customerName)}&date=${currentDate}&location=${encodeURIComponent(city)}`;
+            
+            // Open warranty card in new window
+            window.open(url, '_blank');
+            
+            // Close modal
+            closeWarrantyModal();
+            
+            console.log('✅ Unified warranty card generated successfully');
+        };
+        
+        // Close modal when clicking outside
+        document.getElementById('warranty-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeWarrantyModal();
+            }
+        });
+    </script>
+    
+    <!-- Unified Warranty Modal -->
+    <div id="warranty-modal" class="warranty-modal" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    ">
+        <div class="warranty-modal-content" style="
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            animation: modalSlideIn 0.3s ease;
+        ">
+            <h2 style="color: #10b981; margin-bottom: 20px; font-size: 1.8rem; text-align: center;">🛡️ Generate Warranty Card</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 12px; font-weight: 600; font-size: 1.1rem; color: white;">Select Items for Warranty:</label>
+                <div id="warranty-items-list" style="
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 10px;
+                    padding: 15px;
+                    background: rgba(255, 255, 255, 0.05);
+                "></div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: white;">Customer Name:</label>
+                <input 
+                    type="text" 
+                    id="warranty-customer-name" 
+                    placeholder="e.g., Markela Dhima"
+                    style="
+                        width: 100%;
+                        background: rgba(255,255,255,0.1);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        color: white;
+                        padding: 12px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                    "
+                >
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: white;">Serial Numbers (comma-separated):</label>
+                <input 
+                    type="text" 
+                    id="warranty-serial-numbers" 
+                    placeholder="e.g., SN001, SN002, SN003"
+                    style="
+                        width: 100%;
+                        background: rgba(255,255,255,0.1);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        color: white;
+                        padding: 12px;
+                        border-radius: 8px;
+                        font-size: 14px;
+                    "
+                >
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button 
+                    onclick="closeWarrantyModal()"
+                    style="
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        transition: all 0.2s;
+                    "
+                >Cancel</button>
+                <button 
+                    onclick="printUnifiedWarrantyCard()"
+                    style="
+                        background: linear-gradient(135deg, #10b981, #059669);
+                        border: none;
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+                        transition: all 0.2s;
+                    "
+                >🖨️ Generate Warranty</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes modalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .warranty-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .warranty-checkbox:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+        
+        .warranty-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #10b981;
+        }
+        
+        .warranty-checkbox span {
+            color: white;
+            font-weight: 600;
+            flex: 1;
+        }
+    </style>
+</body>
+</html>

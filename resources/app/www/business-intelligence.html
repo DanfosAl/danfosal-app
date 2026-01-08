@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Intelligence - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        
+        .bi-card {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 20px;
+            padding: 24px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .bi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-color: rgba(148, 163, 184, 0.5);
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        .confidence-high { color: #22c55e; font-weight: bold; }
+        .confidence-medium { color: #fbbf24; font-weight: bold; }
+        .confidence-low { color: #f87171; font-weight: bold; }
+        
+        .trend-up { color: #22c55e; font-weight: bold; }
+        .trend-down { color: #f87171; font-weight: bold; }
+        .trend-stable { color: #94a3b8; font-weight: bold; }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .product-option {
+            transition: background-color 0.2s ease;
+            color: #000000 !important;
+            font-weight: 600 !important;
+        }
+        
+        .product-option:hover {
+            background-color: #dbeafe !important;
+        }
+        
+        #productDropdown {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            z-index: 9999 !important;
+        }
+        
+        #productSearch:focus {
+            outline: none;
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body class="p-6">
+    <!-- Header -->
+    <div class="max-w-7xl mx-auto mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold text-white mb-2">🧠 Business Intelligence</h1>
+                <p class="text-white/80">Advanced AI-powered insights and forecasting</p>
+            </div>
+            <button onclick="window.location.href='index.html'" class="bi-card px-6 py-3">
+                ← Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bi-card">
+                <div class="text-gray-400 text-sm mb-2">Market Growth</div>
+                <div id="marketGrowth" class="metric-value">--</div>
+                <div class="text-gray-300 text-sm mt-2">vs. last period</div>
+            </div>
+            <div class="bi-card">
+                <div class="text-gray-400 text-sm mb-2">High Confidence Forecasts</div>
+                <div id="highConfidence" class="metric-value">--</div>
+                <div class="text-gray-300 text-sm mt-2">products</div>
+            </div>
+            <div class="bi-card">
+                <div class="text-gray-400 text-sm mb-2">Growing Products</div>
+                <div id="growingProducts" class="metric-value">--</div>
+                <div class="text-gray-300 text-sm mt-2">+20% or more</div>
+            </div>
+            <div class="bi-card">
+                <div class="text-gray-400 text-sm mb-2">Seasonal Patterns</div>
+                <div id="seasonalPatterns" class="metric-value">--</div>
+                <div class="text-gray-300 text-sm mt-2">detected</div>
+            </div>
+        </div>
+
+        <!-- AI Forecasting Section -->
+        <div class="bi-card" style="position: relative; z-index: 100;">
+            <h2 class="text-2xl font-bold text-white mb-6">🤖 AI-Powered Demand Forecasting</h2>
+            
+            <!-- Product Selector with Search -->
+            <div class="mb-6">
+                <label class="block text-white font-semibold mb-2">Select Product to Forecast:</label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="productSearch" 
+                        placeholder="🔍 Type to search products..." 
+                        class="w-full p-3 rounded-lg bg-white text-gray-900 border border-white/30 font-semibold" 
+                        style="color: #1f2937;"
+                        autocomplete="off"
+                    >
+                    <div 
+                        id="productDropdown" 
+                        class="absolute w-full mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
+                        style="border: 1px solid rgba(148, 163, 184, 0.3); z-index: 9999;"
+                    >
+                        <!-- Products will be listed here -->
+                    </div>
+                </div>
+                <input type="hidden" id="selectedProduct" value="">
+            </div>
+
+            <!-- Forecast Results -->
+            <div id="forecastResults" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Main Forecast -->
+                    <div class="rounded-lg p-6" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        <h3 class="text-lg font-semibold text-white mb-4">30-Day Forecast</h3>
+                        <div class="text-center">
+                            <div id="forecastValue" class="text-5xl font-bold text-white mb-2">--</div>
+                            <div class="text-gray-300">units predicted</div>
+                            <div id="forecastConfidence" class="mt-3 text-lg font-semibold">--</div>
+                            <div id="forecastRecommendation" class="mt-3 text-gray-300 text-sm">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Model Breakdown -->
+                    <div class="rounded-lg p-6" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        <h3 class="text-lg font-semibold text-white mb-4">Model Predictions</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Linear Regression:</span>
+                                <span id="linearModel" class="text-white font-semibold">--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Moving Average:</span>
+                                <span id="movingAvgModel" class="text-white font-semibold">--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Exponential Smoothing:</span>
+                                <span id="exponentialModel" class="text-white font-semibold">--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Seasonal Pattern:</span>
+                                <span id="seasonalModel" class="text-white font-semibold">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forecast Chart -->
+                <div class="rounded-lg p-6" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                    <h3 class="text-lg font-semibold text-white mb-4">Forecast Visualization</h3>
+                    <div class="chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Churn Prediction Section -->
+        <div class="bi-card mb-8">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                <span class="mr-3">📉</span> Churn Prediction (AI)
+            </h2>
+            <p class="text-gray-400 mb-4">The AI identifies customers who used to buy frequently but have stopped. Re-engage them before they are lost.</p>
+            <div id="churn-prediction-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full text-center py-8 text-gray-400">
+                    <div class="loading-spinner mb-4"></div>
+                    Analyzing customer behavior...
+                </div>
+            </div>
+        </div>
+
+        <!-- Seasonal Trend Alerts Section -->
+        <div class="bi-card mb-8">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                <span class="mr-3">📅</span> Seasonal Trend Alerts
+            </h2>
+            <p class="text-gray-400 mb-4">Predicts what will sell next month based on last year's data and alerts you if stock is low.</p>
+            <div id="seasonal-alerts-container" class="space-y-4">
+                <div class="text-center py-8 text-gray-400">
+                    <div class="loading-spinner mb-4"></div>
+                    Analyzing seasonal patterns...
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Flow Forecast Section -->
+        <div class="bi-card mb-8">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                <span class="mr-3">💰</span> AI Cash Flow Forecast (30 Days)
+            </h2>
+            <p class="text-gray-400 mb-4">Projects your bank balance based on expected payments from debtors and bills due to creditors.</p>
+            <div id="cash-flow-container">
+                <div class="text-center py-8 text-gray-400">
+                    <div class="loading-spinner mb-4"></div>
+                    Analyzing cash flow...
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Assistant & Shrinkage Detection -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- AI Data Assistant -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <span class="mr-3">🤖</span> AI Data Assistant
+                </h2>
+                <p class="text-gray-400 mb-4 text-sm">Ask questions like "Who owes me money?", "What is my profit?", or "Which products are low stock?".</p>
+                
+                <div class="relative mb-4">
+                    <input 
+                        type="text" 
+                        id="aiQueryInput" 
+                        placeholder="Ask me anything about your business..." 
+                        class="w-full p-4 rounded-xl bg-slate-800 border border-slate-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                    >
+                    <button 
+                        id="aiQueryBtn"
+                        class="absolute right-2 top-2 bottom-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                    >
+                        Ask
+                    </button>
+                </div>
+                
+                <div id="aiResponseContainer" class="hidden bg-slate-800/50 rounded-xl p-4 border border-slate-700 min-h-[100px]">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-blue-500/20 p-2 rounded-lg">🤖</div>
+                        <div id="aiResponseText" class="text-gray-200 leading-relaxed pt-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Shrinkage Detector -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <span class="mr-3">🕵️</span> Shrinkage & Loss Control
+                </h2>
+                <p class="text-gray-400 mb-4 text-sm">Detects anomalies like negative stock or high-value items that need auditing.</p>
+                
+                <div id="shrinkage-container" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="text-center py-8 text-gray-400">
+                        <div class="loading-spinner mb-4"></div>
+                        Scanning inventory for anomalies...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Analysis Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Market Trends -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6">📊 Market Trends</h2>
+                <div id="marketTrends">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Profitability Analysis -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6">💰 Profitability Analysis</h2>
+                <div id="profitabilityAnalysis">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights & Recommendations -->
+        <div class="bi-card">
+            <h2 class="text-2xl font-bold text-white mb-6">💡 AI Insights & Recommendations</h2>
+            <div id="aiInsights" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+
+        <!-- Smart Bundles -->
+        <div class="max-w-7xl mx-auto mb-8">
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <span class="mr-3">🎁</span> Smart Bundles (Frequently Bought Together)
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="smart-bundles-container">
+                    <div class="col-span-full text-center py-8 text-gray-400">Analyzing purchase patterns...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Scorecards -->
+        <div class="max-w-7xl mx-auto mb-8">
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <span class="mr-3">🏆</span> Supplier Scorecards
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700">
+                                <th class="pb-4 font-semibold">Supplier</th>
+                                <th class="pb-4 font-semibold text-right">Products</th>
+                                <th class="pb-4 font-semibold text-right">Stock Value</th>
+                                <th class="pb-4 font-semibold text-right">Total Profit</th>
+                                <th class="pb-4 font-semibold text-right">Margin</th>
+                                <th class="pb-4 font-semibold text-right">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supplier-scorecards-body" class="text-gray-300">
+                            <tr><td colspan="6" class="text-center py-8">Loading supplier data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Column - Detailed Insights -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6">📊 Detailed Insights</h2>
+                <div id="detailedInsightsContent" class="text-gray-300">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Right Column - Actionable Recommendations -->
+            <div class="bi-card">
+                <h2 class="text-2xl font-bold text-white mb-6">💡 Actionable Recommendations</h2>
+                <div id="recommendationsContent" class="text-gray-300">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & Business Intelligence Scripts -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Load Business Intelligence class
+        const script = document.createElement('script');
+        script.src = 'business-intelligence.js';
+        script.onload = initializeBI;
+        document.head.appendChild(script);
+
+        let bi;
+        let forecastChart;
+        window.allProducts = []; // Store all products for search
+
+        async function initializeBI() {
+            try {
+                bi = new BusinessIntelligence(db, { collection, getDocs });
+                
+                // Load all analyses - run them sequentially to avoid overwhelming the system
+                await loadProducts();
+                await loadMarketAnalysis();
+                await loadProfitabilityAnalysis();
+                // Remove loadSeasonalAnalysis since the element doesn't exist in the HTML
+            } catch (error) {
+                console.error('Initialization error:', error);
+            }
+        }
+
+        async function loadProducts() {
+            const productsRef = collection(db, 'products');
+            const snapshot = await getDocs(productsRef);
+            
+            window.allProducts = [];
+            snapshot.forEach(doc => {
+                const product = doc.data();
+                window.allProducts.push(product.name);
+            });
+
+            // Sort alphabetically
+            window.allProducts.sort();
+
+            // Setup search functionality
+            setupProductSearch();
+        }
+
+        function setupProductSearch() {
+            const searchInput = document.getElementById('productSearch');
+            const dropdown = document.getElementById('productDropdown');
+            const selectedProductInput = document.getElementById('selectedProduct');
+
+            // Show all products initially when clicking
+            searchInput.addEventListener('focus', () => {
+                filterProducts('');
+                dropdown.classList.remove('hidden');
+            });
+
+            // Filter as user types
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value;
+                filterProducts(searchTerm);
+                dropdown.classList.remove('hidden');
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        function filterProducts(searchTerm) {
+            const dropdown = document.getElementById('productDropdown');
+            const lowerSearch = searchTerm.toLowerCase();
+
+            // Filter products that match search term
+            const filteredProducts = window.allProducts.filter(product => 
+                product.toLowerCase().includes(lowerSearch)
+            );
+
+            // Build dropdown HTML
+            if (filteredProducts.length === 0) {
+                dropdown.innerHTML = '<div class="p-3 text-sm font-semibold" style="color: #1f2937;">No products found</div>';
+            } else {
+                dropdown.innerHTML = filteredProducts.map(product => `
+                    <div 
+                        class="product-option p-3 cursor-pointer hover:bg-blue-50 border-b border-gray-200 text-sm"
+                        data-product="${product}"
+                        style="color: #000000; font-weight: 600;"
+                    >
+                        ${highlightMatch(product, searchTerm)}
+                    </div>
+                `).join('');
+
+                // Add click handlers to each option
+                dropdown.querySelectorAll('.product-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const productName = option.getAttribute('data-product');
+                        selectProduct(productName);
+                    });
+                });
+            }
+        }
+
+        function highlightMatch(text, search) {
+            if (!search) return text;
+            
+            const regex = new RegExp(`(${search})`, 'gi');
+            return text.replace(regex, '<span style="background-color: #fef08a; color: #1f2937; font-weight: bold;">$1</span>');
+        }
+
+        async function selectProduct(productName) {
+            const searchInput = document.getElementById('productSearch');
+            const dropdown = document.getElementById('productDropdown');
+            const selectedProductInput = document.getElementById('selectedProduct');
+
+            // Update UI
+            searchInput.value = productName;
+            selectedProductInput.value = productName;
+            dropdown.classList.add('hidden');
+
+            // Load forecast for selected product
+            await loadForecast(productName);
+        }
+
+        async function loadForecast(productName) {
+            if (!bi) {
+                console.log('BI system not ready yet');
+                return;
+            }
+            
+            document.getElementById('forecastResults').classList.remove('hidden');
+            
+            try {
+                const forecast = await bi.advancedDemandForecast(productName, 30);
+                
+                // Display main forecast
+                document.getElementById('forecastValue').textContent = Math.round(forecast.predicted);
+                
+                const confidenceEl = document.getElementById('forecastConfidence');
+                confidenceEl.textContent = `Confidence: ${forecast.confidence.toUpperCase()}`;
+                confidenceEl.className = `confidence-${forecast.confidence.split('-')[0]}`;
+                
+                document.getElementById('forecastRecommendation').textContent = forecast.recommendation;
+
+                // Display model predictions
+                document.getElementById('linearModel').textContent = Math.round(forecast.models.linear) + ' units';
+                document.getElementById('movingAvgModel').textContent = Math.round(forecast.models.movingAverage) + ' units';
+                document.getElementById('exponentialModel').textContent = Math.round(forecast.models.exponentialSmoothing) + ' units';
+                document.getElementById('seasonalModel').textContent = Math.round(forecast.models.seasonal) + ' units';
+
+                // Update chart
+                await updateForecastChart(productName, forecast);
+            } catch (error) {
+                console.error('Forecast error:', error);
+                document.getElementById('forecastResults').innerHTML = `
+                    <div class="p-4 bg-red-500/20 border border-red-500 rounded-lg text-white">
+                        <p class="font-bold">⚠️ Error loading forecast</p>
+                        <p class="text-sm mt-2">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function updateForecastChart(productName, forecast) {
+            const historicalData = await bi.getProductSalesHistory(productName, 60);
+            
+            const labels = [];
+            const historicalValues = [];
+            
+            // Last 30 days of history
+            historicalData.slice(-30).forEach(point => {
+                labels.push(new Date(point.date).toLocaleDateString());
+                historicalValues.push(point.quantity);
+            });
+
+            // Add forecast point
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + 30);
+            labels.push(futureDate.toLocaleDateString());
+
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+
+            forecastChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Historical Sales',
+                            data: [...historicalValues, null],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Forecast',
+                            data: [...Array(historicalValues.length).fill(null), forecast.predicted],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'white' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadSeasonalAnalysis() {
+            if (!bi) return;
+            try {
+                const seasonal = await bi.detectSeasonalTrends(null, 3);
+                const container = document.getElementById('seasonalAnalysis');
+                
+                // Check if container exists
+                if (!container) {
+                    console.warn('seasonalAnalysis element not found in DOM');
+                    return;
+                }
+            
+                if (!seasonal.hasSeasonality) {
+                    container.innerHTML = '<p class="text-gray-300">Insufficient data for seasonal analysis. Need at least 30 days of sales history.</p>';
+                    return;
+                }
+
+            let html = '';
+
+            // Weekly Pattern
+            if (seasonal.patterns.weekly.hasPattern) {
+                html += `
+                    <div class="rounded-lg p-6 mb-4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        <h3 class="text-lg font-semibold text-white mb-4">📅 Weekly Pattern Detected</h3>
+                        <div class="grid grid-cols-7 gap-2 mb-4">
+                            ${seasonal.patterns.weekly.averages.map(day => `
+                                <div class="text-center">
+                                    <div class="text-gray-400 text-xs mb-1">${day.day.slice(0, 3)}</div>
+                                    <div class="text-white font-semibold">${day.percentage}%</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="text-gray-300"><strong class="text-white">Best Day:</strong> ${seasonal.patterns.weekly.bestDay}</p>
+                        <p class="text-gray-300"><strong class="text-white">Slowest Day:</strong> ${seasonal.patterns.weekly.worstDay}</p>
+                    </div>
+                `;
+            }
+
+            // Recommendations
+            if (seasonal.recommendations.length > 0) {
+                html += `
+                    <div class="rounded-lg p-6" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        <h3 class="text-lg font-semibold text-white mb-4">💡 Seasonal Recommendations</h3>
+                        <ul class="space-y-2">
+                            ${seasonal.recommendations.map(rec => `
+                                <li class="text-gray-300">✓ ${rec}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            
+            // Update stats safely
+            const seasonalPatternsEl = document.getElementById('seasonalPatterns');
+            if (seasonalPatternsEl) {
+                seasonalPatternsEl.textContent = 
+                    (seasonal.patterns.weekly.hasPattern ? 1 : 0) + 
+                    (seasonal.patterns.monthly.hasPattern ? 1 : 0);
+            }
+            } catch (error) {
+                console.error('Seasonal analysis error:', error);
+                // Safely handle error display
+                const container = document.getElementById('seasonalAnalysis');
+                if (container) {
+                    container.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+                }
+            }
+        }
+
+        async function loadMarketAnalysis() {
+            if (!bi) return;
+            try {
+                const market = await bi.analyzeMarketTrends(90);
+                const container = document.getElementById('marketTrends');
+            
+            let html = '';
+
+            // Growth Rate
+            html += `
+                <div class="mb-4">
+                    <div class="text-gray-400 text-sm">Overall Market Growth</div>
+                    <div class="text-3xl font-bold ${market.growthRate > 0 ? 'trend-up' : 'trend-down'} mb-2">
+                        ${market.growthRate > 0 ? '+' : ''}${market.growthRate.toFixed(1)}%
+                    </div>
+                </div>
+            `;
+
+            // Top Growing
+            if (market.topGrowing.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-white font-semibold mb-2">📈 Top Growing Products</h4>
+                        <ul class="space-y-1">
+                            ${market.topGrowing.slice(0, 5).map(item => `
+                                <li class="text-gray-300 text-sm">${item.product} <span class="trend-up">(${item.growth})</span></li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Emerging Products
+            if (market.emerging.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-white font-semibold mb-2">🌟 Emerging Products</h4>
+                        <p class="text-gray-300 text-sm">${market.emerging.slice(0, 3).join(', ')}</p>
+                    </div>
+                `;
+            }
+
+            // Insights
+            if (market.insights.length > 0) {
+                html += `
+                    <div class="rounded-lg p-4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        ${market.insights.map(insight => `
+                            <p class="text-gray-200 text-sm mb-2">${insight}</p>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Update stats safely
+            const marketGrowthEl = document.getElementById('marketGrowth');
+            if (marketGrowthEl) {
+                marketGrowthEl.textContent = (market.growthRate > 0 ? '+' : '') + market.growthRate.toFixed(1) + '%';
+            }
+            const growingProductsEl = document.getElementById('growingProducts');
+            if (growingProductsEl) {
+                growingProductsEl.textContent = market.topGrowing.length;
+            }
+            } catch (error) {
+                console.error('Market analysis error:', error);
+                const container = document.getElementById('marketTrends');
+                if (container) {
+                    container.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+                }
+            }
+        }
+
+        async function loadProfitabilityAnalysis() {
+            if (!bi) return;
+            try {
+                const profitability = await bi.analyzeProfitability(90);
+                const container = document.getElementById('profitabilityAnalysis');
+            
+            let html = '';
+
+            // High Profit Products
+            if (profitability.highProfit.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-white font-semibold mb-2">💎 Most Profitable</h4>
+                        <ul class="space-y-2">
+                            ${profitability.highProfit.slice(0, 5).map(item => `
+                                <li class="text-gray-300 text-sm">
+                                    ${item.name}<br>
+                                    <span class="text-green-400 font-bold">€${item.profit}</span> 
+                                    <span class="text-gray-400">(${item.margin})</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Low Margin Warning
+            if (profitability.lowMargin.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-white font-semibold mb-2">⚠️ Low Margin Products</h4>
+                        <ul class="space-y-1">
+                            ${profitability.lowMargin.slice(0, 3).map(item => `
+                                <li class="text-gray-300 text-sm">
+                                    ${item.name} <span class="text-orange-400 font-bold">(${item.margin})</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Recommendations
+            if (profitability.recommendations.length > 0) {
+                html += `
+                    <div class="rounded-lg p-4" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3);">
+                        ${profitability.recommendations.map(rec => `
+                            <p class="text-gray-200 text-sm mb-2">💡 ${rec}</p>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            } catch (error) {
+                console.error('Profitability analysis error:', error);
+                const container = document.getElementById('profitabilityAnalysis');
+                if (container) {
+                    container.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+                }
+            }
+        }
+
+        // Load Supplier Scorecards
+        async function loadSupplierScorecards() {
+            if (!bi) return;
+            const tbody = document.getElementById('supplier-scorecards-body');
+            try {
+                const scorecards = await bi.generateSupplierScorecards();
+                
+                if (scorecards.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8">No supplier data available.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = scorecards.map(s => {
+                    let rating = 'C';
+                    let color = 'text-gray-400';
+                    
+                    if (s.margin > 30 && s.totalProfit > 1000) { rating = 'A+'; color = 'text-green-400'; }
+                    else if (s.margin > 20) { rating = 'A'; color = 'text-green-500'; }
+                    else if (s.margin > 10) { rating = 'B'; color = 'text-blue-400'; }
+                    
+                    return `
+                        <tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
+                            <td class="py-4 font-medium text-white">${s.name}</td>
+                            <td class="py-4 text-right">${s.totalProducts}</td>
+                            <td class="py-4 text-right">€${s.totalStockValue.toFixed(0)}</td>
+                            <td class="py-4 text-right font-bold text-green-400">€${s.totalProfit.toFixed(0)}</td>
+                            <td class="py-4 text-right">${s.margin.toFixed(1)}%</td>
+                            <td class="py-4 text-right font-bold ${color} text-lg">${rating}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error("Error loading scorecards:", error);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-400">Error loading data.</td></tr>';
+            }
+        }
+
+        // Load Smart Bundles
+        async function loadSmartBundles() {
+            if (!bi) return;
+            const container = document.getElementById('smart-bundles-container');
+            try {
+                const bundles = await bi.generateSmartBundles();
+                
+                if (bundles.length === 0) {
+                    container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400">No significant bundles found yet. Need more sales data.</div>';
+                    return;
+                }
+
+                container.innerHTML = bundles.slice(0, 6).map(b => `
+                    <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700 hover:border-purple-500 transition-colors">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="bg-purple-500/20 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
+                                ${b.confidence.toFixed(0)}% Match
+                            </div>
+                            <div class="text-gray-400 text-xs">${b.count} orders</div>
+                        </div>
+                        <h3 class="font-bold text-white mb-2 text-lg">${b.pair}</h3>
+                        <p class="text-sm text-gray-400 mb-4">These items are frequently purchased together.</p>
+                        <button class="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors text-sm">
+                            Create Bundle Deal
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error("Error loading bundles:", error);
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Error analyzing bundles.</div>';
+            }
+        }
+
+        // Load Churn Prediction
+        async function loadChurnPrediction() {
+            if (!bi) return;
+            const container = document.getElementById('churn-prediction-container');
+            try {
+                const churnData = await bi.generateChurnPrediction();
+                
+                if (churnData.length === 0) {
+                    container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400">No at-risk customers detected. Great job!</div>';
+                    return;
+                }
+
+                container.innerHTML = churnData.slice(0, 6).map(c => `
+                    <div class="bg-red-900/20 border border-red-900/50 rounded-xl p-4 hover:bg-red-900/30 transition-colors">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="bg-red-500/20 text-red-300 text-xs font-bold px-2 py-1 rounded-full">
+                                High Risk
+                            </div>
+                            <div class="text-gray-400 text-xs">Last order: ${c.lastOrderDate}</div>
+                        </div>
+                        <h3 class="font-bold text-white mb-1 text-lg">${c.name}</h3>
+                        <p class="text-sm text-gray-400 mb-3">Usually orders every ${c.avgInterval} days. It's been ${c.daysSinceLast} days.</p>
+                        <div class="flex gap-2">
+                            <button class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors text-sm">
+                                Contact
+                            </button>
+                            <button class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold transition-colors text-sm">
+                                Offer Deal
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error("Error loading churn prediction:", error);
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">Error analyzing churn.</div>';
+            }
+        }
+
+        // Load Seasonal Trends
+        async function loadSeasonalTrends() {
+            if (!bi) return;
+            const container = document.getElementById('seasonal-alerts-container');
+            try {
+                const trends = await bi.generateSeasonalTrendAlerts();
+                
+                if (trends.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-gray-400">No significant seasonal trends detected for next month.</div>';
+                    return;
+                }
+
+                container.innerHTML = trends.map(t => `
+                    <div class="bg-blue-900/20 border border-blue-900/50 rounded-xl p-4 flex items-center justify-between hover:bg-blue-900/30 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-blue-500/20 p-3 rounded-lg">
+                                <span class="text-2xl">📅</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-white text-lg">${t.product}</h3>
+                                <p class="text-sm text-blue-300">
+                                    Sold ${t.predictedSales} units last ${t.month}. 
+                                    Current stock: <span class="text-red-400 font-bold">${t.currentStock}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-red-400 font-bold text-sm mb-1">⚠️ Stock Alert</div>
+                            <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors">
+                                Restock
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error("Error loading seasonal trends:", error);
+                container.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing seasonal trends.</div>';
+            }
+        }
+
+        // Load Dynamic Pricing Recommendations
+        async function loadDynamicPricing() {
+            if (!bi) return;
+            const container = document.getElementById('recommendationsContent');
+            if (!container) return;
+
+            try {
+                const recommendations = await bi.generateDynamicPricing();
+                
+                if (recommendations.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-gray-400">No pricing recommendations at this time.</div>';
+                    return;
+                }
+
+                container.innerHTML = recommendations.map(rec => {
+                    const isDiscount = rec.action === 'Discount';
+                    const colorClass = isDiscount ? 'text-red-400' : 'text-green-400';
+                    const bgClass = isDiscount ? 'bg-red-900/20 border-red-900/50' : 'bg-green-900/20 border-green-900/50';
+                    
+                    return `
+                        <div class="${bgClass} border rounded-lg p-4 mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-white">${rec.product}</h3>
+                                <span class="text-xs font-bold px-2 py-1 rounded-full ${isDiscount ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}">
+                                    ${rec.type}
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-300 mb-2">${rec.reason}</p>
+                            <div class="flex justify-between items-center bg-black/20 p-2 rounded">
+                                <div>
+                                    <div class="text-xs text-gray-400">Current</div>
+                                    <div class="font-mono">€${rec.currentPrice.toFixed(2)}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs ${colorClass} font-bold">Suggested</div>
+                                    <div class="font-mono font-bold ${colorClass}">€${rec.suggestedPrice.toFixed(2)}</div>
+                                </div>
+                            </div>
+                            <button class="w-full mt-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition-colors">
+                                Apply ${rec.action}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error("Error loading pricing recommendations:", error);
+                container.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing pricing.</div>';
+            }
+        }
+
+        // Load Cash Flow Forecast
+        async function loadCashFlowForecast() {
+            if (!bi) return;
+            const container = document.getElementById('cash-flow-container');
+            try {
+                const data = await bi.generateCashFlowForecast();
+                const summary = data.summary;
+                
+                let riskColor = 'text-green-400';
+                let riskBg = 'bg-green-900/20 border-green-900/50';
+                if (summary.riskLevel === 'Critical') {
+                    riskColor = 'text-red-400';
+                    riskBg = 'bg-red-900/20 border-red-900/50';
+                } else if (summary.riskLevel === 'Warning') {
+                    riskColor = 'text-yellow-400';
+                    riskBg = 'bg-yellow-900/20 border-yellow-900/50';
+                }
+
+                container.innerHTML = `
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                            <div class="text-gray-400 text-sm mb-1">Projected Inflow</div>
+                            <div class="text-2xl font-bold text-green-400">+€${summary.totalIn.toFixed(2)}</div>
+                            <div class="text-xs text-gray-500">Next 30 Days</div>
+                        </div>
+                        <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                            <div class="text-gray-400 text-sm mb-1">Projected Outflow</div>
+                            <div class="text-2xl font-bold text-red-400">-€${summary.totalOut.toFixed(2)}</div>
+                            <div class="text-xs text-gray-500">Next 30 Days</div>
+                        </div>
+                        <div class="${riskBg} p-4 rounded-lg border">
+                            <div class="text-gray-400 text-sm mb-1">Net Change</div>
+                            <div class="text-2xl font-bold ${summary.netChange >= 0 ? 'text-green-400' : 'text-red-400'}">
+                                ${summary.netChange >= 0 ? '+' : ''}€${summary.netChange.toFixed(2)}
+                            </div>
+                            <div class="text-xs ${riskColor} font-bold mt-1">
+                                Status: ${summary.riskLevel}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lowest Point Warning -->
+                    ${summary.minBalance < 0 ? `
+                        <div class="bg-red-900/20 border border-red-500/30 p-4 rounded-lg mb-6 flex items-start gap-3">
+                            <div class="text-2xl">⚠️</div>
+                            <div>
+                                <h3 class="font-bold text-white">Cash Flow Warning</h3>
+                                <p class="text-gray-300 text-sm">
+                                    Projected balance hits a low of <span class="text-red-400 font-bold">€${summary.minBalance.toFixed(2)}</span> 
+                                    on <span class="text-white font-bold">${new Date(summary.minBalanceDate).toLocaleDateString()}</span>.
+                                    Consider delaying payments or collecting debts early.
+                                </p>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Upcoming Events -->
+                    <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+                        <h3 class="font-bold text-white mb-3 text-sm uppercase tracking-wider">Upcoming Transactions</h3>
+                        <div class="space-y-3">
+                            ${summary.upcomingEvents.map(e => `
+                                <div class="flex justify-between items-center text-sm">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-2 h-2 rounded-full ${e.type === 'in' ? 'bg-green-500' : 'bg-red-500'}"></div>
+                                        <div>
+                                            <div class="text-white font-medium">${e.entity}</div>
+                                            <div class="text-gray-500 text-xs">${e.ref} • ${new Date(e.date).toLocaleDateString()}</div>
+                                        </div>
+                                    </div>
+                                    <div class="font-mono ${e.type === 'in' ? 'text-green-400' : 'text-red-400'}">
+                                        ${e.type === 'in' ? '+' : '-'}€${e.amount.toFixed(2)}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error("Error loading cash flow:", error);
+                container.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing cash flow.</div>';
+            }
+        }
+
+        // Load Shrinkage Detection
+        async function loadShrinkageDetection() {
+            if (!bi) return;
+            const container = document.getElementById('shrinkage-container');
+            try {
+                const alerts = await bi.detectInventoryShrinkage();
+                
+                if (alerts.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-green-400">✅ No inventory anomalies detected.</div>';
+                    return;
+                }
+
+                container.innerHTML = alerts.map(alert => `
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3 flex items-start gap-3 hover:bg-slate-800 transition-colors">
+                        <div class="text-2xl">${alert.severity === 'High' ? '🚨' : '⚠️'}</div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h3 class="font-bold text-white text-sm">${alert.product}</h3>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${alert.severity === 'High' ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-300'}">
+                                    ${alert.issue}
+                                </span>
+                            </div>
+                            <p class="text-gray-400 text-xs">${alert.details}</p>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error("Error loading shrinkage:", error);
+                container.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing inventory.</div>';
+            }
+        }
+
+        // Setup AI Assistant
+        function setupAIAssistant() {
+            const input = document.getElementById('aiQueryInput');
+            const btn = document.getElementById('aiQueryBtn');
+            const responseContainer = document.getElementById('aiResponseContainer');
+            const responseText = document.getElementById('aiResponseText');
+
+            async function handleQuery() {
+                const query = input.value.trim();
+                if (!query) return;
+
+                // Show loading
+                responseContainer.classList.remove('hidden');
+                responseText.innerHTML = '<span class="animate-pulse">Thinking...</span>';
+
+                try {
+                    const answer = await bi.askAssistant(query);
+                    // Convert markdown-style bold to HTML
+                    const formattedAnswer = answer.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+                    responseText.innerHTML = formattedAnswer;
+                } catch (error) {
+                    console.error("AI Error:", error);
+                    responseText.innerHTML = '<span class="text-red-400">Sorry, I encountered an error processing your request.</span>';
+                }
+            }
+
+            btn.addEventListener('click', handleQuery);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleQuery();
+            });
+        }
+
+        // Initialize
+        async function init() {
+            setupAIAssistant();
+            await loadForecast();
+            await loadSupplierScorecards();
+            await loadSmartBundles();
+            await loadChurnPrediction();
+            await loadSeasonalTrends();
+            await loadDynamicPricing();
+            await loadCashFlowForecast();
+            await loadShrinkageDetection();
+        }
+        
+        // Wait for authentication before initializing
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                init();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

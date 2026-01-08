@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danfosal Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background-color: #111827;
+            color: white;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 3rem; }
+        h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .subtitle { color: #9ca3af; }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 1.5rem; 
+            margin-bottom: 2rem; 
+        }
+        .stat-card {
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid;
+        }
+        .stat-card.green { background: linear-gradient(135deg, #10b981, #047857); border-color: #059669; }
+        .stat-card.purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-color: #7c3aed; }
+        .stat-card.orange { background: linear-gradient(135deg, #f97316, #ea580c); border-color: #f97316; }
+        .stat-card.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-color: #2563eb; }
+        .stat-label { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; opacity: 0.9; }
+        .stat-value { font-size: 2rem; font-weight: 800; }
+        .dashboard-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 2rem; 
+        }
+        .dashboard-card {
+            background-color: #1f2937;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+            min-height: 120px;
+        }
+        .dashboard-card:active {
+            border-color: #f97316;
+            background-color: rgba(31, 41, 55, 0.8);
+        }
+        .card-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .card-desc { color: #9ca3af; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Danfosal Dashboard</h1>
+            <p class="subtitle">Your business at a glance.</p>
+        </header>
+
+        <!-- Stats Cards Section -->
+        <div class="stats-grid">
+            <div class="stat-card green">
+                <p class="stat-label">💶 Today's Revenue</p>
+                <p class="stat-value">€0</p>
+            </div>
+            <div class="stat-card purple">
+                <p class="stat-label">📱 Instagram Orders</p>
+                <p class="stat-value">0</p>
+            </div>
+            <div class="stat-card orange">
+                <p class="stat-label">⏳ Pending Orders</p>
+                <p class="stat-value">0</p>
+            </div>
+            <div class="stat-card blue">
+                <p class="stat-label">👥 Total Customers</p>
+                <p class="stat-value">0</p>
+            </div>
+        </div>
+
+        <main class="dashboard-grid">
+            <!-- Analytics -->
+            <a href="analytics.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #f97316;">ANALYTICS</h2>
+                <p class="card-desc">View charts, insights, and business performance.</p>
+            </a>
+            <!-- Products -->
+            <a href="products.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #3b82f6;">PRODUCTS</h2>
+                <p class="card-desc">Manage your master list of products and costs.</p>
+            </a>
+            <!-- Orders Online -->
+            <a href="orders_online.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #10b981;">ORDERS ONLINE</h2>
+                <p class="card-desc">Track and manage all incoming customer orders.</p>
+            </a>
+            <!-- To Order -->
+            <a href="to_order.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #eab308;">TO ORDER</h2>
+                <p class="card-desc">Manage your internal procurement and shopping list.</p>
+            </a>
+            <!-- Debtors -->
+            <a href="debtors_list.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #10b981;">DEBTORS</h2>
+                <p class="card-desc">Track money that is owed to you.</p>
+            </a>
+            <!-- Creditors -->
+            <a href="creditors_list.html" class="dashboard-card">
+                <h2 class="card-title" style="color: #ef4444;">DEBTS (I OWE)</h2>
+                <p class="card-desc">Manage outstanding payments to suppliers.</p>
+            </a>
+        </main>
+    </div>
+
+    <script>
+        console.log('Danfosal App loaded - minimal version');
+    </script>
+</body>
+</html>

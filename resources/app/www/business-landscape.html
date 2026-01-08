@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Business Landscape - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: white; }
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+        .strategy-card {
+            transition: all 0.3s ease;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .strategy-card.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-gray-900 text-white">
+
+    <div class="w-full h-full flex flex-col p-4 md:p-6">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+                    The Business Landscape
+                </h1>
+                <p class="text-gray-400 mt-1">Visualizing Revenue (Size) vs. Profitability (Color)</p>
+            </div>
+            <a href="index.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Back to Dashboard
+            </a>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+            
+            <!-- Treemap Container -->
+            <div class="flex-1 glass-panel p-4 relative overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-2 px-2">
+                    <div class="flex gap-4 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-red-500 rounded-sm"></div>
+                            <span class="text-gray-400">Low Margin (< 20%)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-yellow-500 rounded-sm"></div>
+                            <span class="text-gray-400">Medium (20-50%)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-sm"></div>
+                            <span class="text-gray-400">High (> 50%)</span>
+                        </div>
+                    </div>
+                    <select id="time-range" class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="30">Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                        <option value="365">Last Year</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div id="treemap-chart" class="w-full flex-1"></div>
+                <div id="loading-indicator" class="absolute inset-0 flex items-center justify-center bg-gray-900/80 z-10">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
+            </div>
+
+            <!-- Strategy Side Panel -->
+            <div id="strategy-panel" class="w-full lg:w-96 glass-panel p-6 hidden lg:flex flex-col">
+                <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-center text-gray-500">
+                    <svg class="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <p class="text-lg font-medium">Click a block to reveal strategy</p>
+                    <p class="text-sm mt-2">Size = Revenue<br>Color = Profit Margin</p>
+                </div>
+
+                <div id="product-details" class="hidden h-full flex flex-col">
+                    <div class="mb-6">
+                        <span id="detail-badge" class="px-2 py-1 text-xs font-bold rounded bg-gray-700 text-white mb-2 inline-block">CATEGORY</span>
+                        <h2 id="detail-name" class="text-2xl font-bold text-white leading-tight">Product Name</h2>
+                        <p id="detail-producer" class="text-gray-400 text-sm">Producer Name</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gray-800/50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-400 uppercase">Revenue</p>
+                            <p id="detail-revenue" class="text-xl font-bold text-white">€0.00</p>
+                        </div>
+                        <div class="bg-gray-800/50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-400 uppercase">Profit</p>
+                            <p id="detail-profit" class="text-xl font-bold text-green-400">€0.00</p>
+                        </div>
+                        <div class="bg-gray-800/50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-400 uppercase">Margin</p>
+                            <p id="detail-margin" class="text-xl font-bold text-blue-400">0%</p>
+                        </div>
+                        <div class="bg-gray-800/50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-400 uppercase">Units Sold</p>
+                            <p id="detail-units" class="text-xl font-bold text-white">0</p>
+                        </div>
+                    </div>
+
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-gray-300 uppercase mb-3">AI Strategy Recommendation</h3>
+                        <div id="strategy-content" class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg">
+                            <h4 id="strategy-title" class="font-bold text-blue-400 mb-1">Strategy Title</h4>
+                            <p id="strategy-desc" class="text-sm text-gray-300">Strategy description goes here.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-6 border-t border-gray-700">
+                        <button id="action-btn" class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg">
+                            <span>Take Action</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.allProducts = [];
+        window.allOrders = [];
+        window.allStoreSales = [];
+
+        async function init() {
+            try {
+                await fetchData();
+                renderTreemap('30'); // Default to 30 days
+                
+                document.getElementById('time-range').addEventListener('change', (e) => {
+                    renderTreemap(e.target.value);
+                });
+                
+            } catch (error) {
+                console.error("Error initializing:", error);
+                document.getElementById('loading-indicator').innerHTML = '<p class="text-red-500">Error loading data</p>';
+            }
+        }
+        
+        // Wait for authentication before initializing
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                init();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+
+        async function fetchData() {
+            const [productsSnap, ordersSnap, storeSnap] = await Promise.all([
+                getDocs(collection(db, 'products')),
+                getDocs(collection(db, 'onlineOrders')),
+                getDocs(collection(db, 'storeSales'))
+            ]);
+
+            window.allProducts = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), source: 'online' }));
+            window.allStoreSales = storeSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), source: 'store' }));
+            
+            document.getElementById('loading-indicator').classList.add('hidden');
+        }
+
+        function renderTreemap(days) {
+            const cutoffDate = new Date();
+            if (days !== 'all') {
+                cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+            } else {
+                cutoffDate.setFullYear(2000); // Way back
+            }
+            const cutoffTime = cutoffDate.getTime();
+
+            // Aggregate Data
+            const productStats = {};
+            
+            // Create lookup maps
+            const productMapById = {};
+            const productMapByName = {};
+            window.allProducts.forEach(p => {
+                productMapById[p.id] = p;
+                productMapByName[p.name] = p;
+                productMapByName[p.name.toLowerCase()] = p;
+            });
+
+            // Helper for fuzzy matching
+            const findBestMatch = (itemName) => {
+                if (!itemName) return null;
+                const normalize = str => str.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 0);
+                const itemTokens = normalize(itemName);
+                if (itemTokens.length === 0) return null;
+
+                let bestMatch = null;
+                let maxScore = 0;
+
+                for (const p of window.allProducts) {
+                    const productTokens = normalize(p.name);
+                    if (productTokens.length === 0) continue;
+
+                    let matches = 0;
+                    for (const token of itemTokens) {
+                        if (productTokens.includes(token)) matches++;
+                    }
+
+                    // Simple overlap score: matches / max(lenA, lenB)
+                    const score = matches / Math.max(itemTokens.length, productTokens.length);
+                    
+                    // Require at least 60% match
+                    if (score > maxScore && score >= 0.6) {
+                        // If multi-token, require at least 2 matches to avoid "Product A" matching "Product B"
+                        if (itemTokens.length > 1 && matches < 2) continue;
+                        maxScore = score;
+                        bestMatch = p;
+                    }
+                }
+                return bestMatch;
+            };
+
+            // Initialize with all products (so even 0 sales show up if we want, but usually treemaps hide 0s)
+            window.allProducts.forEach(p => {
+                productStats[p.name] = {
+                    name: p.name,
+                    producer: p.producer || 'Unknown',
+                    revenue: 0,
+                    profit: 0,
+                    units: 0,
+                    cost: p.cost || (p.baseCost ? p.baseCost * 1.2 : 0) || 0,
+                    price: p.price || 0
+                };
+            });
+
+            const processSale = (item, timestamp) => {
+                if (timestamp < cutoffTime) return;
+                
+                // Try to find product by ID first, then Name, then Fuzzy
+                let product = null;
+                if (item.id && productMapById[item.id]) {
+                    product = productMapById[item.id];
+                } else if (item.productId && productMapById[item.productId]) {
+                    product = productMapById[item.productId];
+                } else {
+                    const itemName = item.name || item.product || item.productName;
+                    if (itemName) {
+                        if (productMapByName[itemName]) {
+                            product = productMapByName[itemName];
+                        } else if (productMapByName[itemName.toLowerCase()]) {
+                            product = productMapByName[itemName.toLowerCase()];
+                        } else {
+                            product = findBestMatch(itemName);
+                        }
+                    }
+                }
+
+                // Use current product details if found, otherwise fallback to item details
+                const name = product ? product.name : (item.name || item.product || item.productName);
+                const producer = product ? (product.producer || 'Unknown') : 'Unknown';
+                
+                if (!name) return;
+
+                if (!productStats[name]) {
+                    // Product might have been deleted or name mismatch, create temp entry
+                    productStats[name] = {
+                        name: name,
+                        producer: producer,
+                        revenue: 0,
+                        profit: 0,
+                        units: 0,
+                        cost: 0,
+                        price: 0
+                    };
+                }
+
+                const qty = item.quantity || 1;
+                const rev = (item.price || item.total || 0) * qty;
+                // Try to find cost from catalog if missing in sale record
+                const costPerUnit = item.cost || productStats[name].cost || 0;
+                const cost = costPerUnit * qty;
+
+                productStats[name].revenue += rev;
+                productStats[name].profit += (rev - cost);
+                productStats[name].units += qty;
+            };
+
+            // Process Online Orders
+            allOrders.forEach(order => {
+                const ts = order.timestamp?.toMillis ? order.timestamp.toMillis() : new Date(order.timestamp).getTime();
+                if (order.items && Array.isArray(order.items)) {
+                    order.items.forEach(item => processSale(item, ts));
+                }
+            });
+
+            // Process Store Sales
+            window.allStoreSales.forEach(sale => {
+                const ts = sale.timestamp?.toMillis ? sale.timestamp.toMillis() : new Date(sale.timestamp).getTime();
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(item => processSale(item, ts));
+                } else {
+                    // Direct sale format
+                    processSale(sale, ts);
+                }
+            });
+
+            // Convert to Array for Plotly
+            const data = Object.values(productStats).filter(p => p.revenue > 0);
+            
+            if (data.length === 0) {
+                document.getElementById('treemap-chart').innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">No sales data for this period</div>';
+                return;
+            }
+
+            const labels = data.map(p => p.name);
+            const parents = data.map(p => p.producer); // Group by Producer
+            const values = data.map(p => p.revenue);
+            
+            // Calculate Margin % for Color
+            const margins = data.map(p => {
+                if (p.revenue === 0) return 0;
+                return (p.profit / p.revenue) * 100;
+            });
+
+            // Create Producer Parents
+            const producers = [...new Set(data.map(p => p.producer))];
+            const producerLabels = producers;
+            const producerParents = Array(producers.length).fill(""); // Root
+            const producerValues = Array(producers.length).fill(0);
+            const producerMargins = Array(producers.length).fill(0); // Average margin?
+
+            // We need a flat structure for Plotly Treemap with parents
+            // Root -> Producer -> Product
+            
+            const finalIds = [];
+            const finalLabels = [];
+            const finalParents = [];
+            const finalValues = [];
+            const finalColors = [];
+            const finalCustomData = [];
+
+            // Add Root
+            finalIds.push("ROOT");
+            finalLabels.push("Market");
+            finalParents.push("");
+            finalValues.push(0);
+            finalColors.push(0);
+            finalCustomData.push({ margin: 0 });
+
+            // Add Producers
+            const producerStats = {};
+            producers.forEach(prod => {
+                if (!producerStats[prod]) {
+                    const prodId = `PROD_${prod}`;
+                    finalIds.push(prodId);
+                    finalLabels.push(prod);
+                    finalParents.push("ROOT");
+                    finalValues.push(0); // Will be calculated by children
+                    finalColors.push(0); // Placeholder
+                    finalCustomData.push({ margin: 0 });
+                    producerStats[prod] = prodId;
+                }
+            });
+
+            // Add Products
+            data.forEach((p, i) => {
+                finalIds.push(`ITEM_${i}`); // Use index to ensure uniqueness
+                finalLabels.push(p.name);
+                finalParents.push(producerStats[p.producer]);
+                finalValues.push(p.revenue);
+                finalColors.push(margins[i]);
+                finalCustomData.push({ ...p, margin: margins[i] });
+            });
+
+            const trace = {
+                type: "treemap",
+                ids: finalIds,
+                labels: finalLabels,
+                parents: finalParents,
+                values: finalValues,
+                marker: {
+                    colors: finalColors,
+                    colorscale: [
+                        [0, '#ef4444'],   // Red (Low Margin)
+                        [0.2, '#f97316'], // Orange
+                        [0.5, '#eab308'], // Yellow
+                        [1, '#22c55e']    // Green (High Margin)
+                    ],
+                    cmin: 0,
+                    cmax: 100,
+                    showscale: true,
+                    colorbar: {
+                        title: 'Profit Margin %',
+                        thickness: 20,
+                        len: 0.5
+                    }
+                },
+                textinfo: "label+value+percent parent",
+                texttemplate: "<b>%{label}</b><br>€%{value:.0f}<br>Margin: %{customdata.margin:.1f}%",
+                hovertemplate: "<b>%{label}</b><br>Revenue: €%{value:.2f}<br>Margin: %{customdata.margin:.1f}%<extra></extra>",
+                customdata: finalCustomData
+            };
+
+            const layout = {
+                margin: {t: 0, l: 0, r: 0, b: 0},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: {
+                    family: 'Inter, sans-serif',
+                    color: '#ffffff',
+                    size: 18 // Increased font size for better visibility
+                }
+            };
+
+            Plotly.newPlot('treemap-chart', [trace], layout, {displayModeBar: false, responsive: true});
+
+            // Click Event
+            document.getElementById('treemap-chart').on('plotly_click', function(data){
+                const point = data.points[0];
+                if (!point.customdata || !point.customdata.name) return; // Clicked a group, not a product
+                
+                showStrategy(point.customdata);
+            });
+        }
+
+        function showStrategy(product) {
+            const panel = document.getElementById('strategy-panel');
+            const emptyState = document.getElementById('empty-state');
+            const details = document.getElementById('product-details');
+            
+            emptyState.classList.add('hidden');
+            details.classList.remove('hidden');
+            
+            // Populate Data
+            document.getElementById('detail-name').textContent = product.name;
+            document.getElementById('detail-producer').textContent = product.producer;
+            document.getElementById('detail-revenue').textContent = `€${product.revenue.toFixed(2)}`;
+            document.getElementById('detail-profit').textContent = `€${product.profit.toFixed(2)}`;
+            
+            const margin = product.revenue > 0 ? (product.profit / product.revenue) * 100 : 0;
+            const marginEl = document.getElementById('detail-margin');
+            marginEl.textContent = `${margin.toFixed(1)}%`;
+            
+            // Color code margin
+            marginEl.className = `text-xl font-bold ${margin < 20 ? 'text-red-500' : margin < 50 ? 'text-yellow-500' : 'text-green-500'}`;
+            
+            document.getElementById('detail-units').textContent = product.units;
+            
+            // Generate Strategy
+            const strategy = generateStrategy(product, margin);
+            document.getElementById('strategy-title').textContent = strategy.title;
+            document.getElementById('strategy-desc').textContent = strategy.desc;
+            
+            // Update Action Button
+            const btn = document.getElementById('action-btn');
+            btn.onclick = () => {
+                // Simple action for now: Go to product edit page
+                // In future could be specific actions
+                window.location.href = 'products.html'; 
+            };
+        }
+
+        function generateStrategy(product, margin) {
+            // Logic to determine strategy based on Revenue (Size) and Margin (Color)
+            
+            // 0. Negative Margin (Loss Making)
+            if (margin < 0) {
+                return {
+                    title: "🛑 Loss Making Product",
+                    desc: `You are losing money on every sale (${margin.toFixed(1)}% margin). Immediate Action: Raise price or stop selling. Check cost price entry.`
+                };
+            }
+
+            // 1. High Revenue (> €500)
+            if (product.revenue > 500) {
+                if (margin < 15) {
+                    return {
+                        title: "⚠️ Critical Profit Leak",
+                        desc: "High volume but very low profit. You are working for free. Recommendation: Raise price by 10-15% immediately. The volume drop will be offset by higher margins."
+                    };
+                } else if (margin < 30) {
+                    return {
+                        title: "📉 Volume Driver",
+                        desc: "Good sales volume but margins are tight. Recommendation: Try a small price increase (3-5%) to boost net profit without scaring away customers."
+                    };
+                } else if (margin > 60) {
+                    return {
+                        title: "🌟 Super Star",
+                        desc: "Incredible performance! High sales and huge margins. Recommendation: Do not touch the price. Ensure 100% stock availability. Use this product to upsell others."
+                    };
+                } else {
+                    return {
+                        title: "🐮 Cash Cow",
+                        desc: "Solid performer. Recommendation: Focus on reducing supplier costs to increase margin, rather than raising prices."
+                    };
+                }
+            }
+            
+            // 2. Low Revenue (< €100)
+            if (product.revenue < 100) {
+                if (margin > 50) {
+                    return {
+                        title: "💎 Hidden Gem",
+                        desc: "High profit potential but nobody is buying. Recommendation: Run a marketing campaign or feature this on the homepage. Do not lower the price yet."
+                    };
+                } else if (margin < 20) {
+                    return {
+                        title: "🗑️ Dead Weight",
+                        desc: "Low sales and low profit. It's just taking up shelf space. Recommendation: Run a 'Clearance Sale' (20% off) to get cash back and do not restock."
+                    };
+                } else {
+                    return {
+                        title: "💤 Slow Mover",
+                        desc: "Average margin but low interest. Recommendation: Bundle this with a popular product to clear inventory."
+                    };
+                }
+            }
+
+            // 3. Medium Revenue (€100 - €500)
+            if (margin < 25) {
+                return {
+                    title: "🔧 Margin Improver",
+                    desc: "Decent sales but low profit. Recommendation: Negotiate better prices with your supplier or slightly increase your selling price."
+                };
+            } else if (margin > 50) {
+                return {
+                    title: "🚀 Growth Candidate",
+                    desc: "Great margins and okay sales. Recommendation: This product is ready to scale. Invest in ads or social media promotion for this specific item."
+                };
+            }
+            
+            // Default
+            return {
+                title: "⚖️ Balanced Performer",
+                desc: "Performing within normal range. Recommendation: Monitor stock levels and keep price stable."
+            };
+        }
+
+        init();
+    </script>
+</body>
+</html>

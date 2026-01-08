@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 Notes & Tasks - Danfosal</title>
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <style>
+        .notes-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 968px) {
+            .notes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .note-category {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .note-category:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .note-category.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+            border-color: #3b82f6;
+        }
+
+        .note-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .note-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .note-item.priority-high {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .note-item.priority-medium {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .note-item.priority-low {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .note-item.completed {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .note-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .note-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .note-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .add-note-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .add-note-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .barcode-scanner {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px dashed #3b82f6;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .barcode-scanner:hover {
+            background: rgba(59, 130, 246, 0.3);
+            transform: scale(1.02);
+        }
+
+        .barcode-scanner.scanning {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        #video-preview {
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Glassmorphism Home Button */
+        .glass-btn {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        .glass-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-color: rgba(249, 115, 22, 0.6);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        body.light-mode .glass-btn {
+            background: rgba(255, 255, 255, 0.8);
+            color: #0f172a;
+            border-color: rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-mode .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(249, 115, 22, 0.6);
+        }
+
+        /* Header and Container */
+        .header {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .container {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header" style="max-width: 1400px; margin: 0 auto; position: relative;">
+        <h1>📝 Notes & Tasks</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="add-note-btn" onclick="openNoteModal()">
+                ➕ New Note
+            </button>
+            <a href="index.html" class="glass-btn">🏠 Home</a>
+        </div>
+    </div>
+
+    <div class="container" style="max-width: 1400px; margin: 0 auto;">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-chip">
+                📝 Total: <strong id="total-notes">0</strong>
+            </div>
+            <div class="stat-chip">
+                ⏳ Pending: <strong id="pending-notes">0</strong>
+            </div>
+            <div class="stat-chip">
+                ✅ Completed: <strong id="completed-notes">0</strong>
+            </div>
+            <div class="stat-chip">
+                🔴 High Priority: <strong id="high-priority">0</strong>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="notes-grid">
+            <!-- Categories Sidebar -->
+            <div>
+                <h3 style="margin-bottom: 15px;">📂 Categories</h3>
+                <div id="categories-list">
+                    <div class="note-category active" data-category="all">
+                        🗂️ All Notes (<span id="count-all">0</span>)
+                    </div>
+                    <div class="note-category" data-category="reorder">
+                        📦 Reorder Tasks (<span id="count-reorder">0</span>)
+                    </div>
+                    <div class="note-category" data-category="customer">
+                        👤 Customer Follow-ups (<span id="count-customer">0</span>)
+                    </div>
+                    <div class="note-category" data-category="delivery">
+                        🚚 Deliveries (<span id="count-delivery">0</span>)
+                    </div>
+                    <div class="note-category" data-category="payment">
+                        💰 Payment Reminders (<span id="count-payment">0</span>)
+                    </div>
+                    <div class="note-category" data-category="general">
+                        📌 General (<span id="count-general">0</span>)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes List -->
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>Notes</h3>
+                    <select id="sort-select" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px; border-radius: 8px;">
+                        <option value="date-desc">Newest First</option>
+                        <option value="date-asc">Oldest First</option>
+                        <option value="priority">Priority</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+                <div id="notes-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Note Modal -->
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">➕ New Note</h2>
+            <form id="note-form" onsubmit="saveNote(event)">
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" id="note-title-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="note-description"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Category *</label>
+                    <select id="note-category" required>
+                        <option value="general">📌 General</option>
+                        <option value="reorder">📦 Reorder Task</option>
+                        <option value="customer">👤 Customer Follow-up</option>
+                        <option value="delivery">🚚 Delivery</option>
+                        <option value="payment">💰 Payment Reminder</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Priority *</label>
+                    <select id="note-priority" required>
+                        <option value="low">🔵 Low</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="high">🔴 High</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Due Date (Optional)</label>
+                    <input type="date" id="note-due-date">
+                </div>
+
+                <!-- Barcode Scanner Section -->
+                <div class="form-group">
+                    <label>📷 Scan Barcode (Optional)</label>
+                    <div class="barcode-scanner" id="barcode-scanner" onclick="startBarcodeScanner()">
+                        <div style="font-size: 3rem;">📸</div>
+                        <p>Click to scan product barcode</p>
+                        <p style="font-size: 0.85rem; opacity: 0.7;">Will auto-fill product details</p>
+                    </div>
+                    <video id="video-preview" autoplay playsinline></video>
+                    <div id="barcode-result" style="margin-top: 10px;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Linked Product (Optional)</label>
+                    <input type="text" id="note-product" placeholder="Search or scan product">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="add-note-btn" style="flex: 1;">
+                        💾 Save
+                    </button>
+                    <button type="button" class="note-btn" style="flex: 1;" onclick="closeNoteModal()">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let notes = [];
+        let currentCategory = 'all';
+        let editingNoteId = null;
+        let stream = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadNotes();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Category filters
+            document.querySelectorAll('.note-category').forEach(cat => {
+                cat.addEventListener('click', function() {
+                    document.querySelectorAll('.note-category').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    currentCategory = this.dataset.category;
+                    renderNotes();
+                });
+            });
+
+            // Sort dropdown
+            document.getElementById('sort-select').addEventListener('change', renderNotes);
+        }
+
+        async function loadNotes() {
+            try {
+                const notesSnapshot = await getDocs(collection(db, 'notes'));
+                notes = notesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                renderNotes();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading notes:', error);
+            }
+        }
+
+        function renderNotes() {
+            const list = document.getElementById('notes-list');
+            const sortBy = document.getElementById('sort-select').value;
+
+            // Filter notes
+            let filteredNotes = currentCategory === 'all' 
+                ? notes 
+                : notes.filter(n => n.category === currentCategory);
+
+            // Sort notes
+            filteredNotes.sort((a, b) => {
+                switch(sortBy) {
+                    case 'date-desc':
+                        return (b.createdAt || 0) - (a.createdAt || 0);
+                    case 'date-asc':
+                        return (a.createdAt || 0) - (b.createdAt || 0);
+                    case 'priority':
+                        const priorityOrder = { high: 0, medium: 1, low: 2 };
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    case 'status':
+                        return (a.completed ? 1 : 0) - (b.completed ? 1 : 0);
+                }
+            });
+
+            if (filteredNotes.length === 0) {
+                list.innerHTML = '<p style="text-align: center; padding: 40px; opacity: 0.7;">No notes found</p>';
+                return;
+            }
+
+            list.innerHTML = filteredNotes.map(note => {
+                const categoryIcons = {
+                    reorder: '📦',
+                    customer: '👤',
+                    delivery: '🚚',
+                    payment: '💰',
+                    general: '📌'
+                };
+
+                const dueDate = note.dueDate ? new Date(note.dueDate).toLocaleDateString() : 'No due date';
+                const isOverdue = note.dueDate && new Date(note.dueDate) < new Date() && !note.completed;
+
+                return `
+                    <div class="note-item priority-${note.priority} ${note.completed ? 'completed' : ''}" id="note-${note.id}">
+                        <div class="note-header">
+                            <div class="note-title">
+                                ${categoryIcons[note.category] || '📌'} ${note.title}
+                            </div>
+                            <div class="note-actions">
+                                <button class="note-btn" onclick="toggleComplete('${note.id}')" title="${note.completed ? 'Mark Pending' : 'Mark Complete'}">
+                                    ${note.completed ? '↩️' : '✅'}
+                                </button>
+                                <button class="note-btn" onclick="editNote('${note.id}')" title="Edit">
+                                    ✏️
+                                </button>
+                                <button class="note-btn" onclick="deleteNote('${note.id}')" title="Delete">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                        ${note.description ? `<p style="margin: 10px 0; opacity: 0.8;">${note.description}</p>` : ''}
+                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; font-size: 0.85rem;">
+                            <span style="background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 12px;">
+                                Priority: ${note.priority.toUpperCase()}
+                            </span>
+                            <span style="background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 12px; ${isOverdue ? 'color: #ef4444;' : ''}">
+                                📅 ${dueDate} ${isOverdue ? '⚠️ OVERDUE' : ''}
+                            </span>
+                            ${note.product ? `<span style="background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 12px;">🏷️ ${note.product}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('total-notes').textContent = notes.length;
+            document.getElementById('pending-notes').textContent = notes.filter(n => !n.completed).length;
+            document.getElementById('completed-notes').textContent = notes.filter(n => n.completed).length;
+            document.getElementById('high-priority').textContent = notes.filter(n => n.priority === 'high' && !n.completed).length;
+
+            // Update category counts
+            document.getElementById('count-all').textContent = notes.length;
+            document.getElementById('count-reorder').textContent = notes.filter(n => n.category === 'reorder').length;
+            document.getElementById('count-customer').textContent = notes.filter(n => n.category === 'customer').length;
+            document.getElementById('count-delivery').textContent = notes.filter(n => n.category === 'delivery').length;
+            document.getElementById('count-payment').textContent = notes.filter(n => n.category === 'payment').length;
+            document.getElementById('count-general').textContent = notes.filter(n => n.category === 'general').length;
+        }
+
+        window.openNoteModal = function() {
+            document.getElementById('note-modal').classList.add('active');
+            document.getElementById('modal-title').textContent = '➕ New Note';
+            document.getElementById('note-form').reset();
+            editingNoteId = null;
+        };
+
+        window.closeNoteModal = function() {
+            document.getElementById('note-modal').classList.remove('active');
+            stopBarcodeScanner();
+        };
+
+        window.saveNote = async function(event) {
+            event.preventDefault();
+
+            const noteData = {
+                title: document.getElementById('note-title-input').value,
+                description: document.getElementById('note-description').value,
+                category: document.getElementById('note-category').value,
+                priority: document.getElementById('note-priority').value,
+                dueDate: document.getElementById('note-due-date').value,
+                product: document.getElementById('note-product').value,
+                completed: false
+            };
+
+            try {
+                if (editingNoteId) {
+                    // Update existing note
+                    await updateDoc(doc(db, 'notes', editingNoteId), noteData);
+                } else {
+                    // Add new note
+                    noteData.createdAt = Date.now();
+                    await addDoc(collection(db, 'notes'), noteData);
+                }
+
+                closeNoteModal();
+                loadNotes();
+            } catch (error) {
+                console.error('Error saving note:', error);
+                alert('Error saving note: ' + error.message);
+            }
+        };
+
+        window.editNote = function(noteId) {
+            const note = notes.find(n => n.id === noteId);
+            if (!note) return;
+
+            editingNoteId = noteId;
+            document.getElementById('modal-title').textContent = '✏️ Edit Note';
+            document.getElementById('note-title-input').value = note.title;
+            document.getElementById('note-description').value = note.description || '';
+            document.getElementById('note-category').value = note.category;
+            document.getElementById('note-priority').value = note.priority;
+            document.getElementById('note-due-date').value = note.dueDate || '';
+            document.getElementById('note-product').value = note.product || '';
+            
+            document.getElementById('note-modal').classList.add('active');
+        };
+
+        window.toggleComplete = async function(noteId) {
+            try {
+                const note = notes.find(n => n.id === noteId);
+                await updateDoc(doc(db, 'notes', noteId), {
+                    completed: !note.completed
+                });
+                loadNotes();
+            } catch (error) {
+                console.error('Error toggling note:', error);
+            }
+        };
+
+        window.deleteNote = async function(noteId) {
+            if (!confirm('Delete this note?')) return;
+
+            try {
+                await deleteDoc(doc(db, 'notes', noteId));
+                loadNotes();
+            } catch (error) {
+                console.error('Error deleting note:', error);
+            }
+        };
+
+        // Barcode Scanner Functions
+        window.startBarcodeScanner = async function() {
+            const scanner = document.getElementById('barcode-scanner');
+            const video = document.getElementById('video-preview');
+            const resultDiv = document.getElementById('barcode-result');
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                video.srcObject = stream;
+                video.style.display = 'block';
+                scanner.classList.add('scanning');
+                scanner.innerHTML = '<p>📹 Camera active - point at barcode</p>';
+                
+                // Note: Full barcode scanning requires additional library
+                resultDiv.innerHTML = '<p style="color: #f59e0b;">⚠️ Manual entry mode - Barcode scanning requires camera library</p><p style="font-size: 0.85rem; opacity: 0.7;">Enter product code manually below</p>';
+                
+                setTimeout(() => stopBarcodeScanner(), 10000); // Auto-stop after 10s
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                resultDiv.innerHTML = '<p style="color: #ef4444;">❌ Camera not available. Please enter product code manually.</p>';
+            }
+        };
+
+        window.stopBarcodeScanner = function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            const video = document.getElementById('video-preview');
+            const scanner = document.getElementById('barcode-scanner');
+            
+            video.style.display = 'none';
+            scanner.classList.remove('scanning');
+            scanner.innerHTML = `
+                <div style="font-size: 3rem;">📸</div>
+                <p>Click to scan product barcode</p>
+                <p style="font-size: 0.85rem; opacity: 0.7;">Will auto-fill product details</p>
+            `;
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,2002 @@
+it <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Analytics - Danfosal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="glassmorphism.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: white; }
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+        .nav-tab {
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            opacity: 0.6;
+        }
+        .nav-tab.active {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #60a5fa;
+            opacity: 1;
+            font-weight: bold;
+        }
+        .nav-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.05);
+            opacity: 0.9;
+        }
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col">
+
+    <!-- Header -->
+    <header class="flex items-center justify-between p-6 flex-shrink-0 border-b border-gray-800">
+        <div>
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500">
+                Visual Analytics
+            </h1>
+            <p class="text-gray-400 mt-1">Explore your business data through interactive visualizations</p>
+        </div>
+        <div class="flex gap-4">
+            <div class="flex bg-gray-800 rounded-lg p-1">
+                <div class="nav-tab active" onclick="switchTab('daily-sales')">🌌 Daily Cosmos</div>
+                <div class="nav-tab" onclick="switchTab('business-landscape')">🗺️ Business Landscape</div>
+                <div class="nav-tab" onclick="switchTab('money-flow')">💸 Money Flow</div>
+                <div class="nav-tab" onclick="switchTab('sales-rhythm')">⏰ Sales Rhythm</div>
+                <div class="nav-tab" onclick="switchTab('revenue-sun')">☀️ Revenue Sun</div>
+                <div class="nav-tab" onclick="switchTab('profit-wave')">🌊 Profit Wave</div>
+            </div>
+            <a href="index.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors flex items-center gap-2 border border-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Dashboard
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6 min-h-0 relative">
+        
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="absolute inset-0 flex items-center justify-center bg-gray-900 z-50">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-500 mx-auto mb-4"></div>
+                <p class="text-gray-400 animate-pulse">Crunching the numbers...</p>
+            </div>
+        </div>
+
+        <!-- Daily Sales (Garden) - DEFAULT -->
+        <div id="view-daily-sales" class="view-section h-full flex flex-col">
+            <div class="glass-panel p-4 flex-1 relative">
+                <div id="skyline-chart" class="chart-container"></div>
+                <div class="absolute top-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none">
+                    <h3 class="font-bold text-purple-400 mb-1">Daily Cosmos</h3>
+                    <p class="text-xs text-gray-400">
+                        <span class="text-white font-bold">Your Sales Universe</span><br>
+                        ☀️ Center Sun = Total Revenue<br>
+                        🪐 Planets = Individual Sales<br>
+                        ⏰ Position = Time of Sale (24h Clock)
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Landscape (Treemap) -->
+        <div id="view-business-landscape" class="view-section h-full flex flex-col hidden">
+            <div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                <!-- Chart Area -->
+                <div class="flex-1 glass-panel p-4 relative overflow-hidden flex flex-col">
+                    <div class="absolute top-4 right-4 z-20 flex gap-2">
+                        <button id="edit-mode-btn" onclick="toggleEditMode()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg border border-gray-600 transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            <span>Edit / Merge</span>
+                        </button>
+                    </div>
+                    <div id="edit-mode-banner" class="hidden absolute top-0 left-0 right-0 bg-blue-600/90 text-white text-center py-1 text-sm z-10 font-bold">
+                        EDIT MODE: Click a product to select it, then click another to merge.
+                    </div>
+                    <div id="landscape-chart" class="chart-container"></div>
+                    <div class="absolute bottom-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none z-10">
+                        <h3 class="font-bold text-emerald-400 mb-1">Business Landscape</h3>
+                        <p class="text-xs text-gray-400">
+                            <span class="text-white font-bold">Market Overview</span><br>
+                            <span class="text-white">Size:</span> Revenue<br>
+                            <span class="text-white">Color:</span> Profit Margin<br>
+                            Red = Low Margin | Green = High Margin
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Merge Modal -->
+                <div id="merge-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-2xl max-w-lg w-full p-6">
+                        <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                            Merge Products
+                        </h3>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-red-900/30 p-3 rounded border border-red-500/30">
+                                <p class="text-xs text-red-300 uppercase font-bold">Source (Will be removed)</p>
+                                <p id="merge-source-name" class="font-bold text-white truncate">Product A</p>
+                                <p id="merge-source-rev" class="text-sm text-gray-400">Rev: €0</p>
+                            </div>
+                            <div class="bg-green-900/30 p-3 rounded border border-green-500/30">
+                                <p class="text-xs text-green-300 uppercase font-bold">Target (Will be kept)</p>
+                                <p id="merge-target-name" class="font-bold text-white truncate">Product B</p>
+                                <p id="merge-target-rev" class="text-sm text-gray-400">Rev: €0</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="block text-xs text-gray-400 uppercase mb-1">Final Product Name</label>
+                                <input id="merge-final-name" type="text" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 uppercase mb-1">Producer</label>
+                                <input id="merge-final-producer" type="text" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 uppercase mb-1">Cost Price (€)</label>
+                                    <input id="merge-final-cost" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                    <p class="text-xs text-gray-500 mt-1">Fixes 100% margin issue</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 uppercase mb-1">Selling Price (€)</label>
+                                    <input id="merge-final-price" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button onclick="closeMergeModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white">Cancel</button>
+                            <button onclick="executeMerge()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-bold">Confirm Merge</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT MODAL -->
+                <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+                    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                        <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            Edit Product
+                        </h3>
+                        
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="block text-xs text-gray-400 uppercase mb-1">Current Name</label>
+                                <p id="edit-original-name" class="text-sm text-gray-300 font-mono bg-gray-900/50 p-2 rounded border border-gray-700/50">Old Name</p>
+                            </div>
+
+                            <div class="border-t border-gray-700 my-2"></div>
+
+                            <div>
+                                <label class="block text-xs text-blue-400 uppercase mb-1 font-bold">New Name</label>
+                                <input id="edit-final-name" type="text" list="product-suggestions" oninput="autoFillProductDetails(this.value)" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none" placeholder="Type to search existing products...">
+                                <datalist id="product-suggestions"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 uppercase mb-1">Producer</label>
+                                <input id="edit-final-producer" type="text" list="producer-suggestions" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none" placeholder="Type to search producers...">
+                                <datalist id="producer-suggestions"></datalist>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 uppercase mb-1">Cost Price (€)</label>
+                                    <input id="edit-final-cost" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 uppercase mb-1">Selling Price (€)</label>
+                                    <input id="edit-final-price" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white">Cancel</button>
+                            <button onclick="executeEdit()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-bold">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Side Panel -->
+                <div id="strategy-panel" class="w-full lg:w-96 glass-panel p-6 hidden lg:flex flex-col">
+                    <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-center text-gray-500">
+                        <svg class="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <p class="text-lg font-medium">Click a block to reveal strategy</p>
+                        <p class="text-sm mt-2">Size = Revenue<br>Color = Profit Margin</p>
+                    </div>
+
+                    <div id="product-details" class="hidden h-full flex flex-col">
+                        <div class="mb-6">
+                            <span id="detail-badge" class="px-2 py-1 text-xs font-bold rounded bg-gray-700 text-white mb-2 inline-block">CATEGORY</span>
+                            <h2 id="detail-name" class="text-2xl font-bold text-white leading-tight">Product Name</h2>
+                            <p id="detail-producer" class="text-gray-400 text-sm">Producer Name</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-400 uppercase">Revenue</p>
+                                <p id="detail-revenue" class="text-xl font-bold text-white">€0.00</p>
+                            </div>
+                            <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-400 uppercase">Profit</p>
+                                <p id="detail-profit" class="text-xl font-bold text-green-400">€0.00</p>
+                            </div>
+                            <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-400 uppercase">Margin</p>
+                                <p id="detail-margin" class="text-xl font-bold text-blue-400">0%</p>
+                            </div>
+                            <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-400 uppercase">Units Sold</p>
+                                <p id="detail-units" class="text-xl font-bold text-white">0</p>
+                            </div>
+                        </div>
+
+                        <div class="flex-1">
+                            <h3 class="text-sm font-bold text-gray-300 uppercase mb-3">AI Strategy Recommendation</h3>
+                            <div id="strategy-content" class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg">
+                                <h4 id="strategy-title" class="font-bold text-blue-400 mb-1">Strategy Title</h4>
+                                <p id="strategy-desc" class="text-sm text-gray-300">Strategy description goes here.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 pt-6 border-t border-gray-700">
+                            <button id="action-btn" class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg">
+                                <span>Take Action</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Money Flow (Sankey) -->
+        <div id="view-money-flow" class="view-section h-full flex flex-col hidden">
+            <div class="glass-panel p-4 flex-1 relative">
+                <div id="sankey-chart" class="chart-container"></div>
+                <div class="absolute top-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none">
+                    <h3 class="font-bold text-purple-400 mb-1">The Money Flow</h3>
+                    <p class="text-xs text-gray-400">Simplified view showing Top 15 Products. All others are grouped.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Rhythm (Heatmap) -->
+        <div id="view-sales-rhythm" class="view-section h-full flex flex-col hidden">
+            <div class="glass-panel p-4 flex-1 relative">
+                <div id="heatmap-chart" class="chart-container"></div>
+                <div class="absolute top-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none">
+                    <h3 class="font-bold text-orange-400 mb-1">The Sales Rhythm</h3>
+                    <p class="text-xs text-gray-400">Heatmap of sales activity. Darker = More Sales.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Sun (Sunburst) -->
+        <div id="view-revenue-sun" class="view-section h-full flex flex-col hidden">
+            <div class="glass-panel p-4 flex-1 relative">
+                <div id="sunburst-chart" class="chart-container"></div>
+                <div class="absolute top-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none">
+                    <h3 class="font-bold text-yellow-400 mb-1">The Revenue Sun</h3>
+                    <p class="text-xs text-gray-400">
+                        <span class="text-white font-bold">Center:</span> Total Revenue.<br>
+                        <span class="text-white font-bold">Rings:</span> Sales Channel → Supplier → Product.<br>
+                        Click any slice to zoom in.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profit Wave (Streamgraph) -->
+        <div id="view-profit-wave" class="view-section h-full flex flex-col hidden">
+            <div class="glass-panel p-4 flex-1 relative">
+                <div id="wave-chart" class="chart-container"></div>
+                <div class="absolute top-4 left-4 bg-gray-900/80 p-3 rounded-lg border border-gray-700 max-w-xs pointer-events-none">
+                    <h3 class="font-bold text-cyan-400 mb-1">The Profit Wave</h3>
+                    <p class="text-xs text-gray-400">
+                        A fluid view of your finances.<br>
+                        <span class="text-red-400 font-bold">Red Layer:</span> Costs.<br>
+                        <span class="text-green-400 font-bold">Green Layer:</span> Profit.<br>
+                        Hover to see exact numbers.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.allProducts = [];
+        window.allOrders = [];
+        window.allStoreSales = [];
+        window.allSuppliers = [];
+        window.allDebtors = [];
+        window.allCreditors = [];
+
+        // Global Tab Switcher
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.nav-tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+            
+            // Trigger resize for Plotly to adjust
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        async function init() {
+            try {
+                await fetchData();
+                
+                renderDailySales(); // Default View
+                renderBusinessLandscape();
+                renderMoneyFlow();
+                renderSalesRhythm();
+                renderRevenueSun();
+                renderProfitWave();
+                
+                document.getElementById('loading-indicator').classList.add('hidden');
+            } catch (error) {
+                console.error("Error initializing:", error);
+                document.getElementById('loading-indicator').innerHTML = '<p class="text-red-500">Error loading data. Check console.</p>';
+            }
+        }
+
+        async function fetchData() {
+            const [productsSnap, ordersSnap, storeSnap, suppliersSnap, debtorsSnap, creditorsSnap] = await Promise.all([
+                getDocs(collection(db, 'products')),
+                getDocs(collection(db, 'onlineOrders')),
+                getDocs(collection(db, 'storeSales')),
+                getDocs(collection(db, 'suppliers')),
+                getDocs(collection(db, 'debtors')),
+                getDocs(collection(db, 'creditors'))
+            ]);
+
+            window.allProducts = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.allOrders = ordersSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data(), source: 'online' }))
+                .filter(o => ['Paid', 'Delivered', 'Completed', 'Shipped', 'Done', 'Pending'].includes(o.status));
+            window.allStoreSales = storeSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), source: 'store' }));
+            window.allSuppliers = suppliersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.allDebtors = debtorsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.allCreditors = creditorsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        // --- 0. Daily Sales Cosmos (The Galactic Clock) ---
+        function renderDailySales() {
+            // Filter for TODAY only (Local Time)
+            const today = new Date();
+            const todayStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+            
+            const sales = [];
+            let maxRevenue = 0;
+            let totalRevenue = 0;
+
+            const processSale = (sale) => {
+                const ts = sale.timestamp;
+                if (!ts) return;
+                const dateObj = ts.toDate ? ts.toDate() : new Date(ts);
+                const dateKey = dateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+
+                if (dateKey !== todayStr) return; // ONLY TODAY
+
+                // Aggregate Items for this Sale
+                let saleRevenue = 0;
+                let items = [];
+
+                const addItem = (item) => {
+                    const qty = parseFloat(item.quantity) || 1;
+                    const rev = (parseFloat(item.price) || 0) * qty;
+                    saleRevenue += rev;
+                    items.push({
+                        name: item.name || item.product || "Unknown",
+                        revenue: rev
+                    });
+                };
+
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(addItem);
+                } else {
+                    addItem(sale);
+                }
+
+                if (saleRevenue <= 0) return;
+
+                totalRevenue += saleRevenue;
+                if (saleRevenue > maxRevenue) maxRevenue = saleRevenue;
+
+                // Sort items: Biggest is Planet, others are Moons
+                items.sort((a, b) => b.revenue - a.revenue);
+                const mainItem = items[0];
+                const moons = items.slice(1);
+
+                // Calculate Time Angle
+                // 00:00 at Top (PI/2)
+                // Clockwise rotation: Angle decreases
+                const hours = dateObj.getHours() + (dateObj.getMinutes() / 60);
+                const angle = (Math.PI / 2) - (hours / 24) * (2 * Math.PI);
+
+                sales.push({
+                    saleRevenue: saleRevenue,
+                    mainItem: mainItem,
+                    moons: moons,
+                    timeStr: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    angle: angle
+                });
+            };
+
+            [...allOrders, ...allStoreSales].forEach(processSale);
+
+            // --- SVG Generators ---
+            
+            // 1. Background (Deep Space with Nebula)
+            const getSpaceBackgroundSVG = () => {
+                let stars = '';
+                for(let i=0; i<200; i++) {
+                    const x = Math.random() * 800;
+                    const y = Math.random() * 600;
+                    const r = Math.random() * 1.2;
+                    const opacity = Math.random() * 0.8 + 0.2;
+                    stars += `<circle cx="${x}" cy="${y}" r="${r}" fill="white" opacity="${opacity}"/>`;
+                }
+
+                const svg = `<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <radialGradient id="spaceGrad" cx="50%" cy="50%" r="70%" fx="50%" fy="50%">
+                            <stop offset="0%" style="stop-color:#0B1026;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+                        </radialGradient>
+                        <filter id="nebulaBlur" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="40"/>
+                        </filter>
+                    </defs>
+                    <rect width="800" height="600" fill="url(#spaceGrad)"/>
+                    <g filter="url(#nebulaBlur)" opacity="0.25">
+                        <path d="M 100 100 Q 400 0 700 200 T 100 500" fill="#4A148C" />
+                        <path d="M 700 500 Q 400 600 100 400 T 700 100" fill="#1A237E" />
+                        <circle cx="400" cy="300" r="200" fill="#311B92" opacity="0.2"/>
+                    </g>
+                    ${stars}
+                    <circle cx="400" cy="300" r="180" fill="none" stroke="#4FC3F7" stroke-opacity="0.15" stroke-width="1" stroke-dasharray="4,6"/>
+                    <g font-family="'Inter', sans-serif" font-size="10" fill="#81D4FA" opacity="0.8" letter-spacing="2" font-weight="300">
+                        <text x="400" y="105" text-anchor="middle">00:00</text>
+                        <line x1="400" y1="115" x2="400" y2="125" stroke="#81D4FA" stroke-width="1"/>
+                        <text x="400" y="505" text-anchor="middle">12:00</text>
+                        <line x1="400" y1="485" x2="400" y2="495" stroke="#81D4FA" stroke-width="1"/>
+                        <text x="605" y="305" text-anchor="start">06:00</text>
+                        <line x1="585" y1="300" x2="595" y2="300" stroke="#81D4FA" stroke-width="1"/>
+                        <text x="195" y="305" text-anchor="end">18:00</text>
+                        <line x1="205" y1="300" x2="215" y2="300" stroke="#81D4FA" stroke-width="1"/>
+                    </g>
+                </svg>`;
+                return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+            };
+
+            // 2. The Sun (Total Revenue)
+            const getSunSVG = () => {
+                const svg = `<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <radialGradient id="sunBody" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#FFF700" />
+                            <stop offset="40%" stop-color="#FFD700" />
+                            <stop offset="80%" stop-color="#FF8C00" />
+                            <stop offset="100%" stop-color="#FF4500" />
+                        </radialGradient>
+                        <filter id="sunCorona" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="8" result="blur"/>
+                            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                        </filter>
+                    </defs>
+                    <circle cx="120" cy="120" r="75" fill="#FF4500" opacity="0.3" filter="url(#sunCorona)"/>
+                    <circle cx="120" cy="120" r="68" fill="#FF8C00" opacity="0.5" filter="url(#sunCorona)"/>
+                    <circle cx="120" cy="120" r="60" fill="url(#sunBody)" />
+                    <g opacity="0.3">
+                        <circle cx="100" cy="100" r="10" fill="#FF4500" filter="url(#sunCorona)"/>
+                        <circle cx="140" cy="130" r="8" fill="#FF4500" filter="url(#sunCorona)"/>
+                        <circle cx="110" cy="140" r="12" fill="#FF4500" filter="url(#sunCorona)"/>
+                    </g>
+                </svg>`;
+                return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+            };
+
+            // 3. Planet System (Planet + Moons)
+            const getPlanetSystemSVG = (color, type, moons) => {
+                // Fixed coordinate system 500x500
+                const size = 500;
+                const center = 250;
+                const r = 80; // Base Planet Radius in SVG units
+                
+                const uid = Math.floor(Math.random() * 100000); 
+                
+                let planetContent = '';
+                const shadow = `<path d="M ${center} ${center-r} A ${r} ${r} 0 1 1 ${center} ${center+r} A ${r*0.6} ${r} 0 1 0 ${center} ${center-r} Z" fill="black" opacity="0.4" transform="rotate(45 ${center} ${center})"/>`;
+                
+                // Planet Body
+                if (type === 'banded') {
+                    planetContent = `
+                        <defs>
+                            <linearGradient id="grad-${uid}" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="${color}" />
+                                <stop offset="20%" stop-color="${color}" stop-opacity="0.9"/>
+                                <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.4"/>
+                                <stop offset="35%" stop-color="${color}" />
+                                <stop offset="50%" stop-color="#000000" stop-opacity="0.1"/>
+                                <stop offset="65%" stop-color="${color}" />
+                                <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.3"/>
+                                <stop offset="100%" stop-color="${color}" stop-opacity="0.8"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="${center}" cy="${center}" r="${r}" fill="url(#grad-${uid})" />
+                        ${shadow}
+                    `;
+                } else if (type === 'ringed') {
+                    planetContent = `
+                        <defs>
+                            <radialGradient id="grad-${uid}">
+                                <stop offset="0%" stop-color="${color}" />
+                                <stop offset="90%" stop-color="#000" stop-opacity="0.3"/>
+                            </radialGradient>
+                        </defs>
+                        <ellipse cx="${center}" cy="${center}" rx="${r*2.2}" ry="${r*0.6}" fill="none" stroke="${color}" stroke-width="${r*0.4}" opacity="0.5" transform="rotate(-15 ${center} ${center})"/>
+                        <ellipse cx="${center}" cy="${center}" rx="${r*1.8}" ry="${r*0.5}" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.3" transform="rotate(-15 ${center} ${center})"/>
+                        <circle cx="${center}" cy="${center}" r="${r}" fill="url(#grad-${uid})" />
+                        ${shadow}
+                        <path d="M ${center-r*2.2} ${center} A ${r*2.2} ${r*0.6} 0 0 0 ${center+r*2.2} ${center}" fill="none" stroke="${color}" stroke-width="${r*0.4}" opacity="0.7" transform="rotate(-15 ${center} ${center})"/>
+                    `;
+                } else { // Rocky
+                    planetContent = `
+                        <defs>
+                            <radialGradient id="grad-${uid}">
+                                <stop offset="0%" stop-color="${color}" />
+                                <stop offset="100%" stop-color="#222" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="${center}" cy="${center}" r="${r}" fill="url(#grad-${uid})" />
+                        <circle cx="${center-r*0.4}" cy="${center-r*0.3}" r="${r*0.25}" fill="black" opacity="0.15"/>
+                        <circle cx="${center+r*0.3}" cy="${center+r*0.4}" r="${r*0.15}" fill="black" opacity="0.15"/>
+                        <circle cx="${center+r*0.5}" cy="${center-r*0.2}" r="${r*0.1}" fill="black" opacity="0.15"/>
+                        ${shadow}
+                    `;
+                }
+
+                // Moons
+                let moonContent = '';
+                if (moons && moons.length > 0) {
+                    moons.forEach((moon, i) => {
+                        const mr = r * 0.25; // Moon radius
+                        const orbitR = r * (1.6 + (i * 0.5)); // Orbit distance
+                        const ma = (i * 137.5) * (Math.PI / 180); // Angle
+                        
+                        const mx = center + orbitR * Math.cos(ma);
+                        const my = center + orbitR * Math.sin(ma);
+                        
+                        moonContent += `
+                            <circle cx="${mx}" cy="${my}" r="${mr}" fill="#CFD8DC" stroke="#546E7A" stroke-width="1"/>
+                            <circle cx="${mx + mr*0.3}" cy="${my + mr*0.3}" r="${mr*0.8}" fill="black" opacity="0.3"/>
+                        `;
+                    });
+                }
+
+                const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+                    ${planetContent}
+                    ${moonContent}
+                    <!-- Atmosphere Rim -->
+                    <circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+                </svg>`;
+                return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+            };
+
+            // --- Build Scene ---
+            const images = [];
+
+            // 1. Background
+            images.push({
+                source: getSpaceBackgroundSVG(),
+                xref: "paper", yref: "paper",
+                x: 0, y: 1,
+                sizex: 1, sizey: 1,
+                sizing: "stretch",
+                layer: "below"
+            });
+
+            // 2. Sun (Center)
+            images.push({
+                source: getSunSVG(),
+                xref: "x", yref: "y",
+                x: 0, y: 0,
+                sizex: 3, sizey: 3,
+                xanchor: "center", yanchor: "middle",
+                layer: "below"
+            });
+
+            // 3. Planets (Sales)
+            const planetColors = ['#4FC3F7', '#AED581', '#FF8A65', '#BA68C8', '#FFD54F', '#90A4AE'];
+            const shapes = [];
+
+            sales.forEach((s, index) => {
+                // Distance Logic: Bigger Sale = Further Away
+                // Min Dist = 2.2 (Sun Radius ~1.5)
+                // Max Dist = 5.5
+                const ratio = maxRevenue > 0 ? s.saleRevenue / maxRevenue : 0;
+                const distance = 2.2 + (ratio * 3.3);
+
+                // Add Orbit
+                shapes.push({
+                    type: 'circle',
+                    xref: 'x', yref: 'y',
+                    x0: -distance, y0: -distance,
+                    x1: distance, y1: distance,
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.15)',
+                        width: 1,
+                        dash: 'dash'
+                    }
+                });
+
+                // Size Logic: Bigger Sale = Bigger Planet
+                // Max Planet Size = 2.0 (2/3 of Sun)
+                // Min Planet Size = 0.5
+                const size = 0.5 + (ratio * 1.5);
+
+                const xPos = distance * Math.cos(s.angle);
+                const yPos = distance * Math.sin(s.angle);
+
+                let color = planetColors[index % planetColors.length];
+                let type = 'rocky';
+
+                // Determine Type based on Main Item Revenue relative to Sale
+                if (ratio > 0.8) {
+                    color = '#FFD54F'; // Gold/Jupiter
+                    type = 'banded';
+                } else if (ratio > 0.4) {
+                    type = 'ringed';
+                }
+
+                images.push({
+                    source: getPlanetSystemSVG(color, type, s.moons),
+                    xref: "x", yref: "y",
+                    x: xPos,
+                    y: yPos,
+                    sizex: size, sizey: size,
+                    xanchor: "center", yanchor: "middle",
+                    layer: "above"
+                });
+
+                // Store coordinates for hover trace
+                s.x = xPos;
+                s.y = yPos;
+            });
+
+            // Hover Trace
+            const hoverTrace = {
+                x: sales.map(s => s.x),
+                y: sales.map(s => s.y),
+                mode: 'markers',
+                marker: { opacity: 0, size: 20 }, 
+                text: sales.map(s => `<b>${s.timeStr}</b><br>${s.mainItem.name}<br>Total: €${s.saleRevenue.toFixed(2)}<br>Moons: ${s.moons.length}`),
+                hoverinfo: 'text'
+            };
+
+            // Center Text (Total Revenue)
+            const centerTextTrace = {
+                x: [0],
+                y: [0],
+                mode: 'text',
+                text: [`<b>€${totalRevenue.toFixed(0)}</b><br><span style="font-size:10px">TODAY</span>`],
+                textfont: { color: '#5D4037', size: 16 }, 
+                hoverinfo: 'none'
+            };
+
+            const layout = {
+                paper_bgcolor: '#000000',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                xaxis: { 
+                    range: [-6, 6], 
+                    showgrid: false, 
+                    zeroline: false, 
+                    showticklabels: false 
+                },
+                yaxis: { 
+                    range: [-6, 6], 
+                    showgrid: false, 
+                    zeroline: false, 
+                    showticklabels: false 
+                },
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+                showlegend: false,
+                images: images,
+                shapes: shapes
+            };
+
+            Plotly.newPlot('skyline-chart', [hoverTrace, centerTextTrace], layout, {responsive: true, displayModeBar: false}).then(() => {
+                // Animation: Planets orbit once
+                if (sales.length === 0) return;
+
+                let startTime = null;
+                const duration = 15000; // 15 seconds for full orbit
+
+                // Pre-calculate orbit data
+                const planetData = sales.map((s, i) => {
+                    const ratio = maxRevenue > 0 ? s.saleRevenue / maxRevenue : 0;
+                    const distance = 2.2 + (ratio * 3.3);
+                    return {
+                        index: i + 2, // Offset by Background(0) + Sun(1)
+                        finalAngle: s.angle,
+                        distance: distance
+                    };
+                });
+
+                function step(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const progress = Math.min((timestamp - startTime) / duration, 1);
+                    
+                    // Ease Out Cubic for smooth stop
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    
+                    // Rotate from -2PI (one full circle back) to 0
+                    const rotationOffset = -2 * Math.PI * (1 - ease);
+                    
+                    const update = {};
+                    let hasUpdate = false;
+
+                    planetData.forEach(p => {
+                        const currentAngle = p.finalAngle + rotationOffset;
+                        const x = p.distance * Math.cos(currentAngle);
+                        const y = p.distance * Math.sin(currentAngle);
+                        
+                        update[`images[${p.index}].x`] = x;
+                        update[`images[${p.index}].y`] = y;
+                        hasUpdate = true;
+                    });
+
+                    if (hasUpdate) {
+                        Plotly.relayout('skyline-chart', update);
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+
+                requestAnimationFrame(step);
+            });
+        }
+
+        // --- 0.5 Business Landscape (Treemap) ---
+        function renderBusinessLandscape() {
+            // Aggregate Data for Treemap
+            const productStats = {};
+            let totalRevenue = 0;
+            let totalProfit = 0;
+            
+            const processSale = (item) => {
+                const name = item.name || item.product || "Unknown";
+                
+                // Lookup Product (Try Exact, then Case-Insensitive)
+                let product = window.allProducts.find(p => p.name === name);
+                if (!product) {
+                    product = window.allProducts.find(p => p.name.toLowerCase().trim() === name.toLowerCase().trim());
+                }
+
+                // Fallback for missing products (Show them anyway!)
+                if (!product) {
+                    let producer = "Other";
+                    const lowerName = name.toLowerCase();
+                    if (lowerName.includes('karcher') || lowerName.includes('kärcher')) producer = "Kärcher";
+                    else if (lowerName.includes('bosch')) producer = "Bosch";
+                    else if (lowerName.includes('makita')) producer = "Makita";
+                    else if (lowerName.includes('dewalt')) producer = "DeWalt";
+                    
+                    product = {
+                        name: name,
+                        producer: producer,
+                        cost: 0 // Unknown cost = 100% margin (Green)
+                    };
+                }
+
+                if (!productStats[name]) {
+                    let producer = product.producer || "Unknown";
+                    // Normalize Producer Names (Fix duplicates like Karcher vs Kärcher)
+                    if (producer.toLowerCase() === 'karcher') producer = 'Kärcher';
+                    
+                    productStats[name] = {
+                        name: name,
+                        producer: producer,
+                        revenue: 0,
+                        profit: 0,
+                        units: 0
+                    };
+                }
+                
+                const qty = item.quantity || 1;
+                const revenue = (item.price || 0) * qty;
+                
+                // Calculate Cost
+                const costPerUnit = product.cost || (product.baseCost ? product.baseCost * 1.2 : 0) || 0;
+                const cost = costPerUnit * qty;
+                const profit = revenue - cost;
+
+                productStats[name].revenue += revenue;
+                productStats[name].profit += profit;
+                productStats[name].units += qty;
+
+                totalRevenue += revenue;
+                totalProfit += profit;
+            };
+
+            [...allOrders, ...allStoreSales].forEach(sale => {
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(processSale);
+                } else {
+                    processSale(sale);
+                }
+            });
+
+            const data = Object.values(productStats).filter(p => p.revenue > 0);
+            
+            // Calculate Margins
+            const margins = data.map(p => (p.profit / p.revenue) * 100);
+
+            // Build Treemap Structure
+            const producers = [...new Set(data.map(p => p.producer))];
+            
+            // Root Node (Market)
+            const finalIds = ["ROOT"];
+            const finalLabels = ["Market"];
+            const finalParents = [""];
+            const finalValues = [0];
+            const finalColors = [0];
+            const finalCustomData = [{margin: 0, name: "Market Total"}];
+
+            // Add Producers
+            const producerStats = {};
+            producers.forEach(prod => {
+                const prodId = `PROD_${prod}`;
+                finalIds.push(prodId);
+                finalLabels.push(prod);
+                finalParents.push("ROOT");
+                finalValues.push(0);
+                finalColors.push(0);
+                finalCustomData.push({margin: 0, name: prod});
+                producerStats[prod] = prodId;
+            });
+
+            // Add Products
+            data.forEach((p, i) => {
+                finalIds.push(`ITEM_${i}`);
+                finalLabels.push(p.name);
+                finalParents.push(producerStats[p.producer]);
+                finalValues.push(p.revenue);
+                finalColors.push(margins[i]);
+                finalCustomData.push({...p, margin: margins[i]});
+            });
+
+            const trace = {
+                type: "treemap",
+                ids: finalIds,
+                labels: finalLabels,
+                parents: finalParents,
+                values: finalValues,
+                marker: {
+                    colors: finalColors,
+                    colorscale: [
+                        [0, '#ef4444'],   // Red (Low Margin)
+                        [0.2, '#f97316'], // Orange
+                        [0.5, '#eab308'], // Yellow
+                        [1, '#22c55e']    // Green (High Margin)
+                    ],
+                    cmin: 0,
+                    cmax: 100,
+                    showscale: true,
+                    colorbar: { title: 'Margin %' }
+                },
+                textinfo: "label+value",
+                hovertemplate: "<b>%{label}</b><br>Revenue: €%{value:.2f}<br>Margin: %{customdata.margin:.1f}%<extra></extra>",
+                customdata: finalCustomData
+            };
+
+            const layout = {
+                margin: {t: 0, l: 0, r: 0, b: 0},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: { family: 'Inter', color: 'white' }
+            };
+
+            Plotly.newPlot('landscape-chart', [trace], layout, {responsive: true, displayModeBar: false});
+
+            const chartDiv = document.getElementById('landscape-chart');
+
+            // Track Hover for Drag & Drop
+            chartDiv.on('plotly_hover', function(data){
+                window.currentHover = data.points[0];
+            });
+            chartDiv.on('plotly_unhover', function(data){
+                window.currentHover = null;
+            });
+
+            // Click Event
+            chartDiv.on('plotly_click', function(data){
+                const point = data.points[0];
+                if (!point.customdata || !point.customdata.name) return; 
+                
+                // If it's a product (has units)
+                if (point.customdata.units !== undefined) {
+                    if (window.isEditMode) {
+                        // EDIT MODE: Open Edit Modal
+                        openEditModal(point.customdata);
+                    } else {
+                        // NORMAL MODE: Show Strategy
+                        showStrategy(point.customdata);
+                    }
+                }
+            });
+
+            // Initialize Drag Logic once
+            if (!window.dragInitialized) {
+                setupDragAndDrop();
+                window.dragInitialized = true;
+            }
+        }
+
+        // --- EDIT / MERGE LOGIC (DRAG & DROP) ---
+        window.isEditMode = false;
+        window.currentHover = null;
+        window.dragInitialized = false;
+
+        window.toggleEditMode = () => {
+            window.isEditMode = !window.isEditMode;
+            const btn = document.getElementById('edit-mode-btn');
+            const banner = document.getElementById('edit-mode-banner');
+            
+            if (window.isEditMode) {
+                btn.classList.add('bg-blue-600', 'border-blue-500');
+                btn.classList.remove('bg-gray-700', 'border-gray-600');
+                btn.innerHTML = '<span>Cancel Edit</span>';
+                banner.classList.remove('hidden');
+                banner.textContent = "EDIT MODE: Drag to Merge, or Click to Edit a single product.";
+            } else {
+                btn.classList.remove('bg-blue-600', 'border-blue-500');
+                btn.classList.add('bg-gray-700', 'border-gray-600');
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg><span>Edit / Merge</span>`;
+                banner.classList.add('hidden');
+            }
+        };
+
+        function setupDragAndDrop() {
+            const container = document.getElementById('landscape-chart');
+            
+            // Create Ghost Element
+            const ghost = document.createElement('div');
+            ghost.id = 'drag-ghost';
+            ghost.className = 'fixed hidden bg-blue-600 text-white px-3 py-2 rounded shadow-xl z-50 pointer-events-none font-bold border border-white';
+            document.body.appendChild(ghost);
+
+            let isDragging = false;
+            let dragSource = null;
+            let startX = 0;
+            let startY = 0;
+
+            // 1. Capture Click to prevent Zoom in Edit Mode
+            // We now want clicks to pass through to Plotly if it wasn't a drag
+            // So we remove the aggressive capture listener or modify it.
+            // Actually, Plotly handles clicks internally. We just need to ensure we don't block it.
+            // The previous code blocked ALL clicks in edit mode. We should remove that block.
+            
+            // 2. Start Drag
+            container.addEventListener('mousedown', (e) => {
+                if (!window.isEditMode || !window.currentHover) return;
+                
+                // Only allow dragging products (leaves), not groups
+                if (window.currentHover.customdata.units === undefined) return;
+
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                // Don't start dragging immediately, wait for movement
+                dragSource = window.currentHover.customdata;
+            });
+
+            // 3. Move Drag
+            window.addEventListener('mousemove', (e) => {
+                if (!dragSource) return;
+                
+                // Threshold for drag vs click
+                if (!isDragging && (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5)) {
+                    isDragging = true;
+                    ghost.textContent = `Merging: ${dragSource.name}`;
+                    ghost.classList.remove('hidden');
+                }
+
+                if (isDragging) {
+                    ghost.style.left = `${e.clientX + 15}px`;
+                    ghost.style.top = `${e.clientY + 15}px`;
+                }
+            });
+
+            // 4. End Drag (Drop)
+            window.addEventListener('mouseup', (e) => {
+                if (!isDragging) return;
+                
+                isDragging = false;
+                ghost.classList.add('hidden');
+
+                // Check drop target
+                if (window.currentHover && window.currentHover.customdata) {
+                    const target = window.currentHover.customdata;
+                    
+                    // Validate Target (must be product, not same as source)
+                    if (target.units !== undefined && target.name !== dragSource.name) {
+                        openMergeModal(dragSource, target);
+                    }
+                }
+                dragSource = null;
+            });
+        }
+
+        window.closeMergeModal = () => {
+            document.getElementById('merge-modal').classList.add('hidden');
+        };
+
+        function openMergeModal(source, target) {
+            const modal = document.getElementById('merge-modal');
+            modal.classList.remove('hidden');
+            
+            // Populate Info
+            document.getElementById('merge-source-name').textContent = source.name;
+            document.getElementById('merge-source-rev').textContent = `Rev: €${source.revenue.toFixed(2)}`;
+            
+            document.getElementById('merge-target-name').textContent = target.name;
+            document.getElementById('merge-target-rev').textContent = `Rev: €${target.revenue.toFixed(2)}`;
+            
+            // Populate Inputs (Default to Target)
+            document.getElementById('merge-final-name').value = target.name;
+            document.getElementById('merge-final-producer').value = target.producer;
+            
+            // Find Cost Price
+            // Try to find real product data
+            const targetProd = window.allProducts.find(p => p.name === target.name);
+            const sourceProd = window.allProducts.find(p => p.name === source.name);
+            
+            let cost = 0;
+            if (targetProd && targetProd.cost) cost = targetProd.cost;
+            else if (sourceProd && sourceProd.cost) cost = sourceProd.cost;
+            
+            document.getElementById('merge-final-cost').value = cost;
+            
+            // Estimate Price
+            const price = target.revenue / target.units;
+            document.getElementById('merge-final-price').value = price.toFixed(2);
+        }
+
+        window.executeMerge = async () => {
+            const sourceName = document.getElementById('merge-source-name').textContent;
+            const targetName = document.getElementById('merge-target-name').textContent; // Original target name
+            
+            const finalName = document.getElementById('merge-final-name').value;
+            const finalProducer = document.getElementById('merge-final-producer').value;
+            const finalCost = parseFloat(document.getElementById('merge-final-cost').value) || 0;
+            const finalPrice = parseFloat(document.getElementById('merge-final-price').value) || 0;
+
+            if (!finalName) return alert("Name is required");
+
+            // Track modified documents for batch update
+            const modifiedDocs = [];
+
+            // 1. Update Local Data (Sales Records)
+            let updateCount = 0;
+            
+            const updateSale = (sale, collectionName) => {
+                let modified = false;
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(item => {
+                        const itemName = item.name || item.product || "Unknown";
+                        if (itemName === sourceName || itemName === targetName) {
+                            item.name = finalName;
+                            item.product = finalName; // Ensure consistency
+                            // We don't change price in history usually, but if it was wrong...
+                            // Let's keep historical revenue but re-map the product identity
+                            modified = true;
+                            updateCount++;
+                        }
+                    });
+                } else {
+                    const itemName = sale.name || sale.product || "Unknown";
+                    if (itemName === sourceName || itemName === targetName) {
+                        sale.name = finalName;
+                        sale.product = finalName;
+                        modified = true;
+                        updateCount++;
+                    }
+                }
+                
+                if (modified) {
+                    modifiedDocs.push({ id: sale.id, collection: collectionName, data: sale });
+                }
+                return modified;
+            };
+
+            // Process both collections
+            window.allOrders.forEach(sale => updateSale(sale, 'onlineOrders'));
+            window.allStoreSales.forEach(sale => updateSale(sale, 'storeSales'));
+
+            // 2. Update Product Definition (window.allProducts)
+            // Remove Source
+            const sourceIdx = window.allProducts.findIndex(p => p.name === sourceName);
+            if (sourceIdx > -1) window.allProducts.splice(sourceIdx, 1);
+            
+            // Update/Create Target
+            let targetIdx = window.allProducts.findIndex(p => p.name === targetName);
+            if (targetIdx === -1) targetIdx = window.allProducts.findIndex(p => p.name === finalName);
+            
+            const newProductData = {
+                name: finalName,
+                producer: finalProducer,
+                cost: finalCost,
+                price: finalPrice
+            };
+
+            if (targetIdx > -1) {
+                window.allProducts[targetIdx] = { ...allProducts[targetIdx], ...newProductData };
+            } else {
+                window.allProducts.push(newProductData);
+            }
+
+            // 3. FIRESTORE UPDATE
+            try {
+                // A. Update Product Definition
+                let batch = writeBatch(db);
+                let opCount = 0;
+
+                // We need to find the doc ID for the target product if it exists
+                const existingProd = window.allProducts.find(p => p.name === finalName && p.id);
+                if (existingProd) {
+                    const prodRef = doc(db, 'products', existingProd.id);
+                    batch.update(prodRef, {
+                        producer: finalProducer,
+                        cost: finalCost,
+                        price: finalPrice
+                    });
+                } else {
+                    // Create new
+                    const newRef = doc(collection(db, 'products'));
+                    batch.set(newRef, newProductData);
+                }
+                opCount++;
+
+                // B. Update Sales Records (Batching)
+                // Firestore limit is 500 ops per batch.
+                
+                for (const docInfo of modifiedDocs) {
+                    if (opCount >= 490) { // Safety margin
+                        await batch.commit();
+                        batch = writeBatch(db);
+                        opCount = 0;
+                    }
+
+                    const docRef = doc(db, docInfo.collection, docInfo.id);
+                    // We update the whole 'items' array (or specific fields if flat)
+                    if (docInfo.data.items) {
+                        batch.update(docRef, { items: docInfo.data.items });
+                    } else {
+                        batch.update(docRef, { 
+                            name: docInfo.data.name, 
+                            product: docInfo.data.product 
+                        });
+                    }
+                    opCount++;
+                }
+
+                await batch.commit();
+                console.log(`Merge complete. Updated ${updateCount} items in ${modifiedDocs.length} documents.`);
+                
+                window.closeMergeModal();
+                window.toggleEditMode(); // Exit edit mode
+                
+                // Re-render all charts to reflect changes
+                renderBusinessLandscape();
+                renderMoneyFlow();
+                renderRevenueSun();
+                renderProfitWave();
+                renderDailySales(); // In case names changed there too
+
+            } catch (e) {
+                console.error("Error updating DB:", e);
+                alert("Error saving changes: " + e.message);
+            }
+        };
+
+        // --- EDIT SINGLE PRODUCT LOGIC ---
+        window.closeEditModal = () => {
+            document.getElementById('edit-modal').classList.add('hidden');
+        };
+
+        window.autoFillProductDetails = (name) => {
+            // Find exact match in window.allProducts
+            const product = window.allProducts.find(p => p.name === name);
+            if (product) {
+                if (product.producer) document.getElementById('edit-final-producer').value = product.producer;
+                if (product.cost) document.getElementById('edit-final-cost').value = product.cost;
+                if (product.price) document.getElementById('edit-final-price').value = product.price;
+            }
+        };
+
+        window.openEditModal = (productData) => {
+            const modal = document.getElementById('edit-modal');
+            modal.classList.remove('hidden');
+            
+            // Populate Info
+            document.getElementById('edit-original-name').textContent = productData.name;
+            
+            // Populate Inputs
+            document.getElementById('edit-final-name').value = productData.name;
+            document.getElementById('edit-final-producer').value = productData.producer;
+            
+            // Find Cost/Price
+            const prod = window.allProducts.find(p => p.name === productData.name);
+            let cost = 0;
+            if (prod && prod.cost) cost = prod.cost;
+            
+            document.getElementById('edit-final-cost').value = cost;
+            
+            const price = productData.revenue / productData.units;
+            document.getElementById('edit-final-price').value = price.toFixed(2);
+
+            // Populate Datalists for Autocomplete
+            const productList = document.getElementById('product-suggestions');
+            productList.innerHTML = '';
+            window.allProducts.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.name;
+                productList.appendChild(option);
+            });
+
+            const producerList = document.getElementById('producer-suggestions');
+            producerList.innerHTML = '';
+            const producers = [...new Set(window.allProducts.map(p => p.producer).filter(Boolean))];
+            producers.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p;
+                producerList.appendChild(option);
+            });
+        };
+
+        window.executeEdit = async () => {
+            const originalName = document.getElementById('edit-original-name').textContent;
+            const finalName = document.getElementById('edit-final-name').value;
+            const finalProducer = document.getElementById('edit-final-producer').value;
+            const finalCost = parseFloat(document.getElementById('edit-final-cost').value) || 0;
+            const finalPrice = parseFloat(document.getElementById('edit-final-price').value) || 0;
+
+            if (!finalName) return alert("Name is required");
+
+            // Reuse the logic from Merge, but source is just the original item
+            // We are essentially "merging" the original item into the new definition (even if name is same)
+            
+            const modifiedDocs = [];
+            let updateCount = 0;
+            
+            const updateSale = (sale, collectionName) => {
+                let modified = false;
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(item => {
+                        const itemName = item.name || item.product || "Unknown";
+                        if (itemName === originalName) {
+                            item.name = finalName;
+                            item.product = finalName;
+                            modified = true;
+                            updateCount++;
+                        }
+                    });
+                } else {
+                    const itemName = sale.name || sale.product || "Unknown";
+                    if (itemName === originalName) {
+                        sale.name = finalName;
+                        sale.product = finalName;
+                        modified = true;
+                        updateCount++;
+                    }
+                }
+                
+                if (modified) {
+                    modifiedDocs.push({ id: sale.id, collection: collectionName, data: sale });
+                }
+                return modified;
+            };
+
+            // Process both collections
+            window.allOrders.forEach(sale => updateSale(sale, 'onlineOrders'));
+            window.allStoreSales.forEach(sale => updateSale(sale, 'storeSales'));
+
+            // Update Product Definition
+            // 1. Remove old definition if name changed
+            if (originalName !== finalName) {
+                const sourceIdx = window.allProducts.findIndex(p => p.name === originalName);
+                if (sourceIdx > -1) window.allProducts.splice(sourceIdx, 1);
+            }
+            
+            // 2. Update/Create Target
+            let targetIdx = window.allProducts.findIndex(p => p.name === finalName);
+            
+            const newProductData = {
+                name: finalName,
+                producer: finalProducer,
+                cost: finalCost,
+                price: finalPrice
+            };
+
+            if (targetIdx > -1) {
+                window.allProducts[targetIdx] = { ...allProducts[targetIdx], ...newProductData };
+            } else {
+                window.allProducts.push(newProductData);
+            }
+
+            // FIRESTORE UPDATE
+            try {
+                let batch = writeBatch(db);
+                let opCount = 0;
+
+                // A. Update Product Definition
+                const existingProd = window.allProducts.find(p => p.name === finalName && p.id);
+                if (existingProd) {
+                    const prodRef = doc(db, 'products', existingProd.id);
+                    batch.update(prodRef, {
+                        producer: finalProducer,
+                        cost: finalCost,
+                        price: finalPrice
+                    });
+                } else {
+                    const newRef = doc(collection(db, 'products'));
+                    batch.set(newRef, newProductData);
+                }
+                opCount++;
+
+                // B. Update Sales Records
+                for (const docInfo of modifiedDocs) {
+                    if (opCount >= 490) {
+                        await batch.commit();
+                        batch = writeBatch(db);
+                        opCount = 0;
+                    }
+
+                    const docRef = doc(db, docInfo.collection, docInfo.id);
+                    if (docInfo.data.items) {
+                        batch.update(docRef, { items: docInfo.data.items });
+                    } else {
+                        batch.update(docRef, { 
+                            name: docInfo.data.name, 
+                            product: docInfo.data.product 
+                        });
+                    }
+                    opCount++;
+                }
+
+                await batch.commit();
+                console.log(`Edit complete. Updated ${updateCount} items.`);
+                
+                window.closeEditModal();
+                window.toggleEditMode(); // Exit edit mode
+                
+                // Re-render
+                renderBusinessLandscape();
+                renderMoneyFlow();
+                renderRevenueSun();
+                renderProfitWave();
+                renderDailySales();
+
+            } catch (e) {
+                console.error("Error updating DB:", e);
+                alert("Error saving changes: " + e.message);
+            }
+        };
+
+
+
+        function showStrategy(product) {
+            const panel = document.getElementById('strategy-panel');
+            const emptyState = document.getElementById('empty-state');
+            const details = document.getElementById('product-details');
+            
+            // Ensure panel is visible (it is by default in flex layout, but just in case)
+            panel.classList.remove('hidden');
+            
+            emptyState.classList.add('hidden');
+            details.classList.remove('hidden');
+            
+            // Populate Data
+            document.getElementById('detail-name').textContent = product.name;
+            document.getElementById('detail-producer').textContent = product.producer;
+            document.getElementById('detail-revenue').textContent = `€${product.revenue.toFixed(2)}`;
+            document.getElementById('detail-profit').textContent = `€${product.profit.toFixed(2)}`;
+            
+            const margin = product.revenue > 0 ? (product.profit / product.revenue) * 100 : 0;
+            const marginEl = document.getElementById('detail-margin');
+            marginEl.textContent = `${margin.toFixed(1)}%`;
+            
+            // Color code margin
+            marginEl.className = `text-xl font-bold ${margin < 20 ? 'text-red-500' : margin < 50 ? 'text-yellow-500' : 'text-green-500'}`;
+            
+            document.getElementById('detail-units').textContent = product.units;
+            
+            // Generate Strategy
+            const strategy = generateStrategy(product, margin);
+            document.getElementById('strategy-title').textContent = strategy.title;
+            document.getElementById('strategy-desc').textContent = strategy.desc;
+            
+            // Update Action Button
+            const btn = document.getElementById('action-btn');
+            btn.onclick = () => {
+                window.location.href = 'products.html'; 
+            };
+        }
+
+        function generateStrategy(product, margin) {
+            // Logic to determine strategy based on Revenue (Size) and Margin (Color)
+            
+            // 0. Negative Margin (Loss Making)
+            if (margin < 0) {
+                return {
+                    title: "🛑 Loss Making Product",
+                    desc: `You are losing money on every sale (${margin.toFixed(1)}% margin). Immediate Action: Raise price or stop selling. Check cost price entry.`
+                };
+            }
+
+            // 1. High Revenue (> €500)
+            if (product.revenue > 500) {
+                if (margin < 15) {
+                    return {
+                        title: "⚠️ Critical Profit Leak",
+                        desc: "High volume but very low profit. You are working for free. Recommendation: Raise price by 10-15% immediately. The volume drop will be offset by higher margins."
+                    };
+                } else if (margin < 30) {
+                    return {
+                        title: "📉 Volume Driver",
+                        desc: "Good sales volume but margins are tight. Recommendation: Try a small price increase (3-5%) to boost net profit without scaring away customers."
+                    };
+                } else if (margin > 60) {
+                    return {
+                        title: "🌟 Super Star",
+                        desc: "Incredible performance! High sales and huge margins. Recommendation: Do not touch the price. Ensure 100% stock availability. Use this product to upsell others."
+                    };
+                } else {
+                    return {
+                        title: "🐮 Cash Cow",
+                        desc: "Solid performer. Recommendation: Focus on reducing supplier costs to increase margin, rather than raising prices."
+                    };
+                }
+            }
+            
+            // 2. Low Revenue (< €100)
+            if (product.revenue < 100) {
+                if (margin > 50) {
+                    return {
+                        title: "💎 Hidden Gem",
+                        desc: "High profit potential but nobody is buying. Recommendation: Run a marketing campaign or feature this on the homepage. Do not lower the price yet."
+                    };
+                } else if (margin < 20) {
+                    return {
+                        title: "🗑️ Dead Weight",
+                        desc: "Low sales and low profit. It's just taking up shelf space. Recommendation: Run a 'Clearance Sale' (20% off) to get cash back and do not restock."
+                    };
+                } else {
+                    return {
+                        title: "💤 Slow Mover",
+                        desc: "Average margin but low interest. Recommendation: Bundle this with a popular product to clear inventory."
+                    };
+                }
+            }
+
+            // 3. Medium Revenue (€100 - €500)
+            if (margin < 25) {
+                return {
+                    title: "🔧 Margin Improver",
+                    desc: "Decent sales but low profit. Recommendation: Negotiate better prices with your supplier or slightly increase your selling price."
+                };
+            } else if (margin > 50) {
+                return {
+                    title: "🚀 Growth Candidate",
+                    desc: "Great margins and okay sales. Recommendation: This product is ready to scale. Invest in ads or social media promotion for this specific item."
+                };
+            }
+            
+            // Default
+            return {
+                title: "⚖️ Balanced Performer",
+                desc: "Performing within normal range. Recommendation: Monitor stock levels and keep price stable."
+            };
+        }
+
+        // --- 1. Money Flow (Sankey) - NEON EDITION ---
+        function renderMoneyFlow() {
+            const nodes = [];
+            const nodeMap = new Map();
+
+            // Helper to get/create node
+            const getNodeIndex = (name, color) => {
+                if (!nodeMap.has(name)) {
+                    nodeMap.set(name, nodes.length);
+                    nodes.push({ label: name, color: color });
+                }
+                return nodeMap.get(name);
+            };
+
+            // Define Palette
+            const colors = {
+                profit: "#4ade80", // Neon Green
+                cost: "#f87171",   // Soft Red
+                store: "#3b82f6",  // Blue
+                online: "#a855f7", // Purple
+                supplier: "#94a3b8", // Slate
+                productTop: "#f472b6", // Pink
+                productOther: "#475569" // Dark Slate
+            };
+
+            // Fixed Nodes
+            const profitNode = getNodeIndex("Net Profit", colors.profit);
+            const costNode = getNodeIndex("Cost of Goods", colors.cost);
+            const storeNode = getNodeIndex("Store Sales", colors.store);
+            const onlineNode = getNodeIndex("Online Orders", colors.online);
+
+            // 1. Rank Products
+            const productRevenue = {};
+            const productDetails = {}; 
+
+            const processForRanking = (item) => {
+                const name = item.name || item.product || "Unknown Product";
+                const qty = item.quantity || 1;
+                const revenue = (item.price || 0) * qty;
+                
+                if (!productRevenue[name]) {
+                    productRevenue[name] = 0;
+                    const product = window.allProducts.find(p => p.name === name) || {};
+                    productDetails[name] = {
+                        producer: product.producer || "Unknown Supplier",
+                        costPerUnit: product.cost || (product.baseCost ? product.baseCost * 1.2 : 0) || 0
+                    };
+                }
+                productRevenue[name] += revenue;
+            };
+
+            [...allOrders, ...allStoreSales].forEach(sale => {
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(processForRanking);
+                } else {
+                    processForRanking(sale);
+                }
+            });
+
+            // Top 15
+            const sortedProducts = Object.entries(productRevenue).sort((a, b) => b[1] - a[1]);
+            const topProducts = new Set(sortedProducts.slice(0, 15).map(p => p[0]));
+            
+            // 2. Build Links
+            const linkMap = new Map();
+            // Helper to add link with color based on Source
+            const addLink = (source, target, value, color) => {
+                const key = `${source}-${target}`;
+                if (!linkMap.has(key)) {
+                    linkMap.set(key, { source, target, value: 0, color });
+                }
+                linkMap.get(key).value += value;
+            };
+
+            const processItemFlow = (item, sourceNode) => {
+                const rawName = item.name || item.product || "Unknown Product";
+                const isTop = topProducts.has(rawName);
+                const displayName = isTop ? rawName : "Other Products";
+                
+                const qty = item.quantity || 1;
+                const revenue = (item.price || 0) * qty;
+                if (revenue <= 0) return;
+
+                const details = productDetails[rawName] || { producer: "Unknown", costPerUnit: 0 };
+                const cost = details.costPerUnit * qty;
+                const profit = revenue - cost;
+
+                // Nodes
+                const supplierNode = getNodeIndex(details.producer, colors.supplier);
+                const productNode = getNodeIndex(displayName, isTop ? colors.productTop : colors.productOther);
+
+                // Links - Color matches SOURCE node for flow effect
+                // Supplier -> Product
+                addLink(supplierNode, productNode, revenue, 'rgba(148, 163, 184, 0.3)'); // Slate flow
+                
+                // Product -> Channel
+                const prodColor = isTop ? 'rgba(244, 114, 182, 0.4)' : 'rgba(71, 85, 105, 0.4)';
+                addLink(productNode, sourceNode, revenue, prodColor);
+                
+                // Channel -> Profit/Cost
+                const channelColor = sourceNode === onlineNode ? 'rgba(168, 85, 247, 0.4)' : 'rgba(59, 130, 246, 0.4)';
+                
+                if (cost > 0) addLink(sourceNode, costNode, cost, channelColor); // Flow color is channel
+                if (profit > 0) addLink(sourceNode, profitNode, profit, channelColor);
+            };
+
+            [...allOrders, ...allStoreSales].forEach(sale => {
+                const sourceNode = sale.source === 'online' ? onlineNode : storeNode;
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(item => processItemFlow(item, sourceNode));
+                } else {
+                    processItemFlow(sale, sourceNode);
+                }
+            });
+
+            const finalLinks = Array.from(linkMap.values());
+
+            const data = {
+                type: "sankey",
+                orientation: "h",
+                node: {
+                    pad: 20,
+                    thickness: 15,
+                    line: { color: "rgba(0,0,0,0)", width: 0 }, // No border
+                    label: nodes.map(n => n.label),
+                    color: nodes.map(n => n.color),
+                    hoverinfo: 'all'
+                },
+                link: {
+                    source: finalLinks.map(l => l.source),
+                    target: finalLinks.map(l => l.target),
+                    value: finalLinks.map(l => l.value),
+                    color: finalLinks.map(l => l.color)
+                }
+            };
+
+            const layout = {
+                font: { size: 13, color: "#e2e8f0", family: "Inter" },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 30, b: 30, l: 20, r: 20 },
+                hovermode: 'x'
+            };
+
+            Plotly.newPlot('sankey-chart', [data], layout, {responsive: true, displayModeBar: false});
+        }
+
+        // --- 2. Sales Rhythm (Heatmap) ---
+        function renderSalesRhythm() {
+            // X: Hour (09:00 - 21:00), Y: Day (Mon-Sun), Z: Sales Count
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Business Hours: 9 AM to 9 PM
+            const startHour = 9;
+            const endHour = 21;
+            const numHours = endHour - startHour + 1;
+            
+            // Initialize with 0
+            const heatmapData = Array(7).fill(0).map(() => Array(numHours).fill(0));
+
+            const processSale = (sale) => {
+                const ts = sale.timestamp;
+                if (!ts) return;
+
+                // Skip if explicitly marked as not having real time
+                if (sale.hasRealTimestamp === false) return;
+
+                const date = ts.toDate ? ts.toDate() : new Date(ts); // Handle Firestore Timestamp
+                const day = date.getDay(); // 0-6
+                const hour = date.getHours(); // 0-23
+                
+                // Filter out non-business hours
+                if (hour < startHour || hour > endHour) return;
+
+                const hourIndex = hour - startHour;
+                heatmapData[day][hourIndex]++;
+            };
+
+            [...allOrders, ...allStoreSales].forEach(processSale);
+            
+            // Generate X Labels (e.g., "9:00", "10:00"...)
+            const xLabels = Array.from({length: numHours}, (_, i) => `${startHour + i}:00`);
+
+            const data = [{
+                z: heatmapData,
+                x: xLabels,
+                y: days,
+                type: 'heatmap',
+                colorscale: [
+                    [0, 'rgba(255, 255, 255, 0.3)'],   // White 30% opacity for 0
+                    [0.000001, '#ffe0b2'], // Light Orange
+                    [0.5, '#fb8c00'],      // Medium Orange
+                    [1, '#d50000']         // Bright Red
+                ],
+                showscale: true,
+                showscale: true,
+                colorbar: {
+                    title: 'Sales',
+                    titlefont: { color: 'white' },
+                    tickfont: { color: 'gray' },
+                    thickness: 10
+                },
+                hovertemplate: '<b>%{y}</b> at <b>%{x}</b><br>Sales: %{z}<extra></extra>',
+                xgap: 2, // Add gaps for grid effect
+                ygap: 2,
+                connectgaps: false
+            }];
+
+            const layout = {
+                title: false,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: 'white', family: 'Inter' },
+                xaxis: { 
+                    title: 'Hour of Day', 
+                    tickfont: { color: '#9ca3af' },
+                    titlefont: { color: '#9ca3af' },
+                    fixedrange: true
+                },
+                yaxis: { 
+                    title: '', 
+                    tickfont: { color: '#9ca3af' },
+                    fixedrange: true
+                },
+                margin: { t: 20, b: 50, l: 100, r: 20 }
+            };
+
+            Plotly.newPlot('heatmap-chart', data, layout, {responsive: true, displayModeBar: false});
+        }
+
+        // --- 3. Revenue Sun (Sunburst) - ENHANCED & CORRECTED ---
+        function renderRevenueSun() {
+            // We need to manually calculate totals for parents to support branchvalues: 'total'
+            // This ensures the center shows the actual total, not 0.
+
+            const nodeMap = new Map();
+
+            // Helper to get or create a node
+            const getOrCreateNode = (id, label, parentId, color = undefined) => {
+                if (!nodeMap.has(id)) {
+                    nodeMap.set(id, { 
+                        id, 
+                        label, 
+                        parentId, 
+                        value: 0,
+                        color 
+                    });
+                }
+                return nodeMap.get(id);
+            };
+
+            // 1. Create Root
+            getOrCreateNode("root", "Total Revenue", "", "#1e293b"); // Dark center
+
+            // 2. Process Data & Accumulate Values
+            [...allOrders, ...allStoreSales].forEach(sale => {
+                const isOnline = sale.source === 'online';
+                const channelName = isOnline ? 'Online Orders' : 'Store Sales';
+                const channelId = `c_${sale.source}`;
+                const channelColor = isOnline ? '#a855f7' : '#3b82f6'; // Purple vs Blue
+
+                // Ensure Channel Node
+                getOrCreateNode(channelId, channelName, "root", channelColor);
+
+                const processItem = (item) => {
+                    const name = item.name || item.product || "Unknown";
+                    const qty = item.quantity || 1;
+                    const revenue = (item.price || 0) * qty;
+                    if (revenue <= 0) return;
+
+                    // Find Supplier
+                    const product = window.allProducts.find(p => p.name === name) || {};
+                    const supplier = product.producer || "Unknown Supplier";
+                    // Sanitize IDs
+                    const safeSupplier = supplier.replace(/[^a-zA-Z0-9]/g, '');
+                    const safeName = name.replace(/[^a-zA-Z0-9]/g, '');
+                    
+                    const supplierId = `${channelId}_${safeSupplier}`;
+                    const productId = `${supplierId}_${safeName}`;
+
+                    // Ensure Supplier Node
+                    // We don't set explicit color for suppliers, let them inherit/vary from channel
+                    getOrCreateNode(supplierId, supplier, channelId);
+
+                    // Ensure Product Node
+                    getOrCreateNode(productId, name, supplierId);
+
+                    // ACCUMULATE REVENUE UP THE TREE
+                    nodeMap.get(productId).value += revenue;
+                    nodeMap.get(supplierId).value += revenue;
+                    nodeMap.get(channelId).value += revenue;
+                    nodeMap.get("root").value += revenue;
+                };
+
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(processItem);
+                } else {
+                    processItem(sale);
+                }
+            });
+
+            // 3. Convert to Arrays for Plotly
+            const nodes = Array.from(nodeMap.values());
+            
+            // Sort to ensure hierarchy order (parents before children usually not required by Plotly but good practice)
+            // Plotly requires matching arrays
+            
+            const data = [{
+                type: "sunburst",
+                ids: nodes.map(n => n.id),
+                labels: nodes.map(n => n.label),
+                parents: nodes.map(n => n.parentId),
+                values: nodes.map(n => n.value),
+                marker: {
+                    colors: nodes.map(n => n.color), // Will use explicit colors where set
+                    line: { width: 1, color: '#111827' } // Dark borders
+                },
+                branchvalues: 'total', // Now this works because we summed up values!
+                hovertemplate: '<b>%{label}</b><br>Revenue: €%{value:,.2f}<extra></extra>',
+                textfont: { size: 14, color: 'white' },
+                insidetextorientation: 'radial'
+            }];
+
+            const layout = {
+                margin: {l: 0, r: 0, b: 0, t: 0},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: { family: 'Inter, sans-serif' },
+                sunburstcolorway: ["#3b82f6", "#a855f7", "#f59e0b", "#10b981", "#ef4444"] // Fallback palette
+            };
+
+            Plotly.newPlot('sunburst-chart', data, layout, {responsive: true, displayModeBar: false});
+        }
+
+        // --- 4. Profit Wave (Streamgraph/Area) - FIXED ---
+        function renderProfitWave() {
+            const dailyData = {};
+
+            const processSale = (sale) => {
+                const ts = sale.timestamp;
+                if (!ts) return;
+                const dateObj = ts.toDate ? ts.toDate() : new Date(ts);
+                const dateKey = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+
+                if (!dailyData[dateKey]) {
+                    dailyData[dateKey] = { date: dateKey, revenue: 0, cost: 0, profit: 0 };
+                }
+
+                const processItem = (item) => {
+                    const name = item.name || item.product || "Unknown";
+                    const qty = item.quantity || 1;
+                    const revenue = (item.price || 0) * qty;
+                    
+                    const product = window.allProducts.find(p => p.name === name) || {};
+                    const costPerUnit = product.cost || (product.baseCost ? product.baseCost * 1.2 : 0) || 0;
+                    const cost = costPerUnit * qty;
+                    const profit = revenue - cost;
+
+                    dailyData[dateKey].revenue += revenue;
+                    dailyData[dateKey].cost += cost;
+                    dailyData[dateKey].profit += profit;
+                };
+
+                if (sale.items && Array.isArray(sale.items)) {
+                    sale.items.forEach(processItem);
+                } else {
+                    processItem(sale);
+                }
+            };
+
+            [...allOrders, ...allStoreSales].forEach(processSale);
+
+            // Sort by Date
+            let sortedDays = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
+
+            // FIX: Pad data if sparse to avoid "thin line" look
+            if (sortedDays.length > 0) {
+                const firstDate = new Date(sortedDays[0].date);
+                const lastDate = new Date(sortedDays[sortedDays.length - 1].date);
+                
+                // Add 2 days buffer before
+                const bufferBefore = new Date(firstDate);
+                bufferBefore.setDate(bufferBefore.getDate() - 2);
+                
+                // Add 2 days buffer after
+                const bufferAfter = new Date(lastDate);
+                bufferAfter.setDate(bufferAfter.getDate() + 2);
+
+                // Fill gaps
+                const filledData = [];
+                for (let d = new Date(bufferBefore); d <= bufferAfter; d.setDate(d.getDate() + 1)) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    const existing = dailyData[dateStr];
+                    if (existing) {
+                        filledData.push(existing);
+                    } else {
+                        filledData.push({ date: dateStr, revenue: 0, cost: 0, profit: 0 });
+                    }
+                }
+                sortedDays = filledData;
+            }
+
+            // Create smooth curves
+            const traceCost = {
+                x: sortedDays.map(d => d.date),
+                y: sortedDays.map(d => d.cost),
+                name: 'Cost of Goods',
+                type: 'scatter',
+                mode: 'none',
+                stackgroup: 'one',
+                fillcolor: 'rgba(239, 68, 68, 0.6)', // Red transparent
+                line: { shape: 'spline', smoothing: 1.3 },
+                hoverinfo: 'x+y+name'
+            };
+
+            const traceProfit = {
+                x: sortedDays.map(d => d.date),
+                y: sortedDays.map(d => d.profit),
+                name: 'Net Profit',
+                type: 'scatter',
+                mode: 'none',
+                stackgroup: 'one',
+                fillcolor: 'rgba(34, 197, 94, 0.6)', // Green transparent
+                line: { shape: 'spline', smoothing: 1.3 },
+                hoverinfo: 'x+y+name'
+            };
+
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: 'white' },
+                xaxis: { title: 'Date', gridcolor: '#334155', showgrid: false },
+                yaxis: { title: 'Amount (€)', gridcolor: '#334155', showgrid: true },
+                margin: { t: 20, b: 50, l: 50, r: 20 },
+                legend: { orientation: 'h', y: 1.1 },
+                hovermode: 'x unified',
+                hoverlabel: { bgcolor: "#1f2937", font: { color: "white" }, bordercolor: "#374151" } // FIX: Readable tooltip
+            };
+
+            Plotly.newPlot('wave-chart', [traceCost, traceProfit], layout, {responsive: true, displayModeBar: false});
+        }
+
+
+
+
+        // Wait for authentication before initializing
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                init();
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

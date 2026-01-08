@@ -1,0 +1,14 @@
+{
+    "version":  "1.1.0",
+    "releaseNotes":  [
+                         "Instagram chatbot integration",
+                         "Real-time stats dashboard",
+                         "Instagram badge on orders",
+                         "Albania map visualization",
+                         "Automatic update support"
+                     ],
+    "downloadUrl":  "https://danfosal-app.web.app/downloads/danfosal-app-v1.1.0.apk",
+    "versionCode":  2,
+    "releaseDate":  "2025-11-11",
+    "minSupportedVersion":  "1.0.0"
+}

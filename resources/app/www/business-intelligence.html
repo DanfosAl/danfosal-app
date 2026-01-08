@@ -345,12 +345,83 @@
                                 <th class="pb-4 font-semibold text-right">Total Profit</th>
                                 <th class="pb-4 font-semibold text-right">Margin</th>
                                 <th class="pb-4 font-semibold text-right">Rating</th>
+                                <th class="pb-4 font-semibold text-center">Negotiation Action</th>
                             </tr>
                         </thead>
                         <tbody id="supplier-scorecards-body" class="text-gray-300">
-                            <tr><td colspan="6" class="text-center py-8">Loading supplier data...</td></tr>
+                            <tr><td colspan="7" class="text-center py-8">Loading supplier data...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎛️ PROFIT SIMULATOR -->
+        <div class="max-w-7xl mx-auto mb-8">
+            <div class="bi-card border-l-4 border-l-blue-500">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <span class="text-3xl mr-3">🎛️</span>
+                    Profit Simulator
+                </h2>
+                <p class="text-gray-400 text-sm mb-6">
+                    Adjust prices and see projected revenue impact. Uses demand elasticity modeling (1.5x sensitivity).
+                </p>
+                
+                <div class="space-y-6">
+                    <!-- Price Adjustment Slider -->
+                    <div>
+                        <label class="text-gray-300 text-sm font-semibold mb-2 block">
+                            Price Adjustment Scenario
+                        </label>
+                        <input 
+                            type="range" 
+                            min="-20" 
+                            max="20" 
+                            value="0" 
+                            step="1"
+                            class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                            id="simRange"
+                        >
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>-20% (Discount)</span>
+                            <span id="simValue" class="text-white font-bold text-lg">0%</span>
+                            <span>+20% (Premium)</span>
+                        </div>
+                    </div>
+
+                    <!-- Results Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Projected Revenue Impact -->
+                        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                            <div class="text-gray-400 text-xs mb-2">Projected Monthly Revenue Impact</div>
+                            <div id="simResult" class="text-2xl font-bold text-white">€0.00</div>
+                            <div id="simChange" class="text-sm text-gray-400 mt-1">No change</div>
+                        </div>
+
+                        <!-- Volume Impact -->
+                        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                            <div class="text-gray-400 text-xs mb-2">Expected Volume Change</div>
+                            <div id="simVolume" class="text-2xl font-bold text-white">0 units</div>
+                            <div class="text-xs text-gray-400 mt-1">Elasticity: 1.5x</div>
+                        </div>
+
+                        <!-- Profit Margin Impact -->
+                        <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                            <div class="text-gray-400 text-xs mb-2">New Profit Margin</div>
+                            <div id="simMargin" class="text-2xl font-bold text-white">0%</div>
+                            <div id="simMarginChange" class="text-xs text-gray-400 mt-1">Current: 0%</div>
+                        </div>
+                    </div>
+
+                    <!-- AI Recommendation -->
+                    <div id="simRecommendation" class="p-4 rounded-lg border-l-4 border-yellow-500" style="background: rgba(251, 191, 36, 0.1);">
+                        <div class="flex items-start">
+                            <span class="text-2xl mr-3">💡</span>
+                            <div class="text-gray-300 text-sm">
+                                Move the slider to see AI-powered revenue projections based on price elasticity.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -379,7 +450,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
-        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+        import BusinessIntelligence from './business-intelligence.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
@@ -395,19 +467,14 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Load Business Intelligence class
-        const script = document.createElement('script');
-        script.src = 'business-intelligence.js';
-        script.onload = initializeBI;
-        document.head.appendChild(script);
-
         let bi;
         let forecastChart;
+        let profitabilityData = null; // Store for simulator
         window.allProducts = []; // Store all products for search
 
         async function initializeBI() {
             try {
-                bi = new BusinessIntelligence(db, { collection, getDocs });
+                bi = new BusinessIntelligence(db, { collection, getDocs, query, where });
                 
                 // Load all analyses - run them sequentially to avoid overwhelming the system
                 await loadProducts();
@@ -838,7 +905,7 @@
                 const scorecards = await bi.generateSupplierScorecards();
                 
                 if (scorecards.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8">No supplier data available.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8">No supplier data available.</td></tr>';
                     return;
                 }
 
@@ -858,13 +925,18 @@
                             <td class="py-4 text-right font-bold text-green-400">€${s.totalProfit.toFixed(0)}</td>
                             <td class="py-4 text-right">${s.margin.toFixed(1)}%</td>
                             <td class="py-4 text-right font-bold ${color} text-lg">${rating}</td>
+                            <td class="py-4 text-center">
+                                <span class="${s.leverageClass} text-sm font-semibold">
+                                    ${s.negotiation}
+                                </span>
+                            </td>
                         </tr>
                     `;
                 }).join('');
                 
             } catch (error) {
                 console.error("Error loading scorecards:", error);
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-400">Error loading data.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-400">Error loading data.</td></tr>';
             }
         }
 
@@ -1183,8 +1255,124 @@
             });
         }
 
+        // Profit Simulator Logic
+        async function initProfitSimulator() {
+            const slider = document.getElementById('simRange');
+            const valueDisplay = document.getElementById('simValue');
+            const resultDisplay = document.getElementById('simResult');
+            const changeDisplay = document.getElementById('simChange');
+            const volumeDisplay = document.getElementById('simVolume');
+            const marginDisplay = document.getElementById('simMargin');
+            const marginChangeDisplay = document.getElementById('simMarginChange');
+            const recommendationBox = document.getElementById('simRecommendation');
+
+            if (!slider) return;
+
+            // Load profitability data for simulation
+            profitabilityData = await bi.analyzeProfitability(30);
+
+            // Calculate baseline metrics
+            const baselineRevenue = profitabilityData.highProfit.reduce((sum, p) => 
+                sum + parseFloat(p.profit), 0
+            ) + profitabilityData.lowProfit.reduce((sum, p) => 
+                sum + parseFloat(p.profit), 0
+            );
+
+            // Calculate current average margin
+            const totalRevenue = profitabilityData.highProfit.reduce((sum, p) => {
+                const profit = parseFloat(p.profit);
+                const margin = parseFloat(p.margin) / 100;
+                return sum + (profit / margin);
+            }, 0);
+
+            const currentMargin = totalRevenue > 0 ? (baselineRevenue / totalRevenue) * 100 : 0;
+
+            // Update display on slider change
+            slider.addEventListener('input', (e) => {
+                const adjustment = parseInt(e.target.value);
+                valueDisplay.textContent = `${adjustment > 0 ? '+' : ''}${adjustment}%`;
+
+                // Demand Elasticity Model
+                const ELASTICITY = 1.5;
+                const priceMultiplier = 1 + (adjustment / 100);
+                const volumeMultiplier = 1 - (adjustment / 100) * ELASTICITY;
+
+                // Projected revenue = Price * Volume
+                const projectedRevenue = baselineRevenue * priceMultiplier * volumeMultiplier;
+                const revenueChange = projectedRevenue - baselineRevenue;
+                const percentChange = ((revenueChange / baselineRevenue) * 100).toFixed(1);
+
+                // Volume change
+                const baselineUnits = profitabilityData.volumeLeaders.reduce((sum, p) => 
+                    sum + p.units, 0
+                );
+                const projectedUnits = Math.round(baselineUnits * volumeMultiplier);
+                const unitChange = projectedUnits - baselineUnits;
+
+                // New profit margin
+                const newMargin = currentMargin * priceMultiplier;
+
+                // Update UI
+                resultDisplay.textContent = `€${projectedRevenue.toLocaleString('en-US', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                })}`;
+
+                const changeColor = revenueChange >= 0 ? 'text-green-400' : 'text-red-400';
+                const changeIcon = revenueChange >= 0 ? '📈' : '📉';
+                changeDisplay.innerHTML = `
+                    <span class="${changeColor}">${changeIcon} ${revenueChange >= 0 ? '+' : ''}${percentChange}%</span>
+                `;
+
+                volumeDisplay.textContent = `${unitChange >= 0 ? '+' : ''}${unitChange.toLocaleString()} units`;
+                marginDisplay.textContent = `${newMargin.toFixed(1)}%`;
+                marginChangeDisplay.textContent = `Current: ${currentMargin.toFixed(1)}%`;
+
+                // AI Recommendation
+                let recommendation = '';
+                let recommendationColor = 'border-yellow-500';
+                let bgColor = 'rgba(251, 191, 36, 0.1)';
+
+                if (adjustment > 0) {
+                    if (revenueChange > 0) {
+                        recommendation = `<strong class="text-green-400">✅ Price Increase Beneficial:</strong> Despite ${Math.abs(unitChange)} fewer sales, higher margins yield +€${Math.abs(revenueChange).toFixed(2)} revenue. <strong>Recommended if demand is inelastic (loyal customers).</strong>`;
+                        recommendationColor = 'border-green-500';
+                        bgColor = 'rgba(16, 185, 129, 0.1)';
+                    } else {
+                        recommendation = `<strong class="text-red-400">⚠️ Price Increase Risky:</strong> Volume drop (${Math.abs(unitChange)} units) outweighs margin gain. Revenue decreases by €${Math.abs(revenueChange).toFixed(2)}. <strong>Not recommended unless targeting premium segment.</strong>`;
+                        recommendationColor = 'border-red-500';
+                        bgColor = 'rgba(239, 68, 68, 0.1)';
+                    }
+                } else if (adjustment < 0) {
+                    if (revenueChange > 0) {
+                        recommendation = `<strong class="text-green-400">✅ Discount Effective:</strong> Volume boost (+${Math.abs(unitChange)} units) compensates for lower margins. Net gain: +€${Math.abs(revenueChange).toFixed(2)}. <strong>Great for clearing inventory or market penetration.</strong>`;
+                        recommendationColor = 'border-green-500';
+                        bgColor = 'rgba(16, 185, 129, 0.1)';
+                    } else {
+                        recommendation = `<strong class="text-red-400">⚠️ Discount Unprofitable:</strong> Volume increase insufficient to offset margin loss. Revenue drops by €${Math.abs(revenueChange).toFixed(2)}. <strong>Avoid unless strategically necessary.</strong>`;
+                        recommendationColor = 'border-red-500';
+                        bgColor = 'rgba(239, 68, 68, 0.1)';
+                    }
+                } else {
+                    recommendation = `<strong>💡 Baseline Scenario:</strong> Current pricing yields €${baselineRevenue.toFixed(2)} monthly revenue at ${currentMargin.toFixed(1)}% margin. Move slider to explore alternative pricing strategies.`;
+                }
+
+                recommendationBox.className = `p-4 rounded-lg border-l-4 ${recommendationColor}`;
+                recommendationBox.style.background = bgColor;
+                recommendationBox.innerHTML = `
+                    <div class="flex items-start">
+                        <span class="text-2xl mr-3">💡</span>
+                        <div class="text-gray-300 text-sm">${recommendation}</div>
+                    </div>
+                `;
+            });
+
+            console.log('✅ Profit Simulator initialized');
+        }
+
         // Initialize
         async function init() {
+            await initializeBI();
             setupAIAssistant();
             await loadForecast();
             await loadSupplierScorecards();
@@ -1194,6 +1382,7 @@
             await loadDynamicPricing();
             await loadCashFlowForecast();
             await loadShrinkageDetection();
+            await initProfitSimulator(); // NEW: Initialize simulator
         }
         
         // Wait for authentication before initializing

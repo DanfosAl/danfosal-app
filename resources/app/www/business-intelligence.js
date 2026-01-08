@@ -1,9 +1,11 @@
 // Business Intelligence & Advanced Forecasting
-class BusinessIntelligence {
+export default class BusinessIntelligence {
     constructor(db, firebaseImports = {}) {
         this.db = db;
         this.collection = firebaseImports.collection;
         this.getDocs = firebaseImports.getDocs;
+        this.query = firebaseImports.query; // NEW
+        this.where = firebaseImports.where; // NEW
         this.cache = new Map();
         this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
     }
@@ -559,16 +561,34 @@ class BusinessIntelligence {
             }
         });
 
-        // 3. Calculate Scores and Rank
+        // 3. Calculate Scores and Add Negotiation Leverage
         const scorecards = Object.values(suppliers).map(s => {
             const margin = s.totalRevenue > 0 ? (s.totalProfit / s.totalRevenue) * 100 : 0;
             
-            // Simple Score: (Profit Margin * 0.6) + (Volume * 0.4) - normalized
-            // For now, just return the raw metrics
+            // NEW: Gamified Negotiation Leverage
+            let negotiationLeverage = '⏸️ None';
+            let leverageClass = 'text-gray-400';
+            
+            if (s.totalRevenue > 5000 && margin > 30) {
+                negotiationLeverage = '💪 Ask for Bulk Discount';
+                leverageClass = 'text-green-400 font-bold';
+            } else if (s.totalRevenue > 5000 && margin < 15) {
+                negotiationLeverage = '🛑 Demand Lower Costs';
+                leverageClass = 'text-red-400 font-bold';
+            } else if (s.totalRevenue < 500 && s.totalStockValue > 2000) {
+                negotiationLeverage = '↩️ Return Dead Stock';
+                leverageClass = 'text-yellow-400 font-bold';
+            } else if (s.totalRevenue > 2000 && margin > 20 && margin < 30) {
+                negotiationLeverage = '🤝 Maintain Partnership';
+                leverageClass = 'text-blue-400';
+            }
+            
             return {
                 ...s,
                 margin: margin,
-                roi: s.totalStockValue > 0 ? (s.totalProfit / s.totalStockValue) * 100 : 0
+                roi: s.totalStockValue > 0 ? (s.totalProfit / s.totalStockValue) * 100 : 0,
+                negotiation: negotiationLeverage,
+                leverageClass: leverageClass
             };
         });
 
@@ -1436,51 +1456,6 @@ class BusinessIntelligence {
         return recommendations;
     }
 
-    // === BUNDLES & CROSS-SELLING ===
-    
-    async generateSmartBundles() {
-        const ordersRef = this.collection(this.db, 'onlineOrders');
-        const ordersSnapshot = await this.getDocs(ordersRef);
-        
-        const productPairs = {};
-        const productCounts = {};
-
-        ordersSnapshot.forEach(doc => {
-            const order = doc.data();
-            if (order.items && order.items.length > 1) {
-                const items = order.items.map(i => i.name).filter(n => n && n !== '00').sort();
-                
-                for (let i = 0; i < items.length; i++) {
-                    const p1 = items[i];
-                    productCounts[p1] = (productCounts[p1] || 0) + 1;
-                    
-                    for (let j = i + 1; j < items.length; j++) {
-                        const p2 = items[j];
-                        const pair = `${p1} + ${p2}`;
-                        productPairs[pair] = (productPairs[pair] || 0) + 1;
-                    }
-                }
-            }
-        });
-
-        const bundles = [];
-        for (const [pair, count] of Object.entries(productPairs)) {
-            if (count > 2) {
-                const [p1, p2] = pair.split(' + ');
-                const confidence = count / Math.min(productCounts[p1] || 1, productCounts[p2] || 1);
-                
-                bundles.push({
-                    pair: pair,
-                    products: [p1, p2],
-                    count: count,
-                    confidence: confidence * 100
-                });
-            }
-        }
-
-        return bundles.sort((a, b) => b.count - a.count).slice(0, 10);
-    }
-
     async generateChurnPrediction() {
         const debtorsRef = this.collection(this.db, 'debtors');
         const debtorsSnapshot = await this.getDocs(debtorsRef);
@@ -1562,98 +1537,6 @@ class BusinessIntelligence {
         return alerts;
     }
 
-    async generateDynamicPricing() {
-        const cacheKey = 'dynamic_pricing';
-        const cached = this.getFromCache(cacheKey);
-        if (cached) return cached;
-
-        const productsRef = this.collection(this.db, 'products');
-        const productsSnapshot = await this.getDocs(productsRef);
-
-        const products = {};
-        productsSnapshot.forEach(doc => {
-            const p = doc.data();
-            products[p.name] = {
-                name: p.name,
-                stock: p.stock || 0,
-                price: p.price || 0,
-                cost: p.baseCost || 0,
-                id: doc.id
-            };
-        });
-
-        const ordersRef = this.collection(this.db, 'onlineOrders');
-        const ordersSnapshot = await this.getDocs(ordersRef);
-        
-        const productStats = {};
-        const now = Date.now();
-        const DAY_MS = 24 * 60 * 60 * 1000;
-
-        Object.keys(products).forEach(name => {
-            productStats[name] = {
-                lastSale: 0,
-                sales30Days: 0,
-                ...products[name]
-            };
-        });
-
-        ordersSnapshot.forEach(doc => {
-            const order = doc.data();
-            const orderTime = this.normalizeTimestamp(order.timestamp);
-            const daysSince = (now - orderTime) / DAY_MS;
-
-            if (order.items && Array.isArray(order.items)) {
-                order.items.forEach(item => {
-                    if (productStats[item.name]) {
-                        if (orderTime > productStats[item.name].lastSale) {
-                            productStats[item.name].lastSale = orderTime;
-                        }
-                        if (daysSince <= 30) {
-                            productStats[item.name].sales30Days += (item.quantity || 1);
-                        }
-                    }
-                });
-            }
-        });
-
-        const recommendations = [];
-
-        for (const [name, stats] of Object.entries(productStats)) {
-            if (stats.stock <= 0) continue;
-
-            const daysSinceLastSale = stats.lastSale === 0 ? 999 : (now - stats.lastSale) / DAY_MS;
-
-            if (daysSinceLastSale > 60) {
-                const discount = 0.15;
-                const newPrice = stats.price * (1 - discount);
-                const minPrice = stats.cost * 1.10;
-
-                recommendations.push({
-                    product: name,
-                    type: 'Dead Stock',
-                    reason: `No sales for ${Math.floor(daysSinceLastSale)} days`,
-                    action: 'Discount',
-                    currentPrice: stats.price,
-                    suggestedPrice: Math.max(newPrice, minPrice),
-                    impact: 'Clear Inventory'
-                });
-            } else if (stats.sales30Days > 10 && stats.stock < (stats.sales30Days * 0.5)) {
-                recommendations.push({
-                    product: name,
-                    type: 'High Demand',
-                    reason: `High sales velocity (${stats.sales30Days}/mo)`,
-                    action: 'Increase Price',
-                    currentPrice: stats.price,
-                    suggestedPrice: stats.price * 1.05,
-                    impact: 'Maximize Profit'
-                });
-            }
-        }
-
-        this.setCache(cacheKey, recommendations);
-        return recommendations;
-    }
-
     normalizeTimestamp(timestamp) {
         if (typeof timestamp === 'object' && timestamp.toMillis) {
             return timestamp.toMillis();
@@ -1679,7 +1562,4 @@ class BusinessIntelligence {
     }
 }
 
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = BusinessIntelligence;
-}
+// ES6 module - use 'import BusinessIntelligence from ...' instead

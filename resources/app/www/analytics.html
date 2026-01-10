@@ -583,23 +583,70 @@
             };
         };
 
-        // ENHANCED: Smarter city extraction with fuzzy matching
+        // ENHANCED: Smarter city extraction with fuzzy matching and aggressive normalization
         const extractCity = (address) => {
             if (!address) return null;
-            const addr = address.toLowerCase().trim();
             
-            // Direct match (fastest)
-            for (const city of Object.keys(CITY_COORDINATES)) {
-                if (addr.includes(city)) {
+            // Aggressive normalization
+            const normalizeText = (text) => {
+                return text
+                    .toLowerCase()
+                    .trim()
+                    // Remove common prefixes/suffixes
+                    .replace(/\b(rruga|rr\.|street|st\.|lagja|zona|qyteti|qendra|center)\b/g, '')
+                    // Normalize Albanian characters
+                    .replace(/ë/g, 'e')
+                    .replace(/ç/g, 'c')
+                    // Remove special characters but keep spaces
+                    .replace(/[^a-z0-9\s]/g, ' ')
+                    // Remove multiple spaces
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            };
+            
+            const addr = normalizeText(address);
+            
+            // Strategy 1: Exact match (after normalization)
+            for (const [city, coords] of Object.entries(CITY_COORDINATES)) {
+                const normalizedCity = normalizeText(city);
+                if (addr === normalizedCity || addr.includes(` ${normalizedCity} `) || addr.startsWith(normalizedCity + ' ') || addr.endsWith(' ' + normalizedCity)) {
                     return city;
                 }
             }
             
-            // Fuzzy match for variations (e.g., "Tiranës" → "Tirana")
-            for (const city of Object.keys(CITY_COORDINATES)) {
-                const cityBase = city.replace(/[ëç]/g, '').substring(0, 4); // First 4 chars
-                if (addr.includes(cityBase)) {
+            // Strategy 2: Partial word match (at least 4 chars)
+            for (const [city, coords] of Object.entries(CITY_COORDINATES)) {
+                const normalizedCity = normalizeText(city);
+                if (normalizedCity.length >= 4 && addr.includes(normalizedCity)) {
                     return city;
+                }
+            }
+            
+            // Strategy 3: Fuzzy match (first 5 characters)
+            const addrWords = addr.split(' ');
+            for (const word of addrWords) {
+                if (word.length >= 5) {
+                    for (const [city, coords] of Object.entries(CITY_COORDINATES)) {
+                        const normalizedCity = normalizeText(city);
+                        if (normalizedCity.length >= 5) {
+                            const wordPrefix = word.substring(0, 5);
+                            const cityPrefix = normalizedCity.substring(0, 5);
+                            if (wordPrefix === cityPrefix) {
+                                return city;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Strategy 4: Check if city appears after comma (common in Albanian addresses)
+            const parts = address.split(',').map(p => normalizeText(p));
+            for (const part of parts) {
+                for (const [city, coords] of Object.entries(CITY_COORDINATES)) {
+                    const normalizedCity = normalizeText(city);
+                    if (part.trim() === normalizedCity || part.includes(normalizedCity)) {
+                        return city;
+                    }
                 }
             }
             

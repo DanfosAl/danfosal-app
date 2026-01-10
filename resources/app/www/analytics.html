@@ -794,9 +794,8 @@
             // PHASE 2: BACKGROUND GEOCODING (Prioritized Orders)
             // Sort by price descending, take top 200
             const sortedGeocodeOrders = geocodeOrders
-                .sort((a, b) => (b.price || 0) - (a.price || 0))
-                .slice(0, 200);
-            const geocodeBatch = sortedGeocodeOrders;
+                .sort((a, b) => (b.price || 0) - (a.price || 0));
+            const geocodeBatch = sortedGeocodeOrders.slice(0, 200);
             
             for (const order of geocodeBatch) {
                 if (processedOrderIds.has(order.id)) continue;
@@ -835,19 +834,18 @@
                 }
             }
 
+            console.log(`✅ Phase 2: Geocoded ${geocodeBatch.length} high-value orders`);
+
             // PHASE 3: CATCH-ALL (Remaining orders not in top 200)
-            const remainingOrders = geocodeOrders.slice(200);
+            const remainingOrders = sortedGeocodeOrders.slice(200);
             if (remainingOrders.length > 0) {
                 console.log(`📦 Phase 3: Catch-all rendering ${remainingOrders.length} remaining orders...`);
                 
                 for (const order of remainingOrders) {
                     if (processedOrderIds.has(order.id)) continue;
                     
-                    // Force catch-all fallback (skip API calls)
-                    const result = {
-                        ...addJitter(41.3275, 19.8187, 4),
-                        type: 'catch-all'
-                    };
+                    // Force catch-all fallback (skip API calls) - GUARANTEED PLACEMENT
+                    const result = addJitter(41.1533, 20.1683, 5); // Central Albania, 5km radius
                     
                     processedOrderIds.add(order.id);
                     processedCount++;
@@ -871,6 +869,8 @@
                     
                     markerCluster.addLayer(marker);
                 }
+                
+                console.log(`✅ Phase 3: Rendered ${remainingOrders.length} fallback orders`);
             }
 
             // Add heat layer
@@ -890,12 +890,16 @@
             }
 
             // Detailed logging
-            const typeCounts = { 'cached': 0, 'api': 0, 'city-match': 0, 'city-field': 0, 'catch-all': 0, 'unknown': 0 };
-            // Count types from markers (simplified for now)
+            console.log(`═══════════════════════════════════════════════════════`);
             console.log(`✅ COMPLETE: Rendered ${processedCount} / ${filteredOrders.length} orders`);
             console.log(`⚠️ Skipped ${skippedDuplicates} duplicates`);
             console.log(`📊 Coverage: ${((processedCount / filteredOrders.length) * 100).toFixed(1)}%`);
-            console.log(`🎨 Color Legend: 🟢 Green=Precise | 🟡 Yellow=City Center | ⚪ Gray=Approximate`);
+            console.log(`═══════════════════════════════════════════════════════`);
+            console.log(`🎨 LEGEND:`);
+            console.log(`   🟡 Yellow: City Center (${cityOrders.length} orders)`);
+            console.log(`   🟣 Purple: Precise Geocoded (${Math.min(geocodeBatch.length, 200)} orders)`);
+            console.log(`   ⚪ Gray: Approximate Location (${remainingOrders.length || 0} orders)`);
+            console.log(`═══════════════════════════════════════════════════════`);
         };
 
         // --- Chart Rendering ---

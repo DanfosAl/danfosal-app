@@ -369,6 +369,10 @@
         };
 
         const mergeData = () => {
+            console.log('🔄 mergeData() called');
+            console.log(`   - Online orders: ${onlineOrdersData.length}`);
+            console.log(`   - Store sales: ${storeSalesData.length}`);
+            
             const normalizedOnline = onlineOrdersData.map(o => ({
                 ...o,
                 source: 'Online',
@@ -389,6 +393,8 @@
             allOrdersData = [...normalizedOnline, ...normalizedStore];
             // Sort by date desc
             allOrdersData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            console.log(`✅ Merged total: ${allOrdersData.length} orders`);
             
             updateAnalytics();
             updateMap();
@@ -705,30 +711,38 @@
         };
 
         const updateMap = async () => {
-            // Clear old state
-            if (markerCluster) markerCluster.clearLayers();
-            if (heatLayer) map.removeLayer(heatLayer);
-            processedOrderIds.clear();
-
-            // Filter orders by date range
-            let startDate;
-            if (currentDaysFilter !== 'all') {
-                startDate = new Date();
-                startDate.setDate(startDate.getDate() - parseInt(currentDaysFilter));
-            }
+            console.log('🚀 updateMap() called');
             
-            const filteredOrders = currentDaysFilter === 'all' 
-                ? allOrdersData 
-                : allOrdersData.filter(order => {
-                    const d = getDate(order.timestamp);
-                    return d.getTime() >= startDate.getTime();
-                });
+            try {
+                // Clear old state
+                if (markerCluster) markerCluster.clearLayers();
+                if (heatLayer) map.removeLayer(heatLayer);
+                processedOrderIds.clear();
+                
+                console.log('✅ Cleared old markers');
 
-            const heatData = [];
-            let processedCount = 0;
-            let skippedDuplicates = 0;
+                // Filter orders by date range
+                let startDate;
+                if (currentDaysFilter !== 'all') {
+                    startDate = new Date();
+                    startDate.setDate(startDate.getDate() - parseInt(currentDaysFilter));
+                }
+                
+                const filteredOrders = currentDaysFilter === 'all' 
+                    ? allOrdersData 
+                    : allOrdersData.filter(order => {
+                        const d = getDate(order.timestamp);
+                        return d.getTime() >= startDate.getTime();
+                    });
 
-            console.log(`🗺️ Processing ${filteredOrders.length} orders for map...`);
+                console.log(`📊 Total orders in dataset: ${allOrdersData.length}`);
+                console.log(`📊 Filtered orders (${currentDaysFilter} days): ${filteredOrders.length}`);
+
+                const heatData = [];
+                let processedCount = 0;
+                let skippedDuplicates = 0;
+
+                console.log(`🗺️ Processing ${filteredOrders.length} orders for map...`);
 
             // ═══════════════════════════════════════════════════════
             // PHASE 1: INSTANT CITY-BASED RENDERING (90% of orders)
@@ -900,6 +914,10 @@
             }
 
             // Detailed logging
+            console.log(`═══════════════════════════════════════════════════════`);
+            console.log(`✅ COMPLETE: Rendered ${processedCount} / ${filteredOrders.length} orders`);
+            console.log(`⚠️ Skipped ${skippedDuplicates} duplicates`);
+            console.log(`📊 Coverage: ${((processedCount / filteredOrders.length) * 100).toFixed(1)}%`);
             
             if (processedCount < filteredOrders.length) {
                 console.error(`❌ MISSING ${filteredOrders.length - processedCount} ORDERS!`);
@@ -916,13 +934,15 @@
             console.log(`═══════════════════════════════════════════════════════`);
             console.log(`🎨 LEGEND:`);
             console.log(`   🟡 Yellow: City Center (${cityOrders.length} orders)`);
-            console.log(`   🟣 Purple: Precise Geocoded (${Math.min(apiOrders) * 100).toFixed(1)}%`);
-            console.log(`═══════════════════════════════════════════════════════`);
-            console.log(`🎨 LEGEND:`);
-            console.log(`   🟡 Yellow: City Center (${cityOrders.length} orders)`);
-            console.log(`   🟣 Purple: Precise Geocoded (${Math.min(geocodeBatch.length, 200)} orders)`);
+            console.log(`   🟣 Purple: Precise Geocoded (${Math.min(apiOrders.length, 200)} orders)`);
             console.log(`   ⚪ Gray: Approximate Location (${remainingOrders.length || 0} orders)`);
             console.log(`═══════════════════════════════════════════════════════`);
+            
+            } catch (error) {
+                console.error('❌ CRITICAL ERROR in updateMap():', error);
+                console.error('Stack trace:', error.stack);
+                alert('Map rendering failed. Check console for details.');
+            }
         };
 
         // --- Chart Rendering ---
@@ -1345,35 +1365,45 @@
         // --- Initialization ---
         const startApp = async () => {
             
+            console.log('🚀 startApp() called');
+            
             // Load Address Cache from LocalStorage (still useful for Map API limits)
             const cachedAddress = localStorage.getItem('danfosal_address_cache');
             if (cachedAddress) {
                 try {
                     const parsed = JSON.parse(cachedAddress);
                     Object.assign(addressCache, parsed);
+                    console.log(`✅ Loaded ${Object.keys(parsed).length} cached addresses`);
                 } catch (e) { console.error("Address cache error", e); }
             }
 
+            console.log('🗺️ Initializing map...');
             initMap();
+            console.log('✅ Map initialized');
             
             // 2. Listen for Online Orders (Persistence handled by Firebase)
+            console.log('📡 Setting up Firebase listeners...');
             onSnapshot(collection(db, 'onlineOrders'), (snapshot) => {
+                console.log(`📦 Online orders snapshot: ${snapshot.docs.length} documents`);
                 onlineOrdersData = snapshot.docs.map(doc => {
                     const data = doc.data();
                     if (data.timestamp && data.timestamp.toDate) data.timestamp = data.timestamp.toDate().getTime();
                     if (data.paidTimestamp && data.paidTimestamp.toDate) data.paidTimestamp = data.paidTimestamp.toDate().getTime();
                     return { id: doc.id, ...data };
                 });
+                console.log(`✅ Loaded ${onlineOrdersData.length} online orders`);
                 mergeData();
             });
 
             // 3. Listen for Store Sales
             onSnapshot(collection(db, 'storeSales'), (snapshot) => {
+                console.log(`🏪 Store sales snapshot: ${snapshot.docs.length} documents`);
                 storeSalesData = snapshot.docs.map(doc => {
                     const data = doc.data();
                     if (data.timestamp && data.timestamp.toDate) data.timestamp = data.timestamp.toDate().getTime();
                     return { id: doc.id, ...data };
                 });
+                console.log(`✅ Loaded ${storeSalesData.length} store sales`);
                 mergeData();
             });
 

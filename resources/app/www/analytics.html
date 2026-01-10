@@ -794,14 +794,23 @@
                         return d.getTime() >= startDate.getTime();
                     });
 
+                // FILTER: Only include orders with addresses (exclude store sales without location data)
+                const ordersWithLocation = filteredOrders.filter(order => 
+                    (order.address && order.address.trim()) || (order.city && order.city.trim())
+                );
+                
+                const excludedCount = filteredOrders.length - ordersWithLocation.length;
+
                 console.log(`📊 Total orders in dataset: ${allOrdersData.length}`);
                 console.log(`📊 Filtered orders (${currentDaysFilter} days): ${filteredOrders.length}`);
+                console.log(`📍 Orders with location data: ${ordersWithLocation.length}`);
+                console.log(`🚫 Excluded from map (no address): ${excludedCount} (${(excludedCount/filteredOrders.length*100).toFixed(1)}%)`);
 
                 const heatData = [];
                 let processedCount = 0;
                 let skippedDuplicates = 0;
 
-                console.log(`🗺️ Processing ${filteredOrders.length} orders for map...`);
+                console.log(`🗺️ Processing ${ordersWithLocation.length} orders for map...`);
 
             // ═══════════════════════════════════════════════════════
             // PHASE 1: INSTANT CITY-BASED RENDERING (90% of orders)
@@ -809,7 +818,7 @@
             const cityOrders = [];
             const unknownOrders = [];
 
-            for (const order of filteredOrders) {
+            for (const order of ordersWithLocation) {
                 if (processedOrderIds.has(order.id)) {
                     skippedDuplicates++;
                     continue;
@@ -974,14 +983,15 @@
 
             // Detailed logging
             console.log(`═══════════════════════════════════════════════════════`);
-            console.log(`✅ COMPLETE: Rendered ${processedCount} / ${filteredOrders.length} orders`);
+            console.log(`✅ COMPLETE: Rendered ${processedCount} / ${ordersWithLocation.length} orders with addresses`);
             console.log(`⚠️ Skipped ${skippedDuplicates} duplicates`);
-            console.log(`📊 Coverage: ${((processedCount / filteredOrders.length) * 100).toFixed(1)}%`);
+            console.log(`🚫 Excluded ${excludedCount} store sales (no location data)`);
+            console.log(`📊 Coverage: ${((processedCount / ordersWithLocation.length) * 100).toFixed(1)}%`);
             
-            if (processedCount < filteredOrders.length) {
-                console.error(`❌ MISSING ${filteredOrders.length - processedCount} ORDERS!`);
+            if (processedCount < ordersWithLocation.length) {
+                console.error(`❌ MISSING ${ordersWithLocation.length - processedCount} ORDERS!`);
                 console.log(`🔍 Debugging Info:`);
-                console.log(`   - Total Filtered: ${filteredOrders.length}`);
+                console.log(`   - Total with Location: ${ordersWithLocation.length}`);
                 console.log(`   - City Orders: ${cityOrders.length}`);
                 console.log(`   - Unknown Orders: ${unknownOrders.length}`);
                 console.log(`   - API Batch: ${apiOrders.length}`);

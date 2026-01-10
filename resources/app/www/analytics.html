@@ -394,34 +394,115 @@
             updateMap();
         };
 
-        const addressCache = {};
+        // Load cache from localStorage
+        const addressCache = JSON.parse(localStorage.getItem('danfosal_address_cache') || '{}');
+        const processedOrderIds = new Set();
 
-        const geocodeAddress = async (address) => {
+        // Albanian city coordinates database for instant fallback
+        const CITY_COORDINATES = {
+            'tirana': { lat: 41.3275, lng: 19.8187 },
+            'tirane': { lat: 41.3275, lng: 19.8187 },
+            'durres': { lat: 41.3231, lng: 19.4565 },
+            'durrës': { lat: 41.3231, lng: 19.4565 },
+            'vlore': { lat: 40.4667, lng: 19.4833 },
+            'vlorë': { lat: 40.4667, lng: 19.4833 },
+            'shkoder': { lat: 42.0683, lng: 19.5128 },
+            'shkodër': { lat: 42.0683, lng: 19.5128 },
+            'elbasan': { lat: 41.1125, lng: 20.0822 },
+            'korce': { lat: 40.6186, lng: 20.7811 },
+            'korcë': { lat: 40.6186, lng: 20.7811 },
+            'fier': { lat: 40.7239, lng: 19.5558 },
+            'berat': { lat: 40.7058, lng: 19.9522 },
+            'lushnje': { lat: 40.9417, lng: 19.7028 },
+            'lushnjë': { lat: 40.9417, lng: 19.7028 },
+            'kavaje': { lat: 41.1856, lng: 19.5575 },
+            'kavajë': { lat: 41.1856, lng: 19.5575 },
+            'pogradec': { lat: 40.9019, lng: 20.6528 },
+            'gjirokaster': { lat: 40.0758, lng: 20.1392 },
+            'gjirokastër': { lat: 40.0758, lng: 20.1392 },
+            'sarande': { lat: 39.8597, lng: 20.0089 },
+            'sarandë': { lat: 39.8597, lng: 20.0089 }
+        };
+
+        // Add random offset to prevent marker stacking (2km radius)
+        const addJitter = (lat, lng, radiusKm = 2) => {
+            const latOffset = (Math.random() - 0.5) * (radiusKm / 111);
+            const lngOffset = (Math.random() - 0.5) * (radiusKm / (111 * Math.cos(lat * Math.PI / 180)));
+            return { 
+                lat: lat + latOffset, 
+                lng: lng + lngOffset 
+            };
+        };
+
+        // Extract city name from address string
+        const extractCity = (address) => {
             if (!address) return null;
-            if (addressCache[address]) return addressCache[address];
-
-            try {
-                // Throttle requests to respect Nominatim's usage policy (1 req/sec)
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Append Albania and restrict to country code 'al' to avoid USA/Kosovo results
-                const query = `${address}, Albania`;
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=al&limit=1`);
-                
-                if (!response.ok) return null;
-                
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-                    addressCache[address] = coords;
-                    // Save to local storage
-                    localStorage.setItem('danfosal_address_cache', JSON.stringify(addressCache));
-                    return coords;
+            const addr = address.toLowerCase();
+            
+            for (const city of Object.keys(CITY_COORDINATES)) {
+                if (addr.includes(city)) {
+                    return city;
                 }
-            } catch (error) {
-                console.error("Geocoding error:", error);
             }
-            return null;
+            
+            return 'tirana'; // Default to capital
+        };
+
+        // Smart geocoding with multi-level fallback
+        const geocodeAddressSmart = async (order) => {
+            const address = order.address || order.deliveryAddress;
+            
+            // Fallback 1: No address → use city field
+            if (!address) {
+                const city = extractCity(order.city);
+                if (city && CITY_COORDINATES[city]) {
+                    return addJitter(CITY_COORDINATES[city].lat, CITY_COORDINATES[city].lng);
+                }
+                return null;
+            }
+
+            // Check cache first (instant)
+            const cacheKey = address.toLowerCase().trim();
+            if (addressCache[cacheKey]) {
+                return addJitter(addressCache[cacheKey].lat, addressCache[cacheKey].lng, 0.5);
+            }
+
+            // Try city extraction (fast path)
+            const city = extractCity(address);
+            if (city && CITY_COORDINATES[city]) {
+                const coords = CITY_COORDINATES[city];
+                addressCache[cacheKey] = coords;
+                return addJitter(coords.lat, coords.lng);
+            }
+
+            // Fallback to API (slow path) - only for high-value orders
+            if (order.price && order.price > 50) {
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 1100));
+                    const query = `${address}, Albania`;
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=al&limit=1`
+                    );
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.length > 0) {
+                            const coords = { 
+                                lat: parseFloat(data[0].lat), 
+                                lng: parseFloat(data[0].lon) 
+                            };
+                            addressCache[cacheKey] = coords;
+                            localStorage.setItem('danfosal_address_cache', JSON.stringify(addressCache));
+                            return coords;
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Geocoding failed for: ${address}`, error);
+                }
+            }
+
+            // Final fallback: Tirana center
+            return addJitter(CITY_COORDINATES['tirana'].lat, CITY_COORDINATES['tirana'].lng);
         };
 
         // --- Map Initialization ---
@@ -452,9 +533,12 @@
         };
 
         const updateMap = async () => {
+            // Clear old state
             if (markerCluster) markerCluster.clearLayers();
             if (heatLayer) map.removeLayer(heatLayer);
+            processedOrderIds.clear();
 
+            // Filter orders by date range
             let startDate;
             if (currentDaysFilter !== 'all') {
                 startDate = new Date();
@@ -469,33 +553,93 @@
                 });
 
             const heatData = [];
+            let processedCount = 0;
+            let skippedDuplicates = 0;
 
-            // Process all orders with addresses (removed slice limit)
-            // Using cache to speed up repetitive addresses
-            const ordersWithAddress = filteredOrders.filter(o => o.address);
+            console.log(`🗺️ Processing ${filteredOrders.length} orders for map...`);
 
-            for (const order of ordersWithAddress) {
-                const coords = await geocodeAddress(order.address);
+            // Separate orders into batches
+            const cityOrders = [];
+            const geocodeOrders = [];
+
+            for (const order of filteredOrders) {
+                if (processedOrderIds.has(order.id)) {
+                    skippedDuplicates++;
+                    continue;
+                }
+
+                const city = extractCity(order.address || order.city);
+                if (city && CITY_COORDINATES[city]) {
+                    cityOrders.push(order);
+                } else {
+                    geocodeOrders.push(order);
+                }
+            }
+
+            // PHASE 1: INSTANT RENDERING (City-Based Orders)
+            for (const order of cityOrders) {
+                if (processedOrderIds.has(order.id)) continue;
+                
+                const coords = await geocodeAddressSmart(order);
                 if (coords) {
+                    processedOrderIds.add(order.id);
+                    processedCount++;
+
                     heatData.push([coords.lat, coords.lng, 1]);
+                    
                     const marker = L.marker([coords.lat, coords.lng], {
                         icon: L.divIcon({
-                            className: 'custom-marker',
                             html: `<div style="background: #4ade80; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #050b07; box-shadow: 0 0 10px #4ade80;"></div>`,
                             iconSize: [12, 12],
                             iconAnchor: [6, 6]
                         })
                     }).bindPopup(`
                         <div style="color: #000;">
-                            <strong>${order.clientName}</strong><br>
-                            ${order.address}<br>
-                            €${order.price.toFixed(2)}
+                            <strong>${order.clientName || 'Customer'}</strong><br>
+                            ${order.address || 'No address'}<br>
+                            €${(order.price || 0).toFixed(2)}
                         </div>
                     `);
+                    
                     markerCluster.addLayer(marker);
                 }
             }
 
+            console.log(`✅ Phase 1: Rendered ${processedCount} city-based orders`);
+
+            // PHASE 2: BACKGROUND GEOCODING (High-Value Orders)
+            const geocodeBatch = geocodeOrders.slice(0, 50);
+            
+            for (const order of geocodeBatch) {
+                if (processedOrderIds.has(order.id)) continue;
+                
+                const coords = await geocodeAddressSmart(order);
+                if (coords) {
+                    processedOrderIds.add(order.id);
+                    processedCount++;
+
+                    heatData.push([coords.lat, coords.lng, 1]);
+                    
+                    const marker = L.marker([coords.lat, coords.lng], {
+                        icon: L.divIcon({
+                            html: `<div style="background: #a855f7; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #050b07; box-shadow: 0 0 10px #a855f7;"></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        })
+                    }).bindPopup(`
+                        <div style="color: #000;">
+                            <strong>${order.clientName || 'Customer'}</strong><br>
+                            ${order.address || 'No address'}<br>
+                            €${(order.price || 0).toFixed(2)}<br>
+                            <em>(High-precision geocoded)</em>
+                        </div>
+                    `);
+                    
+                    markerCluster.addLayer(marker);
+                }
+            }
+
+            // Add heat layer
             if (heatData.length > 0) {
                 heatLayer = L.heatLayer(heatData, {
                     radius: 25,
@@ -510,6 +654,10 @@
                     map.fitBounds(markerCluster.getBounds(), { padding: [50, 50] });
                 }
             }
+
+            console.log(`✅ Phase 2: Total rendered ${processedCount} orders`);
+            console.log(`⚠️ Skipped ${skippedDuplicates} duplicates`);
+            console.log(`📊 Coverage: ${((processedCount / filteredOrders.length) * 100).toFixed(1)}%`);
         };
 
         // --- Chart Rendering ---

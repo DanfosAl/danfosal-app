@@ -396,6 +396,18 @@
             
             console.log(`✅ Merged total: ${allOrdersData.length} orders`);
             
+            // Address field statistics
+            const withAddress = allOrdersData.filter(o => o.address && o.address.trim()).length;
+            const withCity = allOrdersData.filter(o => o.city && o.city.trim()).length;
+            const withEither = allOrdersData.filter(o => (o.address && o.address.trim()) || (o.city && o.city.trim())).length;
+            const withNeither = allOrdersData.length - withEither;
+            
+            console.log(`📍 ADDRESS STATISTICS:`);
+            console.log(`   - Orders with 'address' field: ${withAddress} (${(withAddress/allOrdersData.length*100).toFixed(1)}%)`);
+            console.log(`   - Orders with 'city' field: ${withCity} (${(withCity/allOrdersData.length*100).toFixed(1)}%)`);
+            console.log(`   - Orders with either: ${withEither} (${(withEither/allOrdersData.length*100).toFixed(1)}%)`);
+            console.log(`   - Orders with neither: ${withNeither} (${(withNeither/allOrdersData.length*100).toFixed(1)}%)`);
+            
             updateAnalytics();
             updateMap();
         };
@@ -1439,6 +1451,21 @@
                     return { id: doc.id, ...data };
                 });
                 console.log(`✅ Loaded ${onlineOrdersData.length} online orders`);
+                
+                // Sample first 5 orders to check address fields
+                console.log('🔍 Sample Online Orders (first 5):');
+                onlineOrdersData.slice(0, 5).forEach((order, idx) => {
+                    console.log(`  Order ${idx + 1}:`, {
+                        id: order.id,
+                        address: order.address || '❌ NO ADDRESS',
+                        city: order.city || '❌ NO CITY',
+                        clientName: order.clientName || 'N/A',
+                        price: order.price || 0,
+                        hasAddress: !!order.address,
+                        hasCity: !!order.city
+                    });
+                });
+                
                 mergeData();
             });
 
@@ -1451,6 +1478,21 @@
                     return { id: doc.id, ...data };
                 });
                 console.log(`✅ Loaded ${storeSalesData.length} store sales`);
+                
+                // Sample first 5 store sales to check address fields
+                console.log('🔍 Sample Store Sales (first 5):');
+                storeSalesData.slice(0, 5).forEach((sale, idx) => {
+                    console.log(`  Sale ${idx + 1}:`, {
+                        id: sale.id,
+                        address: sale.address || '❌ NO ADDRESS',
+                        city: sale.city || '❌ NO CITY',
+                        clientName: sale.clientName || 'N/A',
+                        price: sale.price || 0,
+                        hasAddress: !!sale.address,
+                        hasCity: !!sale.city
+                    });
+                });
+                
                 mergeData();
             });
 

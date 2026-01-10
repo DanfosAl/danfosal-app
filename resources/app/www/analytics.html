@@ -730,9 +730,11 @@
 
             console.log(`🗺️ Processing ${filteredOrders.length} orders for map...`);
 
-            // Separate orders into batches
+            // ═══════════════════════════════════════════════════════
+            // PHASE 1: INSTANT CITY-BASED RENDERING (90% of orders)
+            // ═══════════════════════════════════════════════════════
             const cityOrders = [];
-            const geocodeOrders = [];
+            const unknownOrders = [];
 
             for (const order of filteredOrders) {
                 if (processedOrderIds.has(order.id)) {
@@ -744,11 +746,13 @@
                 if (city && CITY_COORDINATES[city]) {
                     cityOrders.push(order);
                 } else {
-                    geocodeOrders.push(order);
+                    unknownOrders.push(order); // ALL non-city orders go here (even without address)
                 }
             }
 
-            // PHASE 1: INSTANT RENDERING (City-Based Orders)
+            console.log(`📋 Batch Separation: ${cityOrders.length} city orders, ${unknownOrders.length} unknown orders`);
+
+            // Render city-based orders immediately
             for (const order of cityOrders) {
                 if (processedOrderIds.has(order.id)) continue;
                 
@@ -791,13 +795,15 @@
 
             console.log(`✅ Phase 1: Rendered ${processedCount} city-based orders`);
 
-            // PHASE 2: BACKGROUND GEOCODING (Prioritized Orders)
-            // Sort by price descending, take top 200
-            const sortedGeocodeOrders = geocodeOrders
-                .sort((a, b) => (b.price || 0) - (a.price || 0));
-            const geocodeBatch = sortedGeocodeOrders.slice(0, 200);
+            // ═══════════════════════════════════════════════════════
+            // PHASE 2: HIGH-VALUE API GEOCODING (Top 200 by price)
+            // ═══════════════════════════════════════════════════════
+            const sortedUnknown = unknownOrders.sort((a, b) => (b.price || 0) - (a.price || 0));
+            const apiOrders = sortedUnknown.slice(0, 200);
             
-            for (const order of geocodeBatch) {
+            console.log(`🔍 Phase 2: Processing ${apiOrders.length} high-value orders...`);
+            
+            for (const order of apiOrders) {
                 if (processedOrderIds.has(order.id)) continue;
                 
                 const result = await geocodeAddressSmart(order);
@@ -834,12 +840,16 @@
                 }
             }
 
-            console.log(`✅ Phase 2: Geocoded ${geocodeBatch.length} high-value orders`);
+            console.log(`✅ Phase 2: Geocoded ${apiOrders.length} high-value orders (${processedCount - cityOrders.length} successful)`);
 
-            // PHASE 3: CATCH-ALL (Remaining orders not in top 200)
-            const remainingOrders = sortedGeocodeOrders.slice(200);
+            // ═══════════════════════════════════════════════════════
+            // PHASE 3: CATCH-ALL FALLBACK (ALL remaining orders)
+            // ═══════════════════════════════════════════════════════
+            const remainingOrders = sortedUnknown.slice(200);
+            
+            console.log(`📦 Phase 3: Rendering ${remainingOrders.length} fallback orders (GUARANTEED PLACEMENT)...`);
+            
             if (remainingOrders.length > 0) {
-                console.log(`📦 Phase 3: Catch-all rendering ${remainingOrders.length} remaining orders...`);
                 
                 for (const order of remainingOrders) {
                     if (processedOrderIds.has(order.id)) continue;
@@ -890,10 +900,23 @@
             }
 
             // Detailed logging
+            
+            if (processedCount < filteredOrders.length) {
+                console.error(`❌ MISSING ${filteredOrders.length - processedCount} ORDERS!`);
+                console.log(`🔍 Debugging Info:`);
+                console.log(`   - Total Filtered: ${filteredOrders.length}`);
+                console.log(`   - City Orders: ${cityOrders.length}`);
+                console.log(`   - Unknown Orders: ${unknownOrders.length}`);
+                console.log(`   - API Batch: ${apiOrders.length}`);
+                console.log(`   - Fallback: ${remainingOrders.length}`);
+                console.log(`   - Processed: ${processedCount}`);
+                console.log(`   - Expected: ${cityOrders.length + unknownOrders.length}`);
+            }
+            
             console.log(`═══════════════════════════════════════════════════════`);
-            console.log(`✅ COMPLETE: Rendered ${processedCount} / ${filteredOrders.length} orders`);
-            console.log(`⚠️ Skipped ${skippedDuplicates} duplicates`);
-            console.log(`📊 Coverage: ${((processedCount / filteredOrders.length) * 100).toFixed(1)}%`);
+            console.log(`🎨 LEGEND:`);
+            console.log(`   🟡 Yellow: City Center (${cityOrders.length} orders)`);
+            console.log(`   🟣 Purple: Precise Geocoded (${Math.min(apiOrders) * 100).toFixed(1)}%`);
             console.log(`═══════════════════════════════════════════════════════`);
             console.log(`🎨 LEGEND:`);
             console.log(`   🟡 Yellow: City Center (${cityOrders.length} orders)`);

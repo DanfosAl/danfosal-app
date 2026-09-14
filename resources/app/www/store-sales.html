@@ -12,28 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&amp;family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
     
     <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#2bee79",
-                        "background-light": "#f6f8f7",
-                        "background-dark": "#102217",
-                        "surface-dark": "#112218",
-                        "surface-darker": "#0b1810",
-                    },
-                    fontFamily: {
-                        "display": ["Spline Sans", "sans-serif"],
-                        "body": ["Noto Sans", "sans-serif"],
-                    },
-                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
-                },
-            },
-        }
-    </script>
+    <link rel="stylesheet" href="css/tailwind-store-sales.css">
 
     <!-- Legacy Scripts & Styles -->
     <script src="fiscal-invoice-scanner.js"></script>
@@ -115,6 +94,7 @@
             to { transform: rotate(360deg); }
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display h-screen w-full overflow-hidden flex selection:bg-primary selection:text-surface-darker">
     
@@ -147,6 +127,14 @@
             <a class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors group" href="customer-portal.html">
                 <span class="material-symbols-outlined text-[#92c9a8] group-hover:text-white">people</span>
                 <p class="hidden lg:block text-[#92c9a8] group-hover:text-white text-sm font-medium">Customers</p>
+            </a>
+            <a class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors group" href="warranty-cards-list.html">
+                <span class="material-symbols-outlined text-[#92c9a8] group-hover:text-white">shield</span>
+                <p class="hidden lg:block text-[#92c9a8] group-hover:text-white text-sm font-medium">Warranty Cards</p>
+            </a>
+            <a class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors group" href="service-tickets.html">
+                <span class="material-symbols-outlined text-[#92c9a8] group-hover:text-white">build</span>
+                <p class="hidden lg:block text-[#92c9a8] group-hover:text-white text-sm font-medium">Service Tickets</p>
             </a>
         </nav>
         <div class="p-4 border-t border-white/5">
@@ -997,22 +985,29 @@
         };
         window.closeWarrantyModal = function() { document.getElementById('warranty-modal').classList.remove('active'); };
         
-        window.printWarrantyCard = function() {
+        window.printWarrantyCard = async function() {
              let itemsToPrint = [];
+             let checkedIndexes = [];
              let customerName = '';
              let dateStr = '';
 
              if (currentWarrantySale) {
                  // Printing from History
                  currentWarrantySale.items.forEach((item, i) => {
-                     if (document.getElementById(`warranty-item-${i}`).checked) itemsToPrint.push(item.name);
+                     if (document.getElementById(`warranty-item-${i}`).checked) {
+                         itemsToPrint.push(item.name);
+                         checkedIndexes.push(i);
+                     }
                  });
                  customerName = document.getElementById('warranty-customer-name').value;
                  dateStr = new Date(currentWarrantySale.timestamp?.toMillis ? currentWarrantySale.timestamp.toMillis() : currentWarrantySale.timestamp).toLocaleDateString('en-GB');
              } else {
                  // Printing from Current Cart
                  currentSaleProducts.forEach((item, i) => {
-                     if (document.getElementById(`warranty-item-${i}`).checked) itemsToPrint.push(item.name);
+                     if (document.getElementById(`warranty-item-${i}`).checked) {
+                         itemsToPrint.push(item.name);
+                         checkedIndexes.push(i);
+                     }
                  });
                  customerName = document.getElementById('warranty-customer-name').value;
                  dateStr = new Date().toLocaleDateString('en-GB');
@@ -1021,7 +1016,37 @@
              if (itemsToPrint.length === 0) { alert('Select items'); return; }
              const serial = document.getElementById('warranty-serial-numbers').value;
              if (!customerName || !serial) { alert('Fill details'); return; }
-             
+
+             const serialList = serial.split(',').map(s => s.trim()).filter(Boolean);
+             const warrantyItems = itemsToPrint.map((name, i) => ({
+                 name,
+                 serialNumber: serialList[i] || (serialList.length === 1 ? serialList[0] : '')
+             }));
+
+             // Save the warranty card record
+             try {
+                 await addDoc(collection(db, 'warrantyCards'), {
+                     saleId: currentWarrantySale ? currentWarrantySale.id : null,
+                     saleType: 'storeSale',
+                     customerName,
+                     items: warrantyItems,
+                     location: 'Danfos',
+                     createdAt: Timestamp.now()
+                 });
+
+                 // Persist serial numbers back onto the sale record, if it's a saved sale
+                 if (currentWarrantySale) {
+                     const updatedItems = currentWarrantySale.items.map((item, i) => {
+                         const pos = checkedIndexes.indexOf(i);
+                         return pos === -1 ? item : { ...item, serialNumber: warrantyItems[pos].serialNumber };
+                     });
+                     await updateDoc(doc(db, 'storeSales', currentWarrantySale.id), { items: updatedItems });
+                     currentWarrantySale.items = updatedItems;
+                 }
+             } catch (err) {
+                 console.error('Failed to save warranty card:', err);
+             }
+
              const url = `warranty-card.html?product=${encodeURIComponent(itemsToPrint.join(', '))}&serial=${encodeURIComponent(serial)}&buyer=${encodeURIComponent(customerName)}&date=${dateStr}&location=Danfos`;
              window.open(url, '_blank');
              closeWarrantyModal();

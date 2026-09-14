@@ -1,0 +1,172 @@
+// Uses a local SDK fixture; all external requests are blocked.
+const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+const root = path.resolve(__dirname, '..'), www = path.join(root, 'www'), output = path.join(root, 'artifacts', 'qa');
+const sdk = fs.readFileSync(path.join(__dirname, 'firebase-fixture.js'), 'utf8');
+const now = Date.now(), stamp = days => ({ $ms: now + days * 86400000 });
+const seed = {
+    'customers/c1': { name: 'Klient Test', phone: '0690000000', city: 'Tiranë', nipt: 'OLD-NIPT' },
+    'products/p1': { name: 'Pompë Test', code: 'P1' },
+    'storeSales/s1': { clientName: 'Klient Test', invoiceNumber: 'TEST-001', timestamp: stamp(-20), items: [{ name: 'Pompë Test', code: 'P1', serialNumber: 'SERIAL-OLD', quantity: 1, price: 100 }, { name: 'Makina Jashtë', code: 'M2', serialNumber: 'OTHER', quantity: 2, price: 50 }] },
+    'warrantyCards/w1': { saleId: 's1', saleType: 'storeSale', customerName: 'Klient Test', certNo: 'GAR-TEST', createdAt: stamp(-10), warrantyUntil: stamp(300), items: [{ name: 'Pompë Test', serialNumber: 'SERIAL-OLD' }, { name: 'Shtesë nga certifikata', serialNumber: 'EXTRA-CARD', sourceItemIndex: null }] }
+};
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
+const server = http.createServer((request, response) => {
+    const target = path.resolve(www, '.' + decodeURIComponent(new URL(request.url, 'http://localhost').pathname));
+    if (!target.startsWith(www + path.sep)) return response.writeHead(403).end();
+    fs.readFile(target, (error, body) => { response.writeHead(error ? 404 : 200, { 'Content-Type': mime[path.extname(target)] || 'application/octet-stream' }); response.end(error ? 'Missing' : body); });
+});
+(async () => {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addInitScript(value => { window.__seed = value; }, seed);
+    await context.route('**/*', route => {
+        const url = route.request().url();
+        if (url.startsWith('https://www.gstatic.com/firebasejs/')) return route.fulfill({ status: 200, contentType: 'text/javascript', body: sdk });
+        if (url.startsWith(base) || url.startsWith('data:')) return route.continue();
+        return route.abort();
+    });
+    const page = await context.newPage(), errors = [], alerts = [], checks = [];
+    fs.mkdirSync(output, { recursive: true });
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('dialog', async dialog => { alerts.push(dialog.message()); await dialog.dismiss(); });
+    const noWrites = async () => assert.equal(await page.evaluate(() => window.__mock.writes.length), 0);
+    const claimStart = async () => { await page.goto(`${base}/claim.html?saleId=s1&itemIndex=0`); await page.locator('#issue-text').waitFor({ state: 'visible' }); };
+    const editCustomer = async () => {
+        await page.locator('#cust-edit-toggle').click();
+        await page.locator('#cust-city-input').fill('Durrës');
+        await page.locator('#cust-nipt-input').fill('NEW-NIPT');
+        await page.locator('#cust-phone-input').fill('0681111111');
+        await page.locator('#machine-list > div').filter({ hasText: 'Pompë Test' }).locator('[data-start-serial]').click();
+        await page.locator('#serial-draft-input').fill('SERIAL-NEW');
+        // Re-rendering the selected machine must keep the serial input handler alive.
+        await page.locator('#machine-list > div').filter({ hasText: 'Pompë Test' }).locator('[data-machine]').click();
+        await page.locator('#serial-draft-input').fill('SERIAL-UPDATED');
+    };
+    try {
+        await page.goto(`${base}/issue.html`);
+        await page.locator('#invoice-list button[data-idx="0"]').click();
+        await page.locator('[data-slot-idx="1"][data-slot-field="included"]').uncheck();
+        await page.locator('[data-slot-idx="0"][data-slot-field="serial"]').fill('SERIAL-NEW');
+        await page.locator('#add-machine-btn').click();
+        await page.locator('[data-slot-idx="2"][data-slot-field="name"]').fill('Shtesë Manuale');
+        await page.locator('[data-slot-idx="2"][data-slot-field="serial"]').fill('MANUAL-NEW');
+        await page.locator('#toggle-edit-btn').click();
+        await page.locator('[data-key="telefon"]').fill('0682222222');
+        await page.screenshot({ path: path.join(output, 'issue-filled-desktop.png'), fullPage: true });
+        await page.setViewportSize({ width: 800, height: 700 });
+        assert(await page.evaluate(() => [...document.querySelectorAll('#machine-rows input')].every(input => input.getBoundingClientRect().right <= innerWidth)), 'Issue fields overflow at minimum window width');
+        await page.screenshot({ path: path.join(output, 'issue-filled-compact.png'), fullPage: true });
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.locator('#issue-btn').click();
+        let dialog = page.getByRole('dialog');
+        await dialog.waitFor();
+        assert((await dialog.innerText()).includes('SERIAL-OLD → SERIAL-NEW'));
+        assert((await dialog.innerText()).includes('0690000000 → 0682222222'));
+        await noWrites();
+        await dialog.getByRole('button', { name: 'Anulo', exact: true }).click();
+        await noWrites();
+        await page.locator('#issue-btn').click();
+        await page.getByRole('dialog').waitFor();
+        await page.evaluate(() => { window.__mock.records['storeSales/s1'].items[0].price = 125; window.__mock.records['storeSales/s1'].items[1].quantity = 5; });
+        await page.getByRole('dialog').getByRole('button', { name: 'Konfirmo dhe lësho', exact: true }).click();
+        await page.locator('#issued-panel').waitFor({ state: 'visible' });
+        const issued = await page.evaluate(() => ({ card: window.__mock.writes.find(write => write.path.startsWith('warrantyCards/')).data, sale: window.__mock.records['storeSales/s1'], customer: window.__mock.records['customers/c1'] }));
+        assert.equal(issued.card.items.length, 2);
+        assert.equal(issued.card.items[0].sourceItemIndex, 0);
+        assert.equal(issued.card.items[1].sourceItemIndex, null);
+        assert.equal(issued.card.items[0].serialNumber, 'SERIAL-NEW');
+        assert(issued.card.purchaseDate);
+        assert.equal(issued.sale.items[0].price, 125);
+        assert.equal(issued.sale.items[1].quantity, 5);
+        assert.equal(issued.sale.items[1].serialNumber, 'OTHER');
+        assert.equal(issued.customer.phone, '0682222222');
+        await page.locator('#issue-btn').evaluate(button => button.dispatchEvent(new MouseEvent('click')));
+        assert.equal(await page.evaluate(() => window.__mock.writes.filter(write => write.path.startsWith('warrantyCards/')).length), 1);
+        checks.push('Issue: exact correction review; cancellation writes nothing; multi-item selection and manual addition retained; fresh source fields preserved; one certificate per submission.');
+
+        await claimStart();
+        await page.locator('#search-input').fill('Tiranë');
+        assert.equal(await page.locator('[data-customer]').count(), 1);
+        await editCustomer();
+        await page.screenshot({ path: path.join(output, 'claim-filled-desktop.png'), fullPage: true });
+        await page.setViewportSize({ width: 800, height: 700 });
+        assert(await page.evaluate(() => document.querySelector('#serial-draft-input').getBoundingClientRect().right <= innerWidth), 'Claim serial field overflows at minimum window width');
+        await page.screenshot({ path: path.join(output, 'claim-filled-compact.png'), fullPage: true });
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.locator('#dismiss-sync-btn').click();
+        await noWrites();
+        await page.locator('#issue-text').fill('Presion i dobët pas pesë minutash.');
+        await page.locator('#submit-claim-btn').click();
+        dialog = page.getByRole('dialog');
+        await dialog.waitFor();
+        for (const value of ['SERIAL-UPDATED', 'Durrës', 'NEW-NIPT', '0681111111']) assert((await dialog.innerText()).includes(value));
+        await noWrites();
+        await dialog.getByRole('button', { name: 'Anulo', exact: true }).click();
+        await noWrites();
+        await page.locator('#submit-claim-btn').click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Konfirmo dhe regjistro', exact: true }).click();
+        await page.locator('#claimed-panel').waitFor({ state: 'visible' });
+        const claim = await page.evaluate(() => ({ ticket: window.__mock.writes.find(write => write.path.startsWith('serviceTickets/')).data, source: window.__mock.records['storeSales/s1'], customer: window.__mock.records['customers/c1'] }));
+        assert.equal(claim.ticket.serialNumber, 'SERIAL-UPDATED');
+        assert.equal(claim.ticket.customerCity, 'Durrës');
+        assert.equal(claim.ticket.customerNipt, 'NEW-NIPT');
+        assert.equal(claim.ticket.linkedItemIndex, 0);
+        assert.equal(claim.ticket.warrantyCardId, 'w1');
+        assert.equal(claim.source.items[0].serialNumber, 'SERIAL-OLD');
+        assert.equal(claim.customer.city, 'Tiranë');
+        await page.locator('#submit-claim-btn').evaluate(button => button.dispatchEvent(new MouseEvent('click')));
+        assert.equal(await page.evaluate(() => window.__mock.writes.filter(write => write.path.startsWith('serviceTickets/')).length), 1);
+        checks.push('Claim: city search; serial listener survives rerender; request-only phone/city/NIPT/serial are correctly captured; cancel and duplicate submission produce no ticket.');
+
+        await claimStart();
+        await editCustomer();
+        await page.locator('#sync-profile-btn').click();
+        await page.getByRole('dialog').waitFor();
+        await noWrites();
+        await page.evaluate(() => { window.__mock.records['storeSales/s1'].items[0].quantity = 7; });
+        await page.getByRole('dialog').getByRole('button', { name: 'Konfirmo dhe ruaj', exact: true }).click();
+        await page.locator('#synced-banner').waitFor({ state: 'visible' });
+        const persisted = await page.evaluate(() => window.__mock.records);
+        assert.equal(persisted['customers/c1'].city, 'Durrës');
+        assert.equal(persisted['customers/c1'].nipt, 'NEW-NIPT');
+        assert.equal(persisted['storeSales/s1'].items[0].quantity, 7);
+        assert.equal(persisted['storeSales/s1'].items[0].serialNumber, 'SERIAL-UPDATED');
+        assert.equal(persisted['warrantyCards/w1'].items[0].serialNumber, 'SERIAL-UPDATED');
+        await page.locator('#search-input').fill('Durrës');
+        assert.equal(await page.locator('[data-customer]').count(), 1);
+        checks.push('Claim: confirmed profile/serial updates are atomic across customer, source invoice and matching certificate; unrelated fresh data preserved.');
+
+        await claimStart();
+        await editCustomer();
+        await page.locator('#sync-profile-btn').click();
+        await page.getByRole('dialog').waitFor();
+        await page.evaluate(() => { window.__mock.records['storeSales/s1'].items[0].serialNumber = 'CONCURRENT'; });
+        await page.getByRole('dialog').getByRole('button', { name: 'Konfirmo dhe ruaj', exact: true }).click();
+        await page.waitForFunction(() => !document.querySelector('dialog'));
+        await page.waitForTimeout(100);
+        assert.equal(alerts.length, 1);
+        assert(alerts[0].includes('Makineria në faturë ka ndryshuar'));
+        await noWrites();
+        assert.equal(await page.evaluate(() => window.__mock.records['storeSales/s1'].items[0].serialNumber), 'CONCURRENT');
+        checks.push('Claim: concurrent source changes stop the entire update without partially changing the customer or certificate.');
+        await page.goto(`${base}/claim.html?cardId=w1&itemIndex=1`);
+        await page.locator('#issue-text').waitFor({ state: 'visible' });
+        assert((await page.locator('#claim-summary').innerText()).includes('Shtesë nga certifikata'));
+        await page.locator('#issue-text').fill('Kontroll për makinerinë shtesë.');
+        await page.locator('#submit-claim-btn').click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Konfirmo dhe regjistro', exact: true }).click();
+        await page.locator('#claimed-panel').waitFor({ state: 'visible' });
+        const extra = await page.evaluate(() => window.__mock.writes.find(write => write.path.startsWith('serviceTickets/')).data);
+        assert.equal(extra.warrantyCardId, 'w1');
+        assert.equal(extra.linkedSaleId, null);
+        assert.equal(extra.serialNumber, 'EXTRA-CARD');
+        checks.push('Claim: manually added certificate items remain selectable even when the certificate is linked to an invoice.');
+        assert.deepEqual(errors, []);
+        fs.mkdirSync(output, { recursive: true });
+        fs.writeFileSync(path.join(output, 'issue-claim-results.json'), JSON.stringify({ passed: true, checks }, null, 2));
+        console.log(checks.join('\n'));
+    } finally { await browser.close(); server.close(); }
+})().catch(error => { console.error(error); server.close(); process.exitCode = 1; });

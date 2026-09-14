@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creditor Details - Danfosal App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <script src="keyboard-navigation.js"></script>
     <script src="payment-reminder-service.js"></script>
     <link rel="stylesheet" href="glassmorphism.css">
@@ -15,6 +16,7 @@
         body { font-family: 'Inter', sans-serif; }
         .product-paid { text-decoration: line-through; color: #6b7280; }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="min-h-screen p-4 md:p-8 theme-transition">
 
@@ -44,7 +46,7 @@
             <div class="lg:col-span-2 space-y-8">
                 <!-- Invoices Section -->
                 <section class="glass-container">
-                    <h3 class="text-xl font-bold mb-4 theme-text">📄 Invoices</h3>
+                    <h3 class="text-xl font-bold mb-4 theme-text"><span class="material-symbols-outlined" style="vertical-align:-4px;">description</span> Invoices</h3>
                     <div id="invoices-list" class="space-y-4 mb-6"></div>
                 </section>
 

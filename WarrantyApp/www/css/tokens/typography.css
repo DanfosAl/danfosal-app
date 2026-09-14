@@ -1,0 +1,70 @@
+/* Bundled Google Fonts, SIL Open Font License 1.1; license files accompany assets. */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url(../../assets/fonts/plus-jakarta-sans-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url(../../assets/fonts/plus-jakarta-sans-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(../../assets/fonts/space-grotesk-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(../../assets/fonts/space-grotesk-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root{
+  --font-sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-display:"Space Grotesk",var(--font-sans); /* bold headings, stat numbers, wordmark */
+  --font-serif-reading:Georgia,"Times New Roman",serif; /* long-form article reading view only */
+
+  --text-display:clamp(38px,6vw,68px);
+  --text-h1:clamp(24px,2.7vw,34px);
+  --text-h2:28px;
+  --text-h3:20px;
+  --text-body-lg:18px;
+  --text-body:14px;
+  --text-body-sm:13px;
+  --text-caption:11px;
+  --text-micro:9px;
+
+  --weight-regular:400;
+  --weight-medium:500;
+  --weight-bold:700;
+  --weight-heavy:800;
+  --weight-black:900;
+
+  --leading-tight:.98;
+  --leading-snug:1.2;
+  --leading-normal:1.55;
+  --leading-relaxed:1.65;
+
+  --tracking-tightest:-.045em;
+  --tracking-tight:-.02em;
+  --tracking-wide:.08em;
+  --tracking-widest:.13em;
+}
+

@@ -1,14 +1,16 @@
 {
-    "version":  "1.1.0",
+    "version":  "1.4.1",
     "releaseNotes":  [
-                         "Instagram chatbot integration",
-                         "Real-time stats dashboard",
-                         "Instagram badge on orders",
-                         "Albania map visualization",
-                         "Automatic update support"
+                         "Albanian Invoice Scanner - Full Integration",
+                         "Smart product matching with live search",
+                         "Automatic stock deduction",
+                         "Firebase authentication fix",
+                         "Sales reports integration",
+                         "Warranty card support",
+                         "Customer history tracking"
                      ],
-    "downloadUrl":  "https://danfosal-app.web.app/downloads/danfosal-app-v1.1.0.apk",
-    "versionCode":  2,
-    "releaseDate":  "2025-11-11",
+    "downloadUrl":  "https://danfosal-app.web.app/downloads/danfosal-app-v1.4.1.apk",
+    "versionCode":  3,
+    "releaseDate":  "2026-02-09",
     "minSupportedVersion":  "1.0.0"
 }

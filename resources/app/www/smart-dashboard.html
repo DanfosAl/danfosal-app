@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📊 Smart Dashboard - Danfosal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="glassmorphism.css">
     <script src="smart-inventory.js" defer onerror="console.error('❌ Failed to load smart-inventory.js')" onload="console.log('✅ smart-inventory.js loaded')"></script>
@@ -382,27 +383,28 @@
             gap: 10px;
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body>
     <div class="header" style="max-width: 1400px; margin: 0 auto; position: relative;">
-        <h1>📊 Smart Dashboard</h1>
+        <h1><span class="material-symbols-outlined" style="vertical-align:-6px;">bar_chart</span> Smart Dashboard</h1>
         <div style="display: flex; gap: 10px;">
             <button class="glass-btn refresh-btn" onclick="loadAllData()">
-                🔄 Refresh
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">refresh</span> Refresh
             </button>
-            <a href="index.html" class="glass-btn">🏠 Home</a>
+            <a href="index.html" class="glass-btn"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">home</span> Home</a>
         </div>
     </div>
 
     <div class="container" style="max-width: 1400px; margin: 0 auto;">
         <!-- Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('overview')">📊 Overview</div>
-            <div class="tab" onclick="switchTab('reorder')">📦 Reorder Suggestions</div>
-            <div class="tab" onclick="switchTab('fastest')">🚀 Fastest Selling</div>
-            <div class="tab" onclick="switchTab('trending')">📈 Trending</div>
-            <div class="tab" onclick="switchTab('attention')">⚠️ Needs Attention</div>
-            <div class="tab" onclick="switchTab('forecast')">🔮 Forecast</div>
+            <div class="tab active" onclick="switchTab('overview')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">bar_chart</span> Overview</div>
+            <div class="tab" onclick="switchTab('reorder')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> Reorder Suggestions</div>
+            <div class="tab" onclick="switchTab('fastest')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">rocket_launch</span> Fastest Selling</div>
+            <div class="tab" onclick="switchTab('trending')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">trending_up</span> Trending</div>
+            <div class="tab" onclick="switchTab('attention')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">warning</span> Needs Attention</div>
+            <div class="tab" onclick="switchTab('forecast')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">insights</span> Forecast</div>
         </div>
 
         <!-- Loading State -->
@@ -419,7 +421,7 @@
         <!-- Reorder Suggestions Tab -->
         <div id="reorder-tab" class="tab-content">
             <div class="metric-card">
-                <h3>📦 Smart Reorder Suggestions</h3>
+                <h3><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> Smart Reorder Suggestions</h3>
                 <p style="opacity: 0.8; margin-bottom: 15px;">
                     Based on sales velocity and stock levels
                 </p>
@@ -430,7 +432,7 @@
         <!-- Fastest Selling Tab -->
         <div id="fastest-tab" class="tab-content">
             <div class="metric-card">
-                <h3>🚀 Top 10 Fastest Selling Products</h3>
+                <h3><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">rocket_launch</span> Top 10 Fastest Selling Products</h3>
                 <p style="opacity: 0.8; margin-bottom: 15px;">
                     Last 30 days performance
                 </p>
@@ -441,7 +443,7 @@
         <!-- Trending Tab -->
         <div id="trending-tab" class="tab-content">
             <div class="metric-card">
-                <h3>📈 Trending Products (Growing Sales)</h3>
+                <h3><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">trending_up</span> Trending Products (Growing Sales)</h3>
                 <p style="opacity: 0.8; margin-bottom: 15px;">
                     Products with increasing demand
                 </p>
@@ -452,7 +454,7 @@
         <!-- Needs Attention Tab -->
         <div id="attention-tab" class="tab-content">
             <div class="metric-card">
-                <h3>⚠️ Products Needing Attention</h3>
+                <h3><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">warning</span> Products Needing Attention</h3>
                 <p style="opacity: 0.8; margin-bottom: 15px;">
                     Stock issues, declining sales, or low profit margins
                 </p>
@@ -463,7 +465,7 @@
         <!-- Forecast Tab -->
         <div id="forecast-tab" class="tab-content">
             <div class="forecast-card">
-                <h3>🔮 30-Day Revenue Forecast</h3>
+                <h3><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">insights</span> 30-Day Revenue Forecast</h3>
                 <div class="forecast-grid" id="forecast-grid"></div>
             </div>
         </div>
@@ -472,7 +474,7 @@
         <div class="metric-card" style="grid-column: 1 / -1; border-left: 4px solid #10b981;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0; color: #34d399;">
-                    <span style="background: rgba(16, 185, 129, 0.2); padding: 8px; border-radius: 8px; margin-right: 10px;">🎯</span>
+                    <span class="material-symbols-outlined" style="background: rgba(16, 185, 129, 0.2); padding: 8px; border-radius: 8px; margin-right: 10px;">flag</span>
                     Daily Revenue Goal
                 </h3>
                 <div style="display: flex; align-items: center; gap: 10px;">

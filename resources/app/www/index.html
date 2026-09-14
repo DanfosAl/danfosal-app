@@ -7,69 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Danfosal Dashboard</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="css/tailwind-index.css">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "bg-main": "#0f172a", // Darker slate
-                        "bg-secondary": "#1e293b",
-                        "card-dark": "#1e293b",
-                        "accent-primary": "#6366f1", // Indigo
-                        "accent-secondary": "#ec4899", // Pink
-                        "accent-success": "#10b981", // Emerald
-                        "accent-warning": "#f59e0b", // Amber
-                        "accent-info": "#06b6d4", // Cyan
-                        "text-primary": "#f8fafc",
-                        "text-secondary": "#94a3b8",
-                        "text-tertiary": "#64748b",
-                    },
-                    fontFamily: {
-                        sans: ["Inter", "sans-serif"],
-                        display: ["Space Grotesk", "sans-serif"],
-                    },
-                    boxShadow: {
-                        'neon': '0 0 20px -5px rgba(99, 102, 241, 0.4)',
-                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15)',
-                    }
-                },
-            },
-        };
-    </script>
-    <style type="text/tailwindcss">
-        body {
-            @apply bg-bg-main text-text-primary;
-        }
-        .glass-morphism {
-            @apply bg-card-dark/60 backdrop-blur-xl border border-white/5;
-        }
-        .card-hover {
-            @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-neon hover:border-accent-primary/30;
-        }
-        .stat-value {
-            @apply font-display font-bold text-4xl tracking-tight;
-        }
-        .stat-label {
-            @apply text-sm font-medium text-text-secondary uppercase tracking-wider;
-        }
-        .action-card {
-            @apply relative overflow-hidden rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer border border-white/5;
-        }
-        .action-icon-bg {
-            @apply w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-    </style>
     <!-- Theme system removed for permanent dark mode -->
     <!-- Keyboard Navigation -->
     <script src="keyboard-navigation.js"></script>
@@ -595,6 +535,7 @@
         .icon-glow-orange { background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0) 70%); }
         .icon-glow-blue { background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0) 70%); }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="antialiased min-h-screen overflow-x-hidden selection:bg-accent-primary selection:text-white">
 <div class="fixed inset-0 pointer-events-none z-0">
@@ -627,7 +568,7 @@
         z-index: 2001;
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
     ">
-        <h3 style="color: white; font-weight: 700; margin-bottom: 1rem; font-size: 1rem;">⚡ Quick Actions</h3>
+        <h3 style="color: white; font-weight: 700; margin-bottom: 1rem; font-size: 1rem;"><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px; margin-right: 0.4rem;">bolt</span>Quick Actions</h3>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
             <button onclick="window.location.href='products.html'" style="
                 background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
@@ -639,7 +580,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📦 Add Product</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">inventory_2</span>Add Product</button>
             <button onclick="window.location.href='analytics.html'" style="
                 background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2));
                 color: white;
@@ -650,7 +591,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📊 View Analytics</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">bar_chart</span>View Analytics</button>
             <button onclick="window.location.href='advanced-analytics.html'" style="
                 background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(126, 34, 206, 0.2));
                 color: white;
@@ -661,7 +602,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📈 Advanced Analytics</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">ssid_chart</span>Advanced Analytics</button>
             <button onclick="window.location.href='smart-dashboard.html'" style="
                 background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
                 color: white;
@@ -672,8 +613,19 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">🤖 Smart Dashboard</button>
-            <button onclick="window.location.href='business-intelligence.html'" style="
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">smart_toy</span>Smart Dashboard</button>
+            <button onclick="window.location.href='loyalty-dashboard.html'" style="
+                background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+                color: white;
+                border: 1px solid rgba(251, 191, 36, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">loyalty</span>Customer Loyalty</button>
+            <button onclick="window.location.href='albanian-invoice-scanner.html'" style="
                 background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2));
                 color: white;
                 border: 1px solid rgba(236, 72, 153, 0.3);
@@ -683,7 +635,18 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">🧠 Business Intelligence</button>
+            ">🇦🇱 Albanian Invoice Scanner</button>
+            <button onclick="window.location.href='business-intelligence.html'" style="
+                background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(2, 132, 199, 0.2));
+                color: white;
+                border: 1px solid rgba(14, 165, 233, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">psychology</span>Business Intelligence</button>
             <button onclick="window.location.href='business-landscape.html'" style="
                 background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
                 color: white;
@@ -694,7 +657,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">🗺️ Business Landscape</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">map</span>Business Landscape</button>
             <button onclick="window.location.href='ai-dashboard.html'" style="
                 background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.2));
                 color: white;
@@ -705,7 +668,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">🤖 AI Command Center</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">smart_toy</span>AI Command Center</button>
             <button onclick="window.location.href='notes.html'" style="
                 background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
                 color: white;
@@ -716,7 +679,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📝 Notes & Tasks</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">edit_note</span>Notes & Tasks</button>
             <button onclick="window.location.href='customer-portal.html'" style="
                 background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(126, 34, 206, 0.2));
                 color: white;
@@ -727,7 +690,18 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📱 Customer Portal</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">contact_page</span>Customer Portal</button>
+            <button onclick="window.location.href='albanian-invoice-scanner.html'" style="
+                background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2));
+                color: white;
+                border: 1px solid rgba(236, 72, 153, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            ">🇦🇱 Albanian Invoice</button>
             <button onclick="window.location.href='import-sales-history.html'" style="
                 background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
                 color: white;
@@ -738,7 +712,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">📊 Import Sales History</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">upload_file</span>Import Sales History</button>
             <button onclick="window.location.href='settings.html'" style="
                 background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(202, 138, 4, 0.2));
                 color: white;
@@ -749,7 +723,7 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">⚙️ Settings</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">settings</span>Settings</button>
             <button id="refresh-data-btn" style="
                 background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2));
                 color: white;
@@ -760,7 +734,29 @@
                 transition: all 0.2s;
                 font-weight: 600;
                 text-align: left;
-            ">🔄 Refresh Data</button>
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">refresh</span>Refresh Data</button>
+            <button onclick="window.location.href='warranty-cards-list.html'" style="
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+                color: white;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">shield</span>Warranty Cards</button>
+            <button onclick="window.location.href='service-tickets.html'" style="
+                background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+                color: white;
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: 600;
+                text-align: left;
+            "><span class="material-symbols-outlined" style="font-size: 1.1rem; vertical-align: -3px; margin-right: 0.4rem;">build</span>Service Tickets</button>
         </div>
     </div>
 
@@ -880,6 +876,12 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Recently Visited (populated from localStorage, hidden until there's history) -->
+        <div id="recent-pages-section" style="display:none;" class="mb-6">
+            <h2 class="text-xs font-display font-semibold mb-3 text-text-secondary uppercase tracking-widest">Recently Visited</h2>
+            <div id="recent-pages-list" class="flex flex-wrap gap-2"></div>
         </div>
 
         <!-- Enhanced Dashboard Cards -->
@@ -1292,7 +1294,7 @@
                         break;
                     case 'o':
                         e.preventDefault();
-                        window.location.href = 'orders_online.html';
+                        window.location.href = 'online-orders.html';
                         break;
                 }
             }
@@ -1511,7 +1513,7 @@
             }
 
             // Show loading state
-            ticker.innerHTML = '<div class="ticker-item">🔄 Loading market data...</div>';
+            ticker.innerHTML = '<div class="ticker-item"><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">refresh</span> Loading market data...</div>';
             
             // Fetch fresh data
             await fetchAndUpdateTicker();
@@ -1526,14 +1528,14 @@
                 const user = window.auth ? window.auth.currentUser : null;
                 if (!user) {
                     console.warn("⚠️ Ticker skipped: User not authenticated");
-                    ticker.innerHTML = '<div class="ticker-item">🔄 Authenticating...</div>';
+                    ticker.innerHTML = '<div class="ticker-item"><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">refresh</span> Authenticating...</div>';
                     return;
                 }
 
                 // Wait for data to be loaded
                 if (!window.allOnlineOrders || !window.allProducts || !window.allStoreSales) {
                     console.log("⏳ Ticker waiting for data to load...");
-                    ticker.innerHTML = '<div class="ticker-item">⏳ Loading data...</div>';
+                    ticker.innerHTML = '<div class="ticker-item"><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">hourglass_empty</span> Loading data...</div>';
                     return;
                 }
 
@@ -1546,7 +1548,7 @@
                 ).length;
                 items.push(`
                     <div class="ticker-item">
-                        <span>📦 PENDING ORDERS</span>
+                        <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">shopping_cart</span> PENDING ORDERS</span>
                         <span class="ticker-value">${pendingOrders}</span>
                     </div>
                 `);
@@ -1558,7 +1560,7 @@
                 if (lowStockItems.length > 0) {
                     items.push(`
                         <div class="ticker-item">
-                            <span>⚠️ LOW STOCK</span>
+                            <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">warning</span> LOW STOCK</span>
                             <span class="ticker-value">${lowStockItems.length} Items</span>
                         </div>
                     `);
@@ -1567,7 +1569,7 @@
                 // 3. Total Products
                 items.push(`
                     <div class="ticker-item">
-                        <span>📦 PRODUCTS</span>
+                        <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">inventory_2</span> PRODUCTS</span>
                         <span class="ticker-value">${window.allProducts.length}</span>
                     </div>
                 `);
@@ -1593,7 +1595,7 @@
 
                 items.push(`
                     <div class="ticker-item">
-                        <span>💰 TODAY'S REVENUE</span>
+                        <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">payments</span> TODAY'S REVENUE</span>
                         <span class="ticker-value">€${todayRevenue.toFixed(2)}</span>
                     </div>
                 `);
@@ -1601,7 +1603,7 @@
                 // 5. System Status
                 items.push(`
                     <div class="ticker-item">
-                        <span>✅ SYSTEM</span>
+                        <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">check_circle</span> SYSTEM</span>
                         <span class="ticker-value">Online</span>
                     </div>
                 `);
@@ -1621,7 +1623,7 @@
                 if (cachedContent) {
                     ticker.innerHTML = cachedContent;
                 } else {
-                    ticker.innerHTML = '<div class="ticker-item">⚡ System Online • Data loading...</div>';
+                    ticker.innerHTML = '<div class="ticker-item"><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">bolt</span> System Online • Data loading...</div>';
                 }
             }
         }
@@ -1635,6 +1637,75 @@
                 updateTicker();
             }
         });
+    </script>
+    
+    <!-- PDF.js for AI Chatbot PDF processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            window.pdfjsLib = pdfjsLib;
+        }
+    </script>
+
+    <!-- Receipt Watcher IPC Listener -->
+    <script src="receipt-listener.js"></script>
+
+    <!-- Recently Visited dashboard shortcut (self-contained, localStorage-based) -->
+    <script>
+        (function () {
+            const STORAGE_KEY = 'danfosalRecentPages';
+            const MAX_ITEMS = 4;
+
+            function getRecent() {
+                try {
+                    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function renderRecent() {
+                const list = getRecent();
+                const section = document.getElementById('recent-pages-section');
+                const container = document.getElementById('recent-pages-list');
+                if (!section || !container) return;
+
+                if (list.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                container.innerHTML = list.map(item => `
+                    <a href="${item.href}" class="px-3 py-1.5 rounded-full text-sm text-text-secondary bg-white/5 border border-white/10 hover:bg-white/10 hover:text-text-primary transition-colors">
+                        ${item.label}
+                    </a>
+                `).join('');
+                section.style.display = 'block';
+            }
+
+            function recordVisit(href, label) {
+                let list = getRecent().filter(item => item.href !== href);
+                list.unshift({ href, label });
+                list = list.slice(0, MAX_ITEMS);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                renderRecent();
+
+                const grid = document.getElementById('dashboard-grid');
+                if (grid) {
+                    grid.addEventListener('click', (e) => {
+                        const link = e.target.closest('a[href]');
+                        if (!link) return;
+                        const heading = link.querySelector('h3, h2');
+                        const label = heading ? heading.textContent.trim() : link.getAttribute('href');
+                        recordVisit(link.getAttribute('href'), label);
+                    });
+                }
+            });
+        })();
     </script>
 </body>
 </html>

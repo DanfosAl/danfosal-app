@@ -1,0 +1,68 @@
+:root{
+  /* base palette — Bold redesign: high-contrast, saturated, energetic */
+  --violet-50:#efe7ff;
+  --violet-400:#8a4dff;
+  --violet-500:#6e3aff;
+  --violet-600:#5b21f5;
+  --violet-700:#4614c4;
+  --yellow-300:#ffd75e;
+  --yellow-400:#ffc93c;
+  --yellow-100:#fff3d1;
+  --cyan-500:#00c2a8;
+  --orange-500:#ff5b2e;
+  --pink-500:#ff3d81;
+  --blue-500:#2f6fff;
+  --green-600:#12b76a;
+  --green-700:#0a9c58;
+  --red-500:#f0384a;
+  --ink-900:#0e0b1f;
+  --ink-050:#ffffff;
+  --gray-400:#6b667e;
+  --gray-300:#b7b0d6;
+  --gray-100:#e7e2fa;
+  --paper-050:#fbfaff;
+
+  /* semantic aliases — light (default) theme */
+  --color-accent:var(--violet-600);
+  --color-accent-strong:var(--violet-700);
+  --color-accent-soft:var(--violet-50);
+  --color-brand-yellow:var(--yellow-400);
+  --color-brand-yellow-soft:var(--yellow-100);
+  --fg-primary:var(--ink-900);
+  --fg-muted:var(--gray-400);
+  --fg-faint:var(--gray-300);
+  --fg-on-accent:#ffffff;
+  --surface-page:var(--paper-050);
+  --surface-card:#ffffff;
+  --surface-sunken:#f5f2ff;
+  --surface-field:#f7f5ff;
+  --border-default:var(--gray-100);
+  --border-focus:var(--violet-600);
+  --color-success:var(--green-600);
+  --color-success-soft:#dffbea;
+  --color-danger:var(--red-500);
+  --color-danger-soft:#ffe4e7;
+  --color-warning:#a8710a;
+  --color-warning-soft:#fff1d6;
+  --color-info:var(--blue-500);
+  --shadow-tint:rgba(94,33,245,.16);
+
+  /* section accent map — bolder, more saturated per-group hues */
+  --accent-ai:var(--violet-600);
+  --accent-sales:var(--orange-500);
+  --accent-catalog:var(--cyan-500);
+  --accent-insights:var(--blue-500);
+  --accent-marketing:var(--pink-500);
+}
+
+body.theme-night{
+  --fg-primary:#f5f3ff;
+  --fg-muted:#b3aad4;
+  --fg-faint:#7c72a3;
+  --surface-page:#120e24;
+  --surface-card:#1c1533;
+  --surface-sunken:#241a42;
+  --surface-field:#241a42;
+  --border-default:#382a5c;
+  --shadow-tint:rgba(0,0,0,.4);
+}

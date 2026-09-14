@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Danfosal App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,6 +15,7 @@
     <script src="back-button-handler.js" defer></script>
     <script src="notifications.js"></script>
     <script src="whatsapp-integration.js"></script>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="text-white min-h-screen p-4 md:p-8">
 
@@ -39,7 +41,7 @@
         <!-- Theme Style Section -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">🎨</span>
+                <span class="material-symbols-outlined text-3xl mr-3">palette</span>
                 Appearance Theme
             </h2>
             <div class="space-y-4">
@@ -59,7 +61,7 @@
                         <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='glassmorphism'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
                             <div class="aspect-video rounded-lg border-2 border-gray-600 overflow-hidden mb-2" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%); backdrop-filter: blur(10px);">
                                 <div class="h-full flex items-center justify-center">
-                                    <div class="text-4xl">🌟</div>
+                                    <div class="text-4xl"><span class="material-symbols-outlined" style="font-size:1em;">auto_awesome</span></div>
                                 </div>
                             </div>
                             <p class="text-sm font-semibold">Glassmorphism</p>
@@ -69,7 +71,7 @@
                         <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='steampunk'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
                             <div class="aspect-video rounded-lg border-2 border-gray-600 overflow-hidden mb-2" style="background: linear-gradient(135deg, #2d1b0e 0%, #4a2c1a 50%); border-color: #b8860b;">
                                 <div class="h-full flex items-center justify-center">
-                                    <div class="text-4xl">⚙️</div>
+                                    <div class="text-4xl"><span class="material-symbols-outlined" style="font-size:1em;">settings</span></div>
                                 </div>
                             </div>
                             <p class="text-sm font-semibold">Steampunk</p>
@@ -79,7 +81,7 @@
                         <div class="text-center cursor-pointer" onclick="document.getElementById('style-switcher').value='diorama'; document.getElementById('style-switcher').dispatchEvent(new Event('change'))">
                             <div class="aspect-video rounded-lg border-2 overflow-hidden mb-2" style="background: linear-gradient(135deg, #0a192f 0%, #2d5a7b 50%); border-color: #4fd1c5; box-shadow: 0 0 20px rgba(79, 209, 197, 0.3);">
                                 <div class="h-full flex items-center justify-center">
-                                    <div class="text-4xl">🎨</div>
+                                    <div class="text-4xl"><span class="material-symbols-outlined" style="font-size:1em;">palette</span></div>
                                 </div>
                             </div>
                             <p class="text-sm font-semibold">Diorama</p>
@@ -89,7 +91,7 @@
                 
                 <div class="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
                     <p class="text-sm text-blue-300">
-                        💡 <strong>Tip:</strong> Use <code class="bg-black/30 px-2 py-1 rounded">Ctrl+Shift+S</code> to quickly switch between themes!
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">lightbulb</span> <strong>Tip:</strong> Use <code class="bg-black/30 px-2 py-1 rounded">Ctrl+Shift+S</code> to quickly switch between themes!
                     </p>
                 </div>
             </div>
@@ -98,7 +100,7 @@
         <!-- Notifications Section -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">🔔</span>
+                <span class="material-symbols-outlined text-3xl mr-3">notifications</span>
                 Push Notifications
             </h2>
             <div class="space-y-4">
@@ -125,7 +127,7 @@
                 </div>
 
                 <button id="test-notification" class="glass-btn w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-semibold">
-                    🧪 Test Notification
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">science</span> Test Notification
                 </button>
             </div>
         </div>
@@ -133,7 +135,7 @@
         <!-- WhatsApp Integration -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">📱</span>
+                <span class="material-symbols-outlined text-3xl mr-3">smartphone</span>
                 WhatsApp Integration
             </h2>
             <div class="space-y-4">
@@ -147,7 +149,7 @@
                         class="glass-input w-full"
                         value="">
                     <button id="save-whatsapp" class="glass-btn mt-3 bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-semibold">
-                        💾 Save Number
+                        <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">save</span> Save Number
                     </button>
                 </div>
 
@@ -165,7 +167,7 @@
         <!-- Theme Customization -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">🎨</span>
+                <span class="material-symbols-outlined text-3xl mr-3">palette</span>
                 Theme Customization
             </h2>
             
@@ -178,10 +180,10 @@
 
             <div class="flex gap-3">
                 <button id="export-theme" class="glass-btn bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex-1">
-                    📤 Export Current Theme
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">file_upload</span> Export Current Theme
                 </button>
                 <button id="import-theme" class="glass-btn bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold flex-1">
-                    📥 Import Theme
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">file_download</span> Import Theme
                 </button>
             </div>
             <input type="file" id="theme-file-input" accept=".json" class="hidden">
@@ -190,7 +192,7 @@
         <!-- Advanced Analytics Settings -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">📈</span>
+                <span class="material-symbols-outlined text-3xl mr-3">trending_up</span>
                 Advanced Analytics
             </h2>
             <div class="space-y-4">
@@ -204,7 +206,7 @@
                 </div>
 
                 <a href="advanced-analytics.html" class="glass-btn block text-center bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
-                    📊 View Advanced Analytics Dashboard
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">bar_chart</span> View Advanced Analytics Dashboard
                 </a>
             </div>
         </div>
@@ -212,13 +214,13 @@
         <!-- Advanced Features -->
         <div class="glass-container mb-6">
             <h2 class="text-2xl font-bold mb-4 flex items-center">
-                <span class="text-3xl mr-3">⚡</span>
+                <span class="material-symbols-outlined text-3xl mr-3">bolt</span>
                 Advanced Features
             </h2>
             <div class="space-y-4">
                 <div class="flex items-center justify-between p-4 glass-card">
                     <div>
-                        <h3 class="font-semibold text-lg">Auto Dark Mode 🌙</h3>
+                        <h3 class="font-semibold text-lg">Auto Dark Mode <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">dark_mode</span></h3>
                         <p class="text-sm text-gray-400">Automatically switch to dark mode at night (8 PM - 6 AM)</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -229,7 +231,7 @@
 
                 <div class="flex items-center justify-between p-4 glass-card">
                     <div>
-                        <h3 class="font-semibold text-lg">Follow System Theme 🖥️</h3>
+                        <h3 class="font-semibold text-lg">Follow System Theme <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">desktop_windows</span></h3>
                         <p class="text-sm text-gray-400">Use your device's dark/light mode preference</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -240,7 +242,7 @@
 
                 <div class="flex items-center justify-between p-4 glass-card">
                     <div>
-                        <h3 class="font-semibold text-lg">Pull to Refresh 🔄</h3>
+                        <h3 class="font-semibold text-lg">Pull to Refresh <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">refresh</span></h3>
                         <p class="text-sm text-gray-400">Swipe down to refresh pages on mobile</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -251,7 +253,7 @@
 
                 <div class="flex items-center justify-between p-4 glass-card">
                     <div>
-                        <h3 class="font-semibold text-lg">Long Press Menus 👆</h3>
+                        <h3 class="font-semibold text-lg">Long Press Menus <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">touch_app</span></h3>
                         <p class="text-sm text-gray-400">Hold items for quick actions (copy, share, delete)</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -262,7 +264,7 @@
 
                 <div class="flex items-center justify-between p-4 glass-card">
                     <div>
-                        <h3 class="font-semibold text-lg">Reading Mode 📖</h3>
+                        <h3 class="font-semibold text-lg">Reading Mode <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">menu_book</span></h3>
                         <p class="text-sm text-gray-400">Larger text and better spacing for easy reading</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -273,7 +275,7 @@
 
                 <div class="p-3 bg-purple-900/30 border border-purple-500/50 rounded-lg">
                     <p class="text-sm text-purple-300">
-                        💡 <strong>Tip:</strong> These features enhance your mobile and desktop experience!
+<span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">lightbulb</span> <strong>Tip:</strong> These features enhance your mobile and desktop experience!
                     </p>
                 </div>
             </div>
@@ -290,14 +292,14 @@
                 <p><strong>Last Updated:</strong> October 31, 2025</p>
                 <p><strong>Latest Features:</strong></p>
                 <ul class="list-disc list-inside ml-4 space-y-1 text-sm">
-                    <li>📱 Customer Portal with order tracking</li>
-                    <li>🤖 Smart Order System with AI suggestions</li>
-                    <li>🌙 Auto dark mode at night</li>
-                    <li>🔄 Pull to refresh</li>
-                    <li>👆 Long press menus</li>
-                    <li>📖 Reading mode</li>
-                    <li>⭐ Reorder favorite products</li>
-                    <li>📍 Saved delivery addresses</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">contact_page</span> Customer Portal with order tracking</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">smart_toy</span> Smart Order System with AI suggestions</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">dark_mode</span> Auto dark mode at night</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">refresh</span> Pull to refresh</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">touch_app</span> Long press menus</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">menu_book</span> Reading mode</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">star</span> Reorder favorite products</li>
+                    <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">location_on</span> Saved delivery addresses</li>
                 </ul>
             </div>
         </div>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🛒 Smart Order List - Danfosal App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <link rel="stylesheet" href="glassmorphism.css">
     <script src="keyboard-navigation.js"></script>
@@ -79,7 +80,6 @@
         }
         
         .btn-smart:hover {
-        .btn-smart:hover {
             box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
             background: linear-gradient(135deg, #059669, #047857);
         }
@@ -151,15 +151,19 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body>
     <div class="header" style="max-width: 1400px; margin: 0 auto; position: relative;">
-        <h1>🛒 Smart Order List</h1>
+        <h1><span class="material-symbols-outlined" style="vertical-align:-6px;">shopping_cart</span> Smart Order List</h1>
         <div style="display: flex; gap: 10px;">
             <button class="btn-smart" onclick="loadSmartSuggestions()">
-                🤖 Auto-Add Smart Suggestions
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">smart_toy</span> Auto-Add Smart Suggestions
             </button>
-            <a href="index.html" class="glass-btn">🏠 Dashboard</a>
+            <button class="btn-smart" onclick="window.location.href='smart-prediction.html'" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">bar_chart</span> Annual Prediction & Reports
+            </button>
+            <a href="index.html" class="glass-btn"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">home</span> Dashboard</a>
         </div>
     </div>
 
@@ -186,7 +190,7 @@
 
         <!-- Add Item Form -->
         <div class="card" style="margin-bottom: 20px;">
-            <h3 style="color: #f97316; margin-bottom: 15px;">➕ Add Item to Order List</h3>
+            <h3 style="color: #f97316; margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">add</span> Add Item to Order List</h3>
             <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end;">
                 <div>
                     <label style="display: block; margin-bottom: 6px; font-size: 0.9rem;">Product</label>
@@ -203,7 +207,7 @@
 
         <!-- Filter by Supplier -->
         <div style="margin-bottom: 20px;">
-            <h4 style="margin-bottom: 10px;">📦 Filter by Supplier:</h4>
+            <h4 style="margin-bottom: 10px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> Filter by Supplier:</h4>
             <div id="filter-container" style="display: flex; flex-wrap: wrap; gap: 10px;">
                 <!-- Filter buttons will be dynamically generated -->
             </div>

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Analytics - Danfosal App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -12,6 +13,7 @@
     <script src="back-button-handler.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="advanced-analytics.js"></script>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="min-h-screen p-4 md:p-8 theme-transition">
 
@@ -56,7 +58,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('profit-margin-content', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">💰</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">payments</span>
                         Profit Margin Analysis
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -70,7 +72,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('product-performance-content', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">📦</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">inventory_2</span>
                         Product Performance
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -84,7 +86,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('forecast-wrapper', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">🔮</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">insights</span>
                         Sales Forecast (Next 30 Days)
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -101,7 +103,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('ltv-content', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">👥</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">group</span>
                         Customer Lifetime Value (LTV)
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -115,7 +117,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('peak-hours-wrapper', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">⏰</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">schedule</span>
                         Peak Hours Analysis
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -132,7 +134,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('geographic-content', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">🗺️</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">map</span>
                         Geographic Analysis
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -146,7 +148,7 @@
             <div class="glass-container">
                 <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('dead-stock-content', this)">
                     <h2 class="text-2xl font-bold flex items-center text-red-400">
-                        <span class="text-3xl mr-3">🧟</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">remove_shopping_cart</span>
                         Dead Stock (Unsold > 60 Days)
                     </h2>
                     <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -156,11 +158,25 @@
                 </div>
             </div>
 
+            <!-- Rising Supplier Costs -->
+            <div class="glass-container">
+                <div class="flex justify-between items-center cursor-pointer mb-4" onclick="toggleSection('rising-costs-content', this)">
+                    <h2 class="text-2xl font-bold flex items-center text-orange-400">
+                        <span class="material-symbols-outlined text-3xl mr-3">trending_up</span>
+                        Rising Supplier Costs
+                    </h2>
+                    <svg class="w-6 h-6 transform transition-transform duration-200 chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="rising-costs-content" class="overflow-x-auto hidden">
+                    <!-- Content will be populated here -->
+                </div>
+            </div>
+
             <!-- Competitor Price Monitor -->
             <div class="glass-container">
                 <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="toggleSection('competitor-content-wrapper', this)">
                     <h2 class="text-2xl font-bold flex items-center">
-                        <span class="text-3xl mr-3">🕵️</span>
+                        <span class="material-symbols-outlined text-3xl mr-3">visibility</span>
                         Competitor Spy
                     </h2>
                     <div class="flex items-center gap-3">
@@ -297,6 +313,7 @@
                 renderPeakHours();
                 renderGeographic();
                 renderDeadStock();
+                renderRisingCosts();
                 renderCompetitorSpy();
 
                 document.getElementById('loading').classList.add('hidden');
@@ -670,6 +687,54 @@
                 }
                 deadStockContainer.innerHTML = html;
             }
+        }
+
+        function renderRisingCosts() {
+            const rising = analytics.identifyRisingCosts(10, 2);
+            const container = document.getElementById('rising-costs-content');
+
+            if (rising.length === 0) {
+                container.innerHTML = '<p class="text-green-400 p-4">✅ No supplier costs rising — restock prices have held steady.</p>';
+                return;
+            }
+
+            const worst = rising[0];
+            let html = `
+                <div class="mb-4 p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
+                    <p class="text-orange-200">⚠️ <strong>${rising.length}</strong> product${rising.length === 1 ? '' : 's'} restocking at a higher cost than before — worst: <strong>${worst.name}</strong> up ${worst.increasePercent.toFixed(1)}%.</p>
+                </div>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="p-3">Product</th>
+                            <th class="p-3">Prior Avg Cost</th>
+                            <th class="p-3">Latest Cost</th>
+                            <th class="p-3">Change</th>
+                            <th class="p-3">Last Restock</th>
+                            <th class="p-3">Supplier</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+            `;
+
+            rising.slice(0, 10).forEach(item => {
+                html += `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+                        <td class="p-3 font-medium text-white">${item.name}</td>
+                        <td class="p-3 text-gray-300">€${item.previousAvgCost.toFixed(2)}</td>
+                        <td class="p-3 text-gray-300">€${item.latestCost.toFixed(2)}</td>
+                        <td class="p-3 text-orange-400 font-bold">+${item.increasePercent.toFixed(1)}%</td>
+                        <td class="p-3 text-gray-400">${item.latestDate}</td>
+                        <td class="p-3 text-gray-400">${item.supplier || '—'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            if (rising.length > 10) {
+                html += `<p class="text-center text-gray-500 mt-2 text-xs">Showing top 10 of ${rising.length} items</p>`;
+            }
+            container.innerHTML = html;
         }
 
         function renderCompetitorSpy() {

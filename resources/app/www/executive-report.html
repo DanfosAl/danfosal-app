@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Report - Danfos Sh.P.K.</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .report-container {
+            width: 210mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            padding: 20mm;
+            page-break-after: always;
+            background: white;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* Header */
+        .report-header {
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .report-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .report-subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .report-date {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .kpi-card.positive {
+            border-left-color: #10b981;
+        }
+
+        .kpi-card.negative {
+            border-left-color: #ef4444;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-change {
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .kpi-change.positive {
+            color: #10b981;
+        }
+
+        .kpi-change.negative {
+            color: #ef4444;
+        }
+
+        /* Section */
+        .section {
+            margin: 40px 0;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .chart-small {
+            height: 200px;
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+
+        .data-table thead {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .data-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Product Badge */
+        .product-rank {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #000;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #94a3b8, #64748b);
+            color: #000;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #fb923c, #f97316);
+            color: #000;
+        }
+
+        .rank-default {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        /* Growth Indicator */
+        .growth-positive {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .growth-negative {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .report-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* Heatmap */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin: 20px 0;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .heatmap-label {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .report-container {
+                box-shadow: none;
+                width: 100%;
+            }
+
+            .page {
+                page-break-after: always;
+            }
+
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+    </style>
+    <script type="module" src="global-search.js" defer></script>
+</head>
+<body>
+    <div class="report-container">
+        <!-- PAGE 1: Executive Summary -->
+        <div class="page">
+            <div class="report-header">
+                <div class="report-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">bar_chart</span> Raporti Ekzekutiv</div>
+                <div class="report-subtitle">Danfos Sh.P.K. - Analiza e Shitjeve dhe Parashikime</div>
+                <div class="report-date" id="report-date">Generated: --</div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-total-revenue">€0</div>
+                    <div class="kpi-label">Total Revenue</div>
+                    <div class="kpi-change positive" id="kpi-revenue-change">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-total-transactions">0</div>
+                    <div class="kpi-label">Total Transactions</div>
+                    <div class="kpi-change" id="kpi-transactions-change">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-avg-order">€0</div>
+                    <div class="kpi-label">Average Order Value</div>
+                    <div class="kpi-change" id="kpi-aov-change">--</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-predicted">€0</div>
+                    <div class="kpi-label">30-Day Forecast</div>
+                </div>
+            </div>
+
+            <!-- Revenue Trend Chart -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">trending_up</span> Revenue Trend (Last 6 Months)</div>
+                <div class="chart-container">
+                    <canvas id="revenueTrendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Growth Comparison -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">refresh</span> Period-over-Period Comparison</div>
+                <div class="chart-container chart-small">
+                    <canvas id="growthComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 2: Product Analysis -->
+        <div class="page">
+            <div class="report-header">
+                <div class="report-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">inventory_2</span> Product Performance</div>
+                <div class="report-subtitle">Winners & Losers Analysis</div>
+            </div>
+
+            <!-- Winners -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">rocket_launch</span> Top 5 Product Winners (Revenue Growth)</div>
+                <table class="data-table" id="winners-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Product</th>
+                            <th>Code</th>
+                            <th>Current Revenue</th>
+                            <th>Growth %</th>
+                            <th>Units Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Losers -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">trending_down</span> Top 5 Product Losers (Revenue Decline)</div>
+                <table class="data-table" id="losers-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Product</th>
+                            <th>Code</th>
+                            <th>Current Revenue</th>
+                            <th>Decline %</th>
+                            <th>Units Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Product Growth Chart -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">bar_chart</span> Winners vs Losers Comparison</div>
+                <div class="chart-container">
+                    <canvas id="productGrowthChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 3: Temporal Analysis & Predictions -->
+        <div class="page">
+            <div class="report-header">
+                <div class="report-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">schedule</span> Temporal Analysis</div>
+                <div class="report-subtitle">Sales Patterns by Day & Time</div>
+            </div>
+
+            <!-- Day of Week -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">calendar_today</span> Sales by Day of Week</div>
+                <div class="chart-container chart-small">
+                    <canvas id="dayOfWeekChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Hour of Day -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">schedule</span> Sales by Hour of Day</div>
+                <div class="chart-container chart-small">
+                    <canvas id="hourOfDayChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sales Prediction -->
+            <div class="section">
+                <div class="section-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">insights</span> 30-Day Sales Forecast</div>
+                <div class="chart-container">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="report-footer">
+                <p><strong>Danfos Sh.P.K.</strong> - Executive Analytics Report</p>
+                <p>Generated with Smart Brain Analytics Engine</p>
+                <p id="footer-timestamp">--</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This will be populated by the export service
+        const REPORT_DATA = window.REPORT_DATA || null;
+
+        if (REPORT_DATA) {
+            initializeReport(REPORT_DATA);
+        }
+
+        function initializeReport(data) {
+            // Set dates
+            const now = new Date();
+            document.getElementById('report-date').textContent = 
+                `Generated: ${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB')}`;
+            document.getElementById('footer-timestamp').textContent = 
+                now.toLocaleString('en-GB');
+
+            // Populate KPIs
+            document.getElementById('kpi-total-revenue').textContent = 
+                '€' + data.summary.totalRevenue.toFixed(0);
+            document.getElementById('kpi-total-transactions').textContent = 
+                data.summary.totalTransactions;
+            document.getElementById('kpi-avg-order').textContent = 
+                '€' + data.summary.averageOrderValue.toFixed(2);
+            document.getElementById('kpi-predicted').textContent = 
+                '€' + data.salesPrediction.totalPredicted.toFixed(0);
+
+            // Growth indicators
+            setGrowthIndicator('kpi-revenue-change', data.growthTrends.growth.revenue);
+            setGrowthIndicator('kpi-transactions-change', data.growthTrends.growth.transactions);
+            setGrowthIndicator('kpi-aov-change', data.growthTrends.growth.averageOrderValue);
+
+            // Render charts
+            renderRevenueTrendChart(data);
+            renderGrowthComparisonChart(data);
+            renderProductGrowthChart(data);
+            renderDayOfWeekChart(data);
+            renderHourOfDayChart(data);
+            renderPredictionChart(data);
+
+            // Populate tables
+            populateWinnersTable(data.productVelocity.winners);
+            populateLosersTable(data.productVelocity.losers);
+        }
+
+        function setGrowthIndicator(elementId, value) {
+            const el = document.getElementById(elementId);
+            const className = value >= 0 ? 'positive' : 'negative';
+            const sign = value >= 0 ? '+' : '';
+            el.className = `kpi-change ${className}`;
+            el.textContent = `${sign}${value.toFixed(1)}%`;
+        }
+
+        function renderRevenueTrendChart(data) {
+            const ctx = document.getElementById('revenueTrendChart').getContext('2d');
+            
+            // Use historical data from prediction
+            const historical = data.salesPrediction.historicalData;
+            const labels = historical.map((_, i) => `Day ${i + 1}`);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.slice(-60), // Last 60 days
+                    datasets: [{
+                        label: 'Daily Revenue',
+                        data: historical.slice(-60),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => '€' + value.toFixed(0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderGrowthComparisonChart(data) {
+            const ctx = document.getElementById('growthComparisonChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Revenue', 'Transactions', 'AOV'],
+                    datasets: [{
+                        label: 'Growth %',
+                        data: [
+                            data.growthTrends.growth.revenue,
+                            data.growthTrends.growth.transactions,
+                            data.growthTrends.growth.averageOrderValue
+                        ],
+                        backgroundColor: [
+                            data.growthTrends.growth.revenue >= 0 ? '#10b981' : '#ef4444',
+                            data.growthTrends.growth.transactions >= 0 ? '#10b981' : '#ef4444',
+                            data.growthTrends.growth.averageOrderValue >= 0 ? '#10b981' : '#ef4444'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: value => value + '%'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderProductGrowthChart(data) {
+            const ctx = document.getElementById('productGrowthChart').getContext('2d');
+            
+            const winners = data.productVelocity.winners.slice(0, 5);
+            const losers = data.productVelocity.losers.slice(0, 5);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [...winners.map(p => p.name), ...losers.map(p => p.name)],
+                    datasets: [{
+                        label: 'Revenue Growth %',
+                        data: [...winners.map(p => p.revenueGrowth), ...losers.map(p => p.revenueGrowth)],
+                        backgroundColor: (context) => {
+                            return context.raw >= 0 ? '#10b981' : '#ef4444';
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                callback: value => value + '%'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderDayOfWeekChart(data) {
+            const ctx = document.getElementById('dayOfWeekChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.temporalAnalysis.dayOfWeek.map(d => d.day),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.temporalAnalysis.dayOfWeek.map(d => d.revenue),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => '€' + value.toFixed(0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHourOfDayChart(data) {
+            const ctx = document.getElementById('hourOfDayChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.temporalAnalysis.hourOfDay.map(h => h.hour + ':00'),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.temporalAnalysis.hourOfDay.map(h => h.revenue),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => '€' + value.toFixed(0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPredictionChart(data) {
+            const ctx = document.getElementById('predictionChart').getContext('2d');
+            
+            const predictions = data.salesPrediction.predictions;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: predictions.map(p => p.date.substring(5)), // MM-DD
+                    datasets: [{
+                        label: 'Predicted Revenue',
+                        data: predictions.map(p => p.predictedRevenue),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => '€' + value.toFixed(0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateWinnersTable(winners) {
+            const tbody = document.querySelector('#winners-table tbody');
+            tbody.innerHTML = winners.slice(0, 5).map((product, index) => {
+                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : 'rank-default';
+                return `
+                    <tr>
+                        <td><span class="product-rank ${rankClass}">${index + 1}</span></td>
+                        <td>${product.name}</td>
+                        <td>${product.code || '-'}</td>
+                        <td>€${product.currentRevenue.toFixed(2)}</td>
+                        <td class="growth-positive">+${product.revenueGrowth.toFixed(1)}%</td>
+                        <td>${product.currentQuantity}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function populateLosersTable(losers) {
+            const tbody = document.querySelector('#losers-table tbody');
+            tbody.innerHTML = losers.slice(0, 5).map((product, index) => {
+                return `
+                    <tr>
+                        <td><span class="product-rank rank-default">${index + 1}</span></td>
+                        <td>${product.name}</td>
+                        <td>${product.code || '-'}</td>
+                        <td>€${product.currentRevenue.toFixed(2)}</td>
+                        <td class="growth-negative">${product.revenueGrowth.toFixed(1)}%</td>
+                        <td>${product.currentQuantity}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

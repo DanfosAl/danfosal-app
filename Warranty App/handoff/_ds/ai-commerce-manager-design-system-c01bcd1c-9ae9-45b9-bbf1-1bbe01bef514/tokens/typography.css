@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root{
+  --font-sans:"Plus Jakarta Sans",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-display:"Space Grotesk",var(--font-sans); /* bold headings, stat numbers, wordmark */
+  --font-serif-reading:Georgia,"Times New Roman",serif; /* long-form article reading view only */
+
+  --text-display:clamp(38px,6vw,68px);
+  --text-h1:clamp(24px,2.7vw,34px);
+  --text-h2:28px;
+  --text-h3:20px;
+  --text-body-lg:18px;
+  --text-body:14px;
+  --text-body-sm:13px;
+  --text-caption:11px;
+  --text-micro:9px;
+
+  --weight-regular:400;
+  --weight-medium:500;
+  --weight-bold:700;
+  --weight-heavy:800;
+  --weight-black:900;
+
+  --leading-tight:.98;
+  --leading-snug:1.2;
+  --leading-normal:1.55;
+  --leading-relaxed:1.65;
+
+  --tracking-tightest:-.045em;
+  --tracking-tight:-.02em;
+  --tracking-wide:.08em;
+  --tracking-widest:.13em;
+}

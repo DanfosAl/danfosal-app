@@ -1027,7 +1027,54 @@ class AdvancedAnalytics {
         return deadStock.sort((a, b) => b.value - a.value);
     }
 
-    // 6. Competitor Data Fetching
+    // 6. Rising supplier cost detection — flags products whose most recent restock cost jumped
+    // meaningfully above their own prior restock history, using each product's `batches` log
+    // (each entry: {cost, date, invoice, quantity, supplier}). Needs at least `minBatches`
+    // restocks to have anything to compare against; a single purchase has no trend.
+    identifyRisingCosts(minIncreasePercent = 10, minBatches = 2) {
+        if (!Array.isArray(this.products)) {
+            return [];
+        }
+
+        const rising = [];
+
+        this.products.forEach(product => {
+            const rawBatches = Array.isArray(product.batches) ? product.batches : [];
+            // Opening-balance / stock-take entries (cost 0, invoice "LEGACY_STOCK") aren't real
+            // purchases — averaging them in against real restock costs produces a fake "100%
+            // increase" on every product that has one, which is exactly what an early version
+            // of this method did. Only real purchases (a positive cost) count toward the trend.
+            const batches = rawBatches.filter(b => (parseFloat(b.cost) || 0) > 0);
+            if (batches.length < minBatches) return;
+
+            const sorted = [...batches].sort((a, b) => (a.date || 0) - (b.date || 0));
+            const latest = sorted[sorted.length - 1];
+            const previous = sorted.slice(0, -1);
+            const avgPreviousCost = previous.reduce((sum, b) => sum + (parseFloat(b.cost) || 0), 0) / previous.length;
+            const latestCost = parseFloat(latest.cost) || 0;
+
+            if (avgPreviousCost <= 0 || latestCost <= 0) return;
+
+            const increasePercent = ((latestCost - avgPreviousCost) / avgPreviousCost) * 100;
+            if (increasePercent >= minIncreasePercent) {
+                rising.push({
+                    name: product.name,
+                    producer: product.producer || '',
+                    previousAvgCost: avgPreviousCost,
+                    latestCost: latestCost,
+                    increasePercent: increasePercent,
+                    latestDate: latest.date ? new Date(latest.date).toLocaleDateString() : 'N/A',
+                    supplier: latest.supplier || '',
+                    batchCount: sorted.length
+                });
+            }
+        });
+
+        // Sort by steepest increase first
+        return rising.sort((a, b) => b.increasePercent - a.increasePercent);
+    }
+
+    // 7. Competitor Data Fetching
     async fetchCompetitorData() {
         try {
             const { collection, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");

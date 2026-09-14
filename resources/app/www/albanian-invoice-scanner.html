@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albanian Invoice Scanner - Platforma Qendrore e Faturave</title>
+    <link rel="stylesheet" href="css/tailwind-default.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+    <!-- PDF.js for PDF to Image conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #preview-image {
+            max-height: 400px;
+            object-fit: contain;
+        }
+        /* Product link select styles (native HTML dropdown) */
+        .product-link-select {
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .product-link-select option {
+            background: #1a2432;
+            color: #10b981;
+            padding: 8px;
+        }
+        .product-link-select:focus {
+            outline: 2px solid #10b981;
+            outline-offset: 0;
+        }
+        .item-name-input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <button onclick="window.location.href='index.html'" class="glass px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all">
+                ← Back
+            </button>
+            <div class="text-center flex-1">
+                <h1 class="text-4xl font-bold text-white mb-2">
+                    📄 Albanian Invoice Scanner
+                </h1>
+                <p class="text-white/80">
+                    Platforma Qendrore e Faturave - Automatic EUR Normalization
+                </p>
+            </div>
+            <button onclick="window.location.href='products.html'" class="glass px-4 py-2 rounded-lg text-white hover:bg-white/20 transition-all">
+                💻 Products →
+            </button>
+        </div>
+
+        <!-- Main Card -->
+        <div class="glass rounded-2xl p-8 shadow-2xl">
+            <!-- Upload Section -->
+            <div id="upload-section" class="mb-6">
+                <div class="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-white/60 transition-all cursor-pointer"
+                     onclick="document.getElementById('file-input').click()">
+                    <span class="material-symbols-outlined text-white text-6xl mb-4 block">
+                        cloud_upload
+                    </span>
+                    <p class="text-white text-lg mb-2">Click to upload invoice image or PDF</p>
+                    <p class="text-white/60 text-sm">Supports: PNG, JPG, PDF from Platforma Qendrore</p>
+                    <input type="file" id="file-input" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="preview-section" class="hidden mb-6">
+                <div class="bg-black/20 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-white font-semibold">Preview:</h3>
+                        <button onclick="resetUpload()" class="text-white/80 hover:text-white">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                    <img id="preview-image" class="w-full rounded-lg" />
+                </div>
+            </div>
+
+            <!-- Conversion Rate Modal -->
+            <div id="conversion-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="glass rounded-xl p-8 max-w-md w-full mx-4">
+                    <h3 class="text-white text-2xl font-bold mb-4">💱 Currency Conversion Required</h3>
+                    <p class="text-white/80 mb-6">
+                        This invoice is in <strong>LEK (ALL)</strong> currency. 
+                        Please provide the conversion rate to EUR.
+                    </p>
+                    <div class="mb-6">
+                        <label class="block text-white mb-2">Conversion Rate (ALL to EUR):</label>
+                        <input type="number" id="conversion-rate-input" 
+                               class="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
+                               placeholder="e.g., 105.5 (1 EUR = 105.5 ALL)"
+                               step="0.01">
+                        <p class="text-white/60 text-xs mt-2">Example: If 1 EUR = 105.5 ALL, enter 105.5</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="applyConversionRate()" 
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition">
+                            Apply & Process
+                        </button>
+                        <button onclick="closeConversionModal()" 
+                                class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Status -->
+            <div id="processing-section" class="hidden mb-6">
+                <div class="bg-blue-500/20 border border-blue-500/50 rounded-xl p-6 text-center">
+                    <div class="animate-spin w-12 h-12 border-4 border-white/30 border-t-white rounded-full mx-auto mb-4"></div>
+                    <p class="text-white text-lg" id="processing-status">Processing invoice...</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden">
+                <div class="bg-green-500/20 border border-green-500/50 rounded-xl p-6 mb-6">
+                    <h3 class="text-white text-xl font-bold mb-4">✅ Invoice Extracted Successfully</h3>
+                    
+                    <!-- Currency Info -->
+                    <div id="currency-info" class="mb-4 p-4 bg-white/10 rounded-lg hidden">
+                        <p id="currency-details" class="text-white/80 text-sm"></p>
+                    </div>
+                    
+                    <!-- Confidence Score -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-white/80 text-sm mb-2">
+                            <span>Confidence Score:</span>
+                            <span id="confidence-score">0%</span>
+                        </div>
+                        <div class="w-full bg-white/20 rounded-full h-3">
+                            <div id="confidence-bar" class="bg-green-400 h-3 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Details Grid -->
+                    <div class="grid md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Invoice Number:</label>
+                            <input type="text" id="invoice-number" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Date:</label>
+                            <input type="date" id="invoice-date" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Customer Name:</label>
+                            <input type="text" id="customer-name" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Customer Address:</label>
+                            <input type="text" id="customer-address" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="mb-6">
+                        <label class="text-white/60 text-xs block mb-2">Items (All in EUR):</label>
+                        <div class="bg-white/5 rounded-lg overflow-auto">
+                            <table class="w-full">
+                                <thead class="bg-white/10">
+                                    <tr>
+                                        <th class="text-left text-white text-xs px-3 py-2">Product</th>
+                                        <th class="text-center text-white text-xs px-3 py-2">Qty</th>
+                                        <th class="text-right text-white text-xs px-3 py-2">Unit Price (EUR)</th>
+                                        <th class="text-right text-white text-xs px-3 py-2">Total (EUR)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-tbody" class="text-white/80 text-sm">
+                                    <!-- Items will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="grid md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Subtotal (EUR):</label>
+                            <input type="number" id="subtotal" step="0.01" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Tax (EUR):</label>
+                            <input type="number" id="tax" step="0.01" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white">
+                        </div>
+                        <div>
+                            <label class="text-white/60 text-xs block mb-1">Total (EUR):</label>
+                            <input type="number" id="total" step="0.01" class="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/30 text-white font-bold">
+                        </div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="warnings-section" class="hidden mb-6">
+                        <div class="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4">
+                            <p class="text-yellow-200 text-sm font-semibold mb-2">⚠️ Warnings:</p>
+                            <ul id="warnings-list" class="text-yellow-200/80 text-xs list-disc list-inside">
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3">
+                        <button onclick="saveToDatabase()" 
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition shadow-lg">
+                            💾 Save to Database (With Smart Brain)
+                        </button>
+                        <button onclick="resetUpload()" 
+                                class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition">
+                            Upload Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Section -->
+            <div id="error-section" class="hidden">
+                <div class="bg-red-500/20 border border-red-500/50 rounded-xl p-6 text-center">
+                    <span class="material-symbols-outlined text-red-400 text-6xl mb-4 block">error</span>
+                    <p class="text-white text-lg mb-2">Processing Failed</p>
+                    <p id="error-message" class="text-white/80 text-sm mb-4"></p>
+                    <button onclick="resetUpload()" class="bg-white/10 hover:bg-white/20 text-white py-2 px-6 rounded-lg transition">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, doc, Timestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // Config from index.html (danfosal-app)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.db = db;
+        window.firebaseImports = { collection, addDoc, getDocs, getDoc, updateDoc, doc, Timestamp };
+        window.authReady = false;
+
+        // Sign in anonymously for access
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.authReady = true;
+                window.firebaseReady = true;
+                console.log('✅ Firebase initialized & Authenticated as', user.uid);
+                
+                // Trigger any waiting initialization
+                if (window.onFirebaseReady) {
+                    window.onFirebaseReady();
+                }
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch((error) => {
+                    console.error('🔥 Authentication Error:', error);
+                });
+            }
+        });
+    </script>
+
+    <script src="manual-pdf-processor.js"></script>
+    
+    <script>
+        let pdfProcessor = null;
+        let currentImage = null;
+        let extractedData = null;
+        let pendingConversion = false;
+        let allProducts = [];  // Cache for all products from Firebase
+
+        // Initialize PDF processor (wait for Firebase if needed)
+        async function initProcessor() {
+            if (!pdfProcessor) {
+                // Wait for Firebase to be ready
+                if (!window.firebaseReady) {
+                    console.log('⏳ Waiting for Firebase...');
+                    await new Promise((resolve) => {
+                        window.onFirebaseReady = resolve;
+                    });
+                }
+                
+                // Check if ManualPDFProcessor is defined
+                if (typeof ManualPDFProcessor === 'undefined') {
+                    throw new Error('ManualPDFProcessor script not loaded. Please refresh the page.');
+                }
+                
+                pdfProcessor = new ManualPDFProcessor(window.db, window.firebaseImports);
+                try {
+                    await pdfProcessor.initialize();
+                    console.log('✅ PDF Processor initialized');
+                    
+                    // Load products for autocomplete
+                    console.log('🔄 Calling loadProductsFromStock...');
+                    await loadProductsFromStock();
+                    console.log(`📦 Products loaded: ${allProducts.length}`);
+                } catch (error) {
+                    console.error('Failed to initialize:', error);
+                    throw error;
+                }
+            }
+        }
+
+        // Show processing message
+        function showProcessing(message) {
+            document.getElementById('processing-section').classList.remove('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('error-section').classList.add('hidden');
+            document.getElementById('processing-status').textContent = message;
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('processing-section').classList.add('hidden');
+            document.getElementById('error-section').classList.remove('hidden');
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // Handle file upload
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showProcessing('Loading file...');
+
+            // Check if PDF
+            if (file.type === 'application/pdf') {
+                await convertPDFToImage(file);
+            } else {
+                // Regular image file
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    currentImage = e.target.result;
+                    document.getElementById('preview-image').src = currentImage;
+                    document.getElementById('upload-section').classList.add('hidden');
+                    document.getElementById('preview-section').classList.remove('hidden');
+
+                    // Auto-process
+                    await processInvoice();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Convert PDF to Image (Process each page separately for OCR)
+        async function convertPDFToImage(file) {
+            try {
+                showProcessing('Processing PDF...');
+
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                const numPages = pdf.numPages;
+                console.log(`📄 PDF has ${numPages} pages - will process each separately`);
+                
+                // For preview: create combined image (max 3 pages to keep it manageable)
+                const scale = 2.0;
+                const previewPages = Math.min(numPages, 3);
+                const previewCanvases = [];
+                let totalHeight = 0;
+                let maxWidth = 0;
+                
+                for (let pageNum = 1; pageNum <= previewPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                    previewCanvases.push(canvas);
+                    totalHeight += viewport.height;
+                    maxWidth = Math.max(maxWidth, viewport.width);
+                }
+                
+                // Create preview image (combined, for display only)
+                const previewCanvas = document.createElement('canvas');
+                previewCanvas.width = maxWidth;
+                previewCanvas.height = totalHeight;
+                const previewContext = previewCanvas.getContext('2d');
+                
+                let currentY = 0;
+                for (const pageCanvas of previewCanvases) {
+                    previewContext.drawImage(pageCanvas, 0, currentY);
+                    currentY += pageCanvas.height;
+                }
+                
+                currentImage = previewCanvas.toDataURL('image/png');
+                document.getElementById('preview-image').src = currentImage;
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('preview-section').classList.remove('hidden');
+                
+                console.log(`✅ Preview created from first ${previewPages} pages`);
+                
+                // Store PDF data for OCR processing (we'll process pages individually)
+                window.pdfData = { pdf, scale };
+                
+                // Auto-process with multi-page OCR
+                await processInvoiceMultiPage();
+                
+            } catch (error) {
+                console.error('PDF conversion error:', error);
+                showError(`Failed to convert PDF: ${error.message}. Please try uploading an image (PNG/JPG) instead.`);
+            }
+        }
+
+        // Process multi-page PDF (OCR each page separately, combine text)
+        async function processInvoiceMultiPage(conversionRate = null) {
+            try {
+                if (!window.pdfData) {
+                    // Single image, use regular processing
+                    return await processInvoice(conversionRate);
+                }
+
+                await initProcessor();
+                
+                const { pdf, scale } = window.pdfData;
+                const numPages = pdf.numPages;
+                
+                showProcessing(`Scanning page 1/${numPages} with OCR...`);
+                
+                // Process each page with OCR and collect all text
+                let combinedText = '';
+                
+                for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                    showProcessing(`Scanning page ${pageNum}/${numPages} with OCR...`);
+                    
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                    const pageImageData = canvas.toDataURL('image/png');
+                    
+                    // Run OCR on this page
+                    const ocrResult = await Tesseract.recognize(pageImageData, 'eng');
+                    combinedText += '\n\n=== PAGE ' + pageNum + ' ===\n\n' + ocrResult.data.text;
+                    
+                    console.log(`✅ Page ${pageNum} OCR complete`);
+                }
+                
+                console.log('📄 Combined text from all pages:', combinedText.substring(0, 500) + '...');
+                
+                // Now process the combined text with our extraction logic
+                showProcessing('Extracting invoice data...');
+                
+                const result = await pdfProcessor.extractAlbanianInvoiceFromText(
+                    combinedText,
+                    conversionRate ? { conversionRate } : {}
+                );
+
+                if (!result.success) {
+                    if (result.error.includes('conversion rate')) {
+                        showConversionModal();
+                        return;
+                    }
+                    throw new Error(result.error);
+                }
+
+                extractedData = result.data;
+
+                // Show results
+                document.getElementById('processing-section').classList.add('hidden');
+                document.getElementById('results-section').classList.remove('hidden');
+
+                // Populate fields (same as before)
+                document.getElementById('invoice-number').value = extractedData.invoiceNumber || '';
+                document.getElementById('invoice-date').value = extractedData.date || '';
+                document.getElementById('customer-name').value = extractedData.customerName || '';
+                document.getElementById('customer-address').value = extractedData.customerAddress || '';
+                document.getElementById('subtotal').value = extractedData.subtotal || 0;
+                document.getElementById('tax').value = extractedData.tax || 0;
+                document.getElementById('total').value = extractedData.total || 0;
+
+                // Show currency info
+                if (extractedData.normalizedToEUR || extractedData.hasDualCurrency) {
+                    const currencyDiv = document.getElementById('currency-info');
+                    const currencyP = document.getElementById('currency-details');
+                    
+                    if (extractedData.normalizedToEUR) {
+                        currencyP.textContent = `✅ Converted from ${extractedData.originalCurrency} to EUR (Rate: ${extractedData.conversionRate})`;
+                    } else if (extractedData.hasDualCurrency) {
+                        currencyP.textContent = `💶 Dual currency invoice - EUR values extracted (${extractedData.originalCurrency} values ignored)`;
+                    }
+                    
+                    currencyDiv.classList.remove('hidden');
+                }
+
+                // Populate items
+                const tbody = document.getElementById('items-tbody');
+                tbody.innerHTML = '';
+                extractedData.items.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-white/10';
+                    
+                    // Find best product match using fuzzy matching
+                    const cleanItemName = item.itemName.replace(/\s*\d{1,5}[.,]\d{2}\s*$/g, '').trim();
+                    const matchedProduct = findBestProductMatch(cleanItemName);
+                    
+                    // Create product link dropdown options (like Store Invoice Scanner)
+                    let options = `<option value="manual">⚠️ Manual Item (No Stock Deduction)</option>`;
+                    allProducts.forEach(prod => {
+                        const isSelected = matchedProduct && matchedProduct.id === prod.id;
+                        options += `<option value="${prod.id}" ${isSelected ? 'selected' : ''}>${prod.name} (Stock: ${prod.stock || 0})</option>`;
+                    });
+                    
+                    row.innerHTML = `
+                        <td class="px-3 py-2">
+                            <input type="text" 
+                                   id="product-input-${index}"
+                                   value="${item.itemName.replace(/"/g, '&quot;')}" 
+                                   data-item-index="${index}"
+                                   class="item-name-input w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white mb-1"
+                                   placeholder="Product name">
+                            <select id="product-link-${index}" data-item-index="${index}" 
+                                    class="product-link-select w-full bg-green-900/20 border border-green-500/30 rounded px-2 py-1 text-green-400 text-xs"
+                                    onchange="updateProductLink(${index})">
+                                ${options}
+                            </select>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                            <input type="number" 
+                                   value="${item.quantity}" 
+                                   data-item-index="${index}"
+                                   class="w-20 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-center"
+                                   onchange="updateItemQuantity(${index}, this.value)">
+                        </td>
+                        <td class="px-3 py-2 text-right">
+                            <input type="number" 
+                                   step="0.01"
+                                   value="${item.pricePerUnit.toFixed(2)}" 
+                                   data-item-index="${index}"
+                                   class="w-24 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-right"
+                                   onchange="updateItemPrice(${index}, this.value)">
+                        </td>
+                        <td class="px-3 py-2 text-right">€${item.lineTotal.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // Store productId if matched
+                    if (matchedProduct) {
+                        item.productId = matchedProduct.id;
+                        item.linkedProductName = matchedProduct.name;
+                    }
+                });
+
+                // Show confidence
+                const confidence = result.confidence;
+                document.getElementById('confidence-score').textContent = confidence + '%';
+                document.getElementById('confidence-bar').style.width = confidence + '%';
+
+                // Show warnings
+                if (extractedData.warnings && extractedData.warnings.length > 0) {
+                    const warningsSection = document.getElementById('warnings-section');
+                    const warningsList = document.getElementById('warnings-list');
+                    warningsList.innerHTML = extractedData.warnings.map(w => `<li>${w}</li>`).join('');
+                    warningsSection.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('Multi-page processing error:', error);
+                document.getElementById('processing-section').classList.add('hidden');
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            }
+        }
+
+        // Process invoice
+        async function processInvoice(conversionRate = null) {
+            try {
+                await initProcessor();
+
+                // Show processing
+                document.getElementById('preview-section').classList.add('hidden');
+                document.getElementById('processing-section').classList.remove('hidden');
+                document.getElementById('processing-status').textContent = 'Scanning invoice with OCR...';
+
+                // Scan invoice
+                const options = conversionRate ? { conversionRate: conversionRate } : {};
+                const result = await pdfProcessor.scanInvoice(currentImage, options);
+
+                if (!result.success) {
+                    if (result.error.includes('conversion rate')) {
+                        showConversionModal();
+                        return;
+                    }
+                    throw new Error(result.error);
+                }
+
+                extractedData = result.data;
+
+                // Hide processing, show results
+                document.getElementById('processing-section').classList.add('hidden');
+                document.getElementById('results-section').classList.remove('hidden');
+
+                // Populate fields
+                document.getElementById('invoice-number').value = extractedData.invoiceNumber || '';
+                document.getElementById('invoice-date').value = extractedData.date || '';
+                document.getElementById('customer-name').value = extractedData.customerName || '';
+                document.getElementById('customer-address').value = extractedData.customerAddress || '';
+                document.getElementById('subtotal').value = extractedData.subtotal.toFixed(2);
+                document.getElementById('tax').value = extractedData.tax.toFixed(2);
+                document.getElementById('total').value = extractedData.total.toFixed(2);
+
+                // Show currency info
+                if (extractedData.normalizedToEUR || extractedData.hasDualCurrency) {
+                    const currencyDiv = document.getElementById('currency-info');
+                    const currencyP = currencyDiv.querySelector('p');
+                    
+                    if (extractedData.normalizedToEUR) {
+                        currencyP.textContent = `✅ Converted from ${extractedData.originalCurrency} to EUR (Rate: ${extractedData.conversionRate})`;
+                    } else if (extractedData.hasDualCurrency) {
+                        currencyP.textContent = `💶 Dual currency invoice - EUR values extracted (${extractedData.originalCurrency} values ignored)`;
+                    }
+                    
+                    currencyDiv.classList.remove('hidden');
+                }
+
+                // Populate items
+                const tbody = document.getElementById('items-tbody');
+                tbody.innerHTML = '';
+                extractedData.items.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-white/10';
+                    
+                    // Find best product match using fuzzy matching
+                    const cleanItemName = item.itemName.replace(/\s*\d{1,5}[.,]\d{2}\s*$/g, '').trim();
+                    const matchedProduct = findBestProductMatch(cleanItemName);
+                    
+                    // Create product link dropdown options (like Store Invoice Scanner)
+                    let options = `<option value="manual">⚠️ Manual Item (No Stock Deduction)</option>`;
+                    allProducts.forEach(prod => {
+                        const isSelected = matchedProduct && matchedProduct.id === prod.id;
+                        options += `<option value="${prod.id}" ${isSelected ? 'selected' : ''}>${prod.name} (Stock: ${prod.stock || 0})</option>`;
+                    });
+                    
+                    row.innerHTML = `
+                        <td class="px-3 py-2">
+                            <input type="text" 
+                                   id="product-input-${index}"
+                                   value="${item.itemName.replace(/"/g, '&quot;')}" 
+                                   data-item-index="${index}"
+                                   class="item-name-input w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white mb-1"
+                                   placeholder="Product name">
+                            <select id="product-link-${index}" data-item-index="${index}" 
+                                    class="product-link-select w-full bg-green-900/20 border border-green-500/30 rounded px-2 py-1 text-green-400 text-xs"
+                                    onchange="updateProductLink(${index})">
+                                ${options}
+                            </select>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                            <input type="number" 
+                                   value="${item.quantity}" 
+                                   data-item-index="${index}"
+                                   class="w-20 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-center"
+                                   onchange="updateItemQuantity(${index}, this.value)">
+                        </td>
+                        <td class="px-3 py-2 text-right">
+                            <input type="number" 
+                                   step="0.01"
+                                   value="${item.pricePerUnit.toFixed(2)}" 
+                                   data-item-index="${index}"
+                                   class="w-24 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-right"
+                                   onchange="updateItemPrice(${index}, this.value)">
+                        </td>
+                        <td class="px-3 py-2 text-right">€${item.lineTotal.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // Store productId if matched
+                    if (matchedProduct) {
+                        item.productId = matchedProduct.id;
+                        item.linkedProductName = matchedProduct.name;
+                    }
+                });
+
+                // Show confidence
+                const confidence = result.confidence;
+                document.getElementById('confidence-score').textContent = confidence + '%';
+                document.getElementById('confidence-bar').style.width = confidence + '%';
+
+                // Show warnings
+                if (extractedData.warnings && extractedData.warnings.length > 0) {
+                    const warningsSection = document.getElementById('warnings-section');
+                    const warningsList = document.getElementById('warnings-list');
+                    warningsList.innerHTML = extractedData.warnings.map(w => `<li>${w}</li>`).join('');
+                    warningsSection.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('Processing error:', error);
+                document.getElementById('processing-section').classList.add('hidden');
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            }
+        }
+
+        // Apply conversion rate
+        async function applyConversionRate() {
+            const rate = parseFloat(document.getElementById('conversion-rate-input').value);
+            
+            if (!rate || rate <= 0) {
+                alert('Please enter a valid conversion rate');
+                return;
+            }
+
+            closeConversionModal();
+            
+            // Check if multi-page PDF
+            if (window.pdfData) {
+                await processInvoiceMultiPage(rate);
+            } else {
+                await processInvoice(rate);
+            }
+        }
+
+        // Show conversion modal
+        function showConversionModal() {
+            pendingConversion = true;
+            document.getElementById('processing-section').classList.add('hidden');
+            document.getElementById('conversion-modal').classList.remove('hidden');
+        }
+
+        // Close conversion modal
+        function closeConversionModal() {
+            document.getElementById('conversion-modal').classList.add('hidden');
+            if (!extractedData) {
+                resetUpload();
+            }
+        }
+
+        // Find best product match using fuzzy matching (same algorithm as Store Invoice Scanner)
+        function findBestProductMatch(searchName) {
+            if (!searchName || allProducts.length === 0) return null;
+            
+            const searchLower = searchName.toLowerCase().trim();
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            allProducts.forEach(product => {
+                const productName = (product.name || '').toLowerCase().trim();
+                let score = 0;
+                
+                if (productName === searchLower) score = 100;
+                else if (productName.startsWith(searchLower)) score = 90;
+                else if (searchLower.startsWith(productName)) score = 85;
+                else if (productName.includes(searchLower)) score = 70;
+                else if (searchLower.includes(productName)) score = 65;
+                else {
+                    // Word-by-word matching
+                    const searchWords = searchLower.split(/\s+/);
+                    const productWords = productName.split(/\s+/);
+                    const matchingWords = searchWords.filter(w => 
+                        productWords.some(pw => pw.includes(w) || w.includes(pw))
+                    );
+                    if (matchingWords.length > 0) {
+                        // Boost score if words are found (was capped at 50, now 85)
+                        score = (matchingWords.length / searchWords.length) * 85;
+                        
+                        // Small penalty for unmatched words in product to prefer shorter exact matches
+                        const lengthPenalty = (productWords.length - matchingWords.length) * 2;
+                        score -= Math.min(lengthPenalty, 10);
+                    }
+                }
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = product;
+                }
+            });
+            
+            // Return match if score >= 50% (lowered from 60 to allow better partial matching)
+            if (bestScore >= 50) {
+                console.log(`✅ Best match for "${searchName}": ${bestMatch.name} (score: ${bestScore}%)`);
+                return bestMatch;
+            }
+            
+            console.log(`⚠️ No good match for "${searchName}" (best score: ${bestScore}%)`);
+            return null;
+        }
+        
+        // Update product link when dropdown changes
+        window.updateProductLink = function(index) {
+            const select = document.getElementById(`product-link-${index}`);
+            const selectedId = select.value;
+            
+            if (selectedId !== 'manual' && extractedData.items[index]) {
+                const product = allProducts.find(p => p.id === selectedId);
+                if (product) {
+                    extractedData.items[index].productId = product.id;
+                    extractedData.items[index].linkedProductName = product.name;
+                    console.log(`🔗 Linked item ${index} to product: ${product.name}`);
+                }
+            } else if (extractedData.items[index]) {
+                delete extractedData.items[index].productId;
+                delete extractedData.items[index].linkedProductName;
+                console.log(`🔓 Unlinked item ${index} (manual entry)`);
+            }
+        };
+
+        // Live Search: Update dropdown when typing in text box
+        window.findAndSelectBestMatch = function(index, searchText) {
+            // Clean matching (same as findBestProductMatch but triggered by typing)
+            const cleanText = searchText.replace(/\s*\d{1,5}[.,]\d{2}\s*$/g, '').trim();
+            const match = findBestProductMatch(cleanText);
+            
+            const select = document.getElementById(`product-link-${index}`);
+            if (select) {
+                if (match) {
+                    select.value = match.id;
+                    updateProductLink(index); // Update data
+                    // Visual feedback
+                    select.style.borderColor = '#10b981'; // Green border
+                } else {
+                    select.value = 'manual';
+                    updateProductLink(index);
+                    select.style.borderColor = 'rgba(16, 185, 129, 0.3)'; // Default border
+                }
+            }
+            
+            // Update extracted data name
+            if (extractedData && extractedData.items[index]) {
+                extractedData.items[index].itemName = searchText;
+            }
+        };
+
+        // Helper to wait for Firebase
+        async function waitForFirebase(timeout = 15000) {
+            const start = Date.now();
+            while (!window.db || !window.firebaseImports || !window.authReady) {
+                if (Date.now() - start > timeout) {
+                    console.error('❌ Firebase initialization timeout. DB:', !!window.db, 'Auth:', !!window.authReady);
+                    return false;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            return true;
+        }
+
+        // Load all products from Firebase on init
+        async function loadProductsFromStock() {
+            try {
+                console.log('🔄 Loading products from Firebase...');
+                
+                // Wait for Firebase to be ready
+                const firebaseReady = await waitForFirebase();
+                if (!firebaseReady) {
+                     throw new Error('Firebase not ready after waiting');
+                }
+                
+                const productsRef = window.firebaseImports.collection(window.db, 'products');
+                console.log('🔗 Products collection reference created');
+                
+                const productsSnapshot = await window.firebaseImports.getDocs(productsRef);
+                console.log(`📦 Snapshot received with ${productsSnapshot.size} documents`);
+                
+                allProducts = [];
+                productsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.name) {  // Only add products with names
+                        allProducts.push({
+                            id: doc.id,
+                            name: data.name || '',
+                            barcode: data.barcode || '',
+                            stock: data.stock || 0,
+                            price: data.price || 0
+                        });
+                    }
+                });
+                
+                console.log(`✅ Loaded ${allProducts.length} products from stock`);
+                if (allProducts.length > 0) {
+                    console.log('Sample products:', allProducts.slice(0, 5).map(p => p.name));
+                } else {
+                    console.warn('⚠️ No products found in database!');
+                }
+            } catch (error) {
+                console.error('❌ Error loading products:', error);
+                console.error('Error details:', error.message, error.stack);
+                // Don't let this stop the app from working
+                allProducts = [];
+            }
+        }
+        
+        // Old autocomplete functions removed - now using native HTML select dropdown (like Store Invoice Scanner)
+        
+        // Update item data when edited
+        function updateItemName(index, newName) {
+            if (extractedData && extractedData.items[index]) {
+                extractedData.items[index].itemName = newName;
+                console.log(`Updated item ${index} name:`, newName);
+            }
+        }
+        
+        function updateItemQuantity(index, newQty) {
+            if (extractedData && extractedData.items[index]) {
+                const qty = parseInt(newQty);
+                const price = extractedData.items[index].pricePerUnit;
+                extractedData.items[index].quantity = qty;
+                extractedData.items[index].lineTotal = qty * price;
+                console.log(`Updated item ${index} quantity:`, qty);
+                // Recalculate totals
+                recalculateTotals();
+            }
+        }
+        
+        function updateItemPrice(index, newPrice) {
+            if (extractedData && extractedData.items[index]) {
+                const price = parseFloat(newPrice);
+                const qty = extractedData.items[index].quantity;
+                extractedData.items[index].pricePerUnit = price;
+                extractedData.items[index].lineTotal = qty * price;
+                console.log(`Updated item ${index} price:`, price);
+                // Recalculate totals
+                recalculateTotals();
+            }
+        }
+        
+        function recalculateTotals() {
+            if (!extractedData || !extractedData.items) return;
+            
+            let newSubtotal = 0;
+            extractedData.items.forEach(item => {
+                newSubtotal += item.lineTotal;
+            });
+            
+            // Update displayed totals
+            document.getElementById('subtotal').value = newSubtotal.toFixed(2);
+            const tax = parseFloat(document.getElementById('tax').value) || 0;
+            document.getElementById('total').value = (newSubtotal + tax).toFixed(2);
+            
+            // Update extractedData
+            extractedData.subtotal = newSubtotal;
+            extractedData.total = newSubtotal + tax;
+        }
+
+        // Save to database with Smart Brain
+        async function saveToDatabase() {
+            try {
+                // Get updated values from form
+                const invoiceData = {
+                    ...extractedData,
+                    invoiceNumber: document.getElementById('invoice-number').value,
+                    date: document.getElementById('invoice-date').value,
+                    customerName: document.getElementById('customer-name').value,
+                    customerAddress: document.getElementById('customer-address').value,
+                    subtotal: parseFloat(document.getElementById('subtotal').value) || 0,
+                    tax: parseFloat(document.getElementById('tax').value) || 0,
+                    total: parseFloat(document.getElementById('total').value) || 0
+                };
+
+                // Show processing
+                document.getElementById('results-section').classList.add('hidden');
+                document.getElementById('processing-section').classList.remove('hidden');
+                document.getElementById('processing-status').textContent = 'Saving to database with Smart Brain processing...';
+
+                // Save with Smart Brain integration
+                const result = await pdfProcessor.saveToDatabase(invoiceData);
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                // Show success
+                document.getElementById('processing-section').classList.add('hidden');
+                
+                // Success message
+                alert(`✅ Invoice saved successfully!\n\nSale ID: ${result.saleId}\nCustomer: ${result.customerId ? 'Linked' : 'New'}\nMatched Order: ${result.matchedOrderId || 'None'}\n\nSmart Brain:\n• Customer deduplication: ✓\n• Order matching: ${result.matchedOrderId ? '✓' : '—'}\n• Stock updates: ✓`);
+
+                resetUpload();
+
+            } catch (error) {
+                console.error('Save error:', error);
+                document.getElementById('processing-section').classList.add('hidden');
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = 'Failed to save: ' + error.message;
+            }
+        }
+
+        // Reset upload
+        function resetUpload() {
+            currentImage = null;
+            extractedData = null;
+            pendingConversion = false;
+            
+            document.getElementById('file-input').value = '';
+            document.getElementById('upload-section').classList.remove('hidden');
+            document.getElementById('preview-section').classList.add('hidden');
+            document.getElementById('processing-section').classList.add('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('error-section').classList.add('hidden');
+            document.getElementById('conversion-modal').classList.add('hidden');
+            document.getElementById('currency-info').classList.add('hidden');
+            document.getElementById('warnings-section').classList.add('hidden');
+        }
+
+        // Initialize on load (wait for Firebase)
+        window.addEventListener('load', async () => {
+            // Wait a moment for all scripts to load
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            try {
+                await initProcessor();
+            } catch (error) {
+                console.error('Initialization error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

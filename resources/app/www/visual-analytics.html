@@ -4,7 +4,8 @@ it <!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Analytics - Danfosal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="glassmorphism.css">
@@ -40,6 +41,7 @@ it <!DOCTYPE html>
             min-height: 600px;
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col">
 
@@ -53,12 +55,12 @@ it <!DOCTYPE html>
         </div>
         <div class="flex gap-4">
             <div class="flex bg-gray-800 rounded-lg p-1">
-                <div class="nav-tab active" onclick="switchTab('daily-sales')">🌌 Daily Cosmos</div>
-                <div class="nav-tab" onclick="switchTab('business-landscape')">🗺️ Business Landscape</div>
-                <div class="nav-tab" onclick="switchTab('money-flow')">💸 Money Flow</div>
-                <div class="nav-tab" onclick="switchTab('sales-rhythm')">⏰ Sales Rhythm</div>
-                <div class="nav-tab" onclick="switchTab('revenue-sun')">☀️ Revenue Sun</div>
-                <div class="nav-tab" onclick="switchTab('profit-wave')">🌊 Profit Wave</div>
+                <div class="nav-tab active" onclick="switchTab('daily-sales')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">auto_awesome</span> Daily Cosmos</div>
+                <div class="nav-tab" onclick="switchTab('business-landscape')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">map</span> Business Landscape</div>
+                <div class="nav-tab" onclick="switchTab('money-flow')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">payments</span> Money Flow</div>
+                <div class="nav-tab" onclick="switchTab('sales-rhythm')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">schedule</span> Sales Rhythm</div>
+                <div class="nav-tab" onclick="switchTab('revenue-sun')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">wb_sunny</span> Revenue Sun</div>
+                <div class="nav-tab" onclick="switchTab('profit-wave')"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">waves</span> Profit Wave</div>
             </div>
             <a href="index.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors flex items-center gap-2 border border-gray-700">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -86,9 +88,9 @@ it <!DOCTYPE html>
                     <h3 class="font-bold text-purple-400 mb-1">Daily Cosmos</h3>
                     <p class="text-xs text-gray-400">
                         <span class="text-white font-bold">Your Sales Universe</span><br>
-                        ☀️ Center Sun = Total Revenue<br>
-                        🪐 Planets = Individual Sales<br>
-                        ⏰ Position = Time of Sale (24h Clock)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">wb_sunny</span> Center Sun = Total Revenue<br>
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">public</span> Planets = Individual Sales<br>
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">schedule</span> Position = Time of Sale (24h Clock)
                     </p>
                 </div>
             </div>

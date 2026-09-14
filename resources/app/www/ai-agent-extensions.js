@@ -38,12 +38,18 @@ I can help you process this image using your existing, reliable scanners:
 • Updates inventory and stock levels
 • Handles complex invoice formats
 
+**🇦🇱 Albanian Invoice Scanner**
+• For Platforma Qendrore e Faturave
+• Automatic EUR currency conversion
+• Smart Brain integration (deduplication & order matching)
+
 **Which scanner would work best for your image?**`,
                 'info',
                 null,
                 [
                     { text: '🛍️ Use Store Sales Scanner', action: () => this.processWithStoreSalesScanner(image) },
                     { text: '📦 Use Inventory Scanner', action: () => this.processWithInventoryScanner(image) },
+                    { text: '🇦🇱 Use Albanian Scanner', action: () => this.openPage('albanian-invoice-scanner.html') },
                     { text: '❓ Not Sure - Show Options', action: () => this.showScannerOptions(image) }
                 ]
             );
@@ -451,17 +457,19 @@ Which would you like to try?`,
             return this.createResponse(
                 `📚 **Invoice Scanner Options**
 
-I can open both scanner pages for you:
+I can open these scanner pages for you:
 
 **🛍️ Store Sales** - For customer invoices/receipts
 **📦 Smart Inventory Scanner** - For supplier invoices
+**🇦🇱 Albanian Invoice Scanner** - For Platforma Qendrore e Faturave (with EUR conversion)
 
-Which one would you like to see first?`,
+Which one would you like to see?`,
                 'info',
                 null,
                 [
                     { text: '🛍️ Store Sales', action: () => this.openPage('store-sales.html') },
                     { text: '📦 Inventory Scanner', action: () => this.openPage('smart-inventory-scanner.html') },
+                    { text: '🇦🇱 Albanian Scanner', action: () => this.openPage('albanian-invoice-scanner.html') },
                     { text: '🏠 Back to Dashboard', action: () => this.openPage('index.html') }
                 ]
             );

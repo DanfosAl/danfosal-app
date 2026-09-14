@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fix Stock Quantities</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <link rel="stylesheet" href="glassmorphism.css">
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
@@ -124,12 +125,12 @@
     </style>
 </head>
 <body>
-    <h1>🔧 Fix Stock Quantities</h1>
+    <h1><span class="material-symbols-outlined" style="vertical-align:-6px;">build</span> Fix Stock Quantities</h1>
     <p>This tool helps you correct stock quantities that were incorrectly deducted.</p>
     
     <div class="buttons">
-        <button onclick="fixStock()">🔄 Refresh List</button>
-        <button class="danger" onclick="setAllToZero()">⚠️ Set All to Zero</button>
+        <button onclick="fixStock()"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">refresh</span> Refresh List</button>
+        <button class="danger" onclick="setAllToZero()"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">warning</span> Set All to Zero</button>
     </div>
     
     <div id="product-list">

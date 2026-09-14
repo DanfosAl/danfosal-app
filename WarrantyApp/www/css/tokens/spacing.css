@@ -1,0 +1,29 @@
+:root{
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-5:18px;
+  --space-6:20px;
+  --space-7:24px;
+  --space-8:26px;
+  --space-9:32px;
+  --space-10:48px;
+
+  --radius-sm:10px;
+  --radius-md:14px;
+  --radius-lg:18px;
+  --radius-xl:22px;
+  --radius-2xl:28px;
+  --radius-pill:999px;
+
+  --sidebar-width:282px;
+  --content-max:1780px;
+
+  /* the codebase's own documented breakpoint scale — use these, never new ones */
+  --bp-phone:520px;
+  --bp-phone-lg:780px;
+  --bp-tablet:920px;
+  --bp-laptop-sm:1150px;
+  --bp-wide:1320px;
+}

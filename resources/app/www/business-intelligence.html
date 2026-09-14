@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Business Intelligence - Danfosal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="glassmorphism.css">
     <style>
@@ -84,13 +85,14 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="p-6">
     <!-- Header -->
     <div class="max-w-7xl mx-auto mb-8">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-4xl font-bold text-white mb-2">🧠 Business Intelligence</h1>
+                <h1 class="text-4xl font-bold text-white mb-2"><span class="material-symbols-outlined" style="vertical-align:-4px;">psychology</span> Business Intelligence</h1>
                 <p class="text-white/80">Advanced AI-powered insights and forecasting</p>
             </div>
             <button onclick="window.location.href='index.html'" class="bi-card px-6 py-3">
@@ -127,7 +129,7 @@
 
         <!-- AI Forecasting Section -->
         <div class="bi-card" style="position: relative; z-index: 100;">
-            <h2 class="text-2xl font-bold text-white mb-6">🤖 AI-Powered Demand Forecasting</h2>
+            <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">smart_toy</span> AI-Powered Demand Forecasting</h2>
             
             <!-- Product Selector with Search -->
             <div class="mb-6">
@@ -203,7 +205,7 @@
         <!-- Churn Prediction Section -->
         <div class="bi-card mb-8">
             <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
-                <span class="mr-3">📉</span> Churn Prediction (AI)
+                <span class="material-symbols-outlined mr-3">trending_down</span> Churn Prediction (AI)
             </h2>
             <p class="text-gray-400 mb-4">The AI identifies customers who used to buy frequently but have stopped. Re-engage them before they are lost.</p>
             <div id="churn-prediction-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -217,7 +219,7 @@
         <!-- Seasonal Trend Alerts Section -->
         <div class="bi-card mb-8">
             <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
-                <span class="mr-3">📅</span> Seasonal Trend Alerts
+                <span class="material-symbols-outlined mr-3">calendar_today</span> Seasonal Trend Alerts
             </h2>
             <p class="text-gray-400 mb-4">Predicts what will sell next month based on last year's data and alerts you if stock is low.</p>
             <div id="seasonal-alerts-container" class="space-y-4">
@@ -231,7 +233,7 @@
         <!-- Cash Flow Forecast Section -->
         <div class="bi-card mb-8">
             <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
-                <span class="mr-3">💰</span> AI Cash Flow Forecast (30 Days)
+                <span class="material-symbols-outlined mr-3">payments</span> AI Cash Flow Forecast (30 Days)
             </h2>
             <p class="text-gray-400 mb-4">Projects your bank balance based on expected payments from debtors and bills due to creditors.</p>
             <div id="cash-flow-container">
@@ -247,7 +249,7 @@
             <!-- AI Data Assistant -->
             <div class="bi-card">
                 <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <span class="mr-3">🤖</span> AI Data Assistant
+                    <span class="material-symbols-outlined mr-3">smart_toy</span> AI Data Assistant
                 </h2>
                 <p class="text-gray-400 mb-4 text-sm">Ask questions like "Who owes me money?", "What is my profit?", or "Which products are low stock?".</p>
                 
@@ -268,7 +270,7 @@
                 
                 <div id="aiResponseContainer" class="hidden bg-slate-800/50 rounded-xl p-4 border border-slate-700 min-h-[100px]">
                     <div class="flex items-start gap-3">
-                        <div class="bg-blue-500/20 p-2 rounded-lg">🤖</div>
+                        <div class="bg-blue-500/20 p-2 rounded-lg"><span class="material-symbols-outlined">smart_toy</span></div>
                         <div id="aiResponseText" class="text-gray-200 leading-relaxed pt-1"></div>
                     </div>
                 </div>
@@ -277,7 +279,7 @@
             <!-- Inventory Shrinkage Detector -->
             <div class="bi-card">
                 <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <span class="mr-3">🕵️</span> Shrinkage & Loss Control
+                    <span class="material-symbols-outlined mr-3">visibility</span> Shrinkage & Loss Control
                 </h2>
                 <p class="text-gray-400 mb-4 text-sm">Detects anomalies like negative stock or high-value items that need auditing.</p>
                 
@@ -294,7 +296,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Market Trends -->
             <div class="bi-card">
-                <h2 class="text-2xl font-bold text-white mb-6">📊 Market Trends</h2>
+                <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">bar_chart</span> Market Trends</h2>
                 <div id="marketTrends">
                     <div class="loading-spinner"></div>
                 </div>
@@ -302,7 +304,7 @@
 
             <!-- Profitability Analysis -->
             <div class="bi-card">
-                <h2 class="text-2xl font-bold text-white mb-6">💰 Profitability Analysis</h2>
+                <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">payments</span> Profitability Analysis</h2>
                 <div id="profitabilityAnalysis">
                     <div class="loading-spinner"></div>
                 </div>
@@ -311,7 +313,7 @@
 
         <!-- Insights & Recommendations -->
         <div class="bi-card">
-            <h2 class="text-2xl font-bold text-white mb-6">💡 AI Insights & Recommendations</h2>
+            <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">lightbulb</span> AI Insights & Recommendations</h2>
             <div id="aiInsights" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="loading-spinner"></div>
             </div>
@@ -321,7 +323,7 @@
         <div class="max-w-7xl mx-auto mb-8">
             <div class="bi-card">
                 <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
-                    <span class="mr-3">🎁</span> Smart Bundles (Frequently Bought Together)
+                    <span class="material-symbols-outlined mr-3">card_giftcard</span> Smart Bundles (Frequently Bought Together)
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="smart-bundles-container">
                     <div class="col-span-full text-center py-8 text-gray-400">Analyzing purchase patterns...</div>
@@ -333,7 +335,7 @@
         <div class="max-w-7xl mx-auto mb-8">
             <div class="bi-card">
                 <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
-                    <span class="mr-3">🏆</span> Supplier Scorecards
+                    <span class="material-symbols-outlined mr-3">military_tech</span> Supplier Scorecards
                 </h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
@@ -360,7 +362,7 @@
         <div class="max-w-7xl mx-auto mb-8">
             <div class="bi-card border-l-4 border-l-blue-500">
                 <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
-                    <span class="text-3xl mr-3">🎛️</span>
+                    <span class="material-symbols-outlined text-3xl mr-3">tune</span>
                     Profit Simulator
                 </h2>
                 <p class="text-gray-400 text-sm mb-6">
@@ -416,7 +418,7 @@
                     <!-- AI Recommendation -->
                     <div id="simRecommendation" class="p-4 rounded-lg border-l-4 border-yellow-500" style="background: rgba(251, 191, 36, 0.1);">
                         <div class="flex items-start">
-                            <span class="text-2xl mr-3">💡</span>
+                            <span class="material-symbols-outlined text-2xl mr-3">lightbulb</span>
                             <div class="text-gray-300 text-sm">
                                 Move the slider to see AI-powered revenue projections based on price elasticity.
                             </div>
@@ -430,7 +432,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Left Column - Detailed Insights -->
             <div class="bi-card">
-                <h2 class="text-2xl font-bold text-white mb-6">📊 Detailed Insights</h2>
+                <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">bar_chart</span> Detailed Insights</h2>
                 <div id="detailedInsightsContent" class="text-gray-300">
                     <!-- Dynamic content will be loaded here -->
                 </div>
@@ -438,7 +440,7 @@
 
             <!-- Right Column - Actionable Recommendations -->
             <div class="bi-card">
-                <h2 class="text-2xl font-bold text-white mb-6">💡 Actionable Recommendations</h2>
+                <h2 class="text-2xl font-bold text-white mb-6"><span class="material-symbols-outlined" style="vertical-align:-4px;">lightbulb</span> Actionable Recommendations</h2>
                 <div id="recommendationsContent" class="text-gray-300">
                     <!-- Dynamic content will be loaded here -->
                 </div>

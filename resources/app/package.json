@@ -1,10 +1,24 @@
 {
     "name": "danfosal-app",
-    "version": "1.3.1",
+    "version": "1.4.1",
     "description": "A business management application with auto-updates and Instagram integration",
     "main": "main.js",
     "scripts": {
         "start": "electron .",
+        "build:css": "node tailwind-configs/build-all.js",
+        "bridge": "node easypos-ocr-bridge.js",
+        "test-smart-brain": "node test-smart-brain.js",
+        "migrate-customers": "node migrate-customers.js",
+        "audit-customers": "node audit-customers.js",
+        "merge-duplicates": "node merge-duplicates.js",
+        "link-historical-invoices": "node link-historical-invoices.js",
+        "verify-invoice": "node verify-invoice.js",
+        "view-customer": "node view-customer-profile.js",
+        "inspect-data": "node inspect-data.js",
+        "loyalty-dashboard": "node loyalty-dashboard.js",
+        "export-report": "node export-pdf.js",
+        "export-report-json": "node export-pdf.js json",
+        "weekly-scheduler": "node weekly-report-scheduler.js",
         "dist": "electron-builder --win",
         "dist:portable": "electron-builder --win portable",
         "publish": "electron-builder --win --publish always",
@@ -13,15 +27,39 @@
     "author": "",
     "license": "ISC",
     "devDependencies": {
-        "@capacitor/cli": "^6.1.2",
+        "@capacitor/cli": "^6.2.1",
+        "@tailwindcss/container-queries": "^0.1.1",
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/typography": "^0.5.20",
         "electron": "^37.2.5",
         "electron-builder": "^24.13.3",
-        "electron-packager": "^17.1.2"
+        "electron-packager": "^17.1.2",
+        "tailwindcss": "^3.4.19"
     },
     "dependencies": {
         "@capacitor/android": "^6.1.2",
-        "@capacitor/local-notifications": "^6.0.0",
-        "electron-updater": "^6.6.2"
+        "@capacitor/core": "^6.2.1",
+        "@capacitor/local-notifications": "^6.1.2",
+        "@node-escpos/adapter": "^0.0.1",
+        "@node-escpos/core": "^0.6.0",
+        "assert-plus": "^1.0.0",
+        "better-sqlite3": "^12.6.2",
+        "canvas": "^3.2.1",
+        "chokidar": "^4.0.3",
+        "electron-updater": "^6.6.2",
+        "firebase-admin": "^12.7.0",
+        "fs-extra": "^11.3.3",
+        "level": "^10.0.0",
+        "level-js": "^6.1.0",
+        "node-cron": "^3.0.3",
+        "nodemailer": "^6.10.1",
+        "proxy-agent": "^6.5.0",
+        "puppeteer": "^24.37.2",
+        "sharp": "^0.34.5",
+        "smart-buffer": "^4.2.0",
+        "socks": "^2.8.7",
+        "socks-proxy-agent": "^8.0.5",
+        "tesseract.js": "^5.1.1"
     },
     "build": {
         "appId": "com.danfosal.app",
@@ -44,7 +82,8 @@
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "Danfosal App",
-            "differentialPackage": false
+            "differentialPackage": false,
+            "include": "build/installer.nsh"
         },
         "compression": "store",
         "publish": [
@@ -61,8 +100,12 @@
         "files": [
             "www/**/*",
             "main.js",
+            "preload.js",
             "package.json",
-            "node_modules/**/*"
+            "node_modules/**/*",
+            "!node_modules/tailwindcss/**",
+            "!node_modules/@tailwindcss/**",
+            "!tailwind-configs/**"
         ]
     }
 }

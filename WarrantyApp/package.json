@@ -1,0 +1,52 @@
+{
+    "name": "danfos-garanci",
+    "version": "1.1.0",
+    "description": "Standalone warranty issuing and claims app for Danfos sales staff",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "dist": "electron-builder --win"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "electron": "^37.2.5",
+        "electron-builder": "^24.13.3"
+    },
+    "build": {
+        "appId": "com.danfosal.warranty",
+        "productName": "Danfos Garanci",
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "build/icon.ico"
+        },
+        "nsis": {
+            "installerIcon": "build/icon.ico",
+            "uninstallerIcon": "build/icon.ico",
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "Danfos Garanci",
+            "differentialPackage": false,
+            "include": "build/installer.nsh"
+        },
+        "compression": "store",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "www/**/*",
+            "main.js",
+            "package.json",
+            "node_modules/**/*"
+        ]
+    }
+}

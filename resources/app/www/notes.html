@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📝 Notes & Tasks - Danfosal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <link rel="stylesheet" href="glassmorphism.css">
     <style>
@@ -286,15 +287,16 @@
             padding: 20px;
         }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body>
     <div class="header" style="max-width: 1400px; margin: 0 auto; position: relative;">
-        <h1>📝 Notes & Tasks</h1>
+        <h1><span class="material-symbols-outlined" style="vertical-align:-6px;">edit_note</span> Notes & Tasks</h1>
         <div style="display: flex; gap: 10px;">
             <button class="add-note-btn" onclick="openNoteModal()">
-                ➕ New Note
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">add</span> New Note
             </button>
-            <a href="index.html" class="glass-btn">🏠 Home</a>
+            <a href="index.html" class="glass-btn"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">home</span> Home</a>
         </div>
     </div>
 
@@ -302,16 +304,16 @@
         <!-- Stats Bar -->
         <div class="stats-bar">
             <div class="stat-chip">
-                📝 Total: <strong id="total-notes">0</strong>
+                <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">edit_note</span> Total: <strong id="total-notes">0</strong>
             </div>
             <div class="stat-chip">
-                ⏳ Pending: <strong id="pending-notes">0</strong>
+                <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">hourglass_empty</span> Pending: <strong id="pending-notes">0</strong>
             </div>
             <div class="stat-chip">
-                ✅ Completed: <strong id="completed-notes">0</strong>
+                <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">check_circle</span> Completed: <strong id="completed-notes">0</strong>
             </div>
             <div class="stat-chip">
-                🔴 High Priority: <strong id="high-priority">0</strong>
+                <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#ef4444;">priority_high</span> High Priority: <strong id="high-priority">0</strong>
             </div>
         </div>
 
@@ -319,25 +321,25 @@
         <div class="notes-grid">
             <!-- Categories Sidebar -->
             <div>
-                <h3 style="margin-bottom: 15px;">📂 Categories</h3>
+                <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">folder</span> Categories</h3>
                 <div id="categories-list">
                     <div class="note-category active" data-category="all">
-                        🗂️ All Notes (<span id="count-all">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">folder_open</span> All Notes (<span id="count-all">0</span>)
                     </div>
                     <div class="note-category" data-category="reorder">
-                        📦 Reorder Tasks (<span id="count-reorder">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> Reorder Tasks (<span id="count-reorder">0</span>)
                     </div>
                     <div class="note-category" data-category="customer">
-                        👤 Customer Follow-ups (<span id="count-customer">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">person</span> Customer Follow-ups (<span id="count-customer">0</span>)
                     </div>
                     <div class="note-category" data-category="delivery">
-                        🚚 Deliveries (<span id="count-delivery">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">local_shipping</span> Deliveries (<span id="count-delivery">0</span>)
                     </div>
                     <div class="note-category" data-category="payment">
-                        💰 Payment Reminders (<span id="count-payment">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">payments</span> Payment Reminders (<span id="count-payment">0</span>)
                     </div>
                     <div class="note-category" data-category="general">
-                        📌 General (<span id="count-general">0</span>)
+                        <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">push_pin</span> General (<span id="count-general">0</span>)
                     </div>
                 </div>
             </div>
@@ -361,7 +363,7 @@
     <!-- Add/Edit Note Modal -->
     <div id="note-modal" class="modal">
         <div class="modal-content">
-            <h2 id="modal-title">➕ New Note</h2>
+            <h2 id="modal-title"><span class="material-symbols-outlined" style="vertical-align:-4px;">add</span> New Note</h2>
             <form id="note-form" onsubmit="saveNote(event)">
                 <div class="form-group">
                     <label>Title *</label>
@@ -417,10 +419,10 @@
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" class="add-note-btn" style="flex: 1;">
-                        💾 Save
+                        <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">save</span> Save
                     </button>
                     <button type="button" class="note-btn" style="flex: 1;" onclick="closeNoteModal()">
-                        ❌ Cancel
+                        <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">close</span> Cancel
                     </button>
                 </div>
             </form>

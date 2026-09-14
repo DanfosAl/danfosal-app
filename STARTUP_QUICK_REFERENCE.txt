@@ -1,0 +1,140 @@
+╔════════════════════════════════════════════════════════════════╗
+║           DANFOSAL EASYPOS - STARTUP QUICK REFERENCE           ║
+╚════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📦 STEP 1: ADD TO WINDOWS STARTUP                               │
+└─────────────────────────────────────────────────────────────────┘
+
+  1. Press: Win + R
+  2. Type:  shell:startup
+  3. Press: Enter
+  4. Right-click → New → Shortcut
+  5. Browse to: E:\DanfosalApp\DanfosalStartup.bat
+  6. Name: "Danfosal EasyPOS Pipeline"
+  7. Properties → Run: Minimized
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ✅ VERIFY IT'S WORKING                                          │
+└─────────────────────────────────────────────────────────────────┘
+
+  After adding to startup, restart your PC and check:
+
+  PowerShell commands:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Check Print Capture Service
+  Get-Process -Name "Danfos.EasyPOS.PrintCaptureService"
+
+  # Check OCR Bridge
+  Get-Process -Name "node" | Where-Object {$_.MainWindowTitle -like "*EasyPOS*"}
+
+  # View startup log
+  Get-Content C:\Danfosal\Logs\startup.log -Tail 20
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🧪 TEST BEFORE ADDING TO STARTUP                               │
+└─────────────────────────────────────────────────────────────────┘
+
+  Just double-click:
+  E:\DanfosalApp\DanfosalStartup.bat
+
+  Expected output:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ========================================
+    Danfosal EasyPOS Pipeline Startup
+  ========================================
+
+  [1/3] Checking Print Capture Service...
+        Status: Already RUNNING (or WARNING if debug mode)
+
+  [2/3] Checking Node.js...
+        Node.js found
+
+  [3/3] Starting OCR Bridge...
+        SUCCESS: OCR Bridge started
+
+  ========================================
+    All services started successfully!
+  ========================================
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🛠️ TROUBLESHOOTING                                              │
+└─────────────────────────────────────────────────────────────────┘
+
+  Problem: "Service not installed" warning
+  ───────────────────────────────────────────────────────────────
+  Solution 1: Install as Windows Service (recommended)
+    cd E:\DanfosalApp\tools\easypos-print-capture
+    .\scripts\install-service.ps1  # Run as Administrator
+
+  Solution 2: Run in debug mode (current setup works fine)
+    Services will start manually - no action needed
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Problem: "Node.js not found"
+  ───────────────────────────────────────────────────────────────
+  - Install Node.js from: https://nodejs.org/
+  - Restart PC after installation
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Problem: Nothing happens on boot
+  ───────────────────────────────────────────────────────────────
+  - Check shortcut is in: shell:startup folder
+  - Check startup log: C:\Danfosal\Logs\startup.log
+  - Verify batch file path hasn't changed
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔄 COMPLETE SYSTEM FLOW                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+  Windows Boot → User Login → DanfosalStartup.bat
+       ↓
+  [1] Print Capture Service starts
+       ↓ (monitors printer events)
+       ↓
+  [2] Prints captured as PNG + JSON
+       ↓ (saved to C:\Danfosal\Inbox\EasyPOS\)
+       ↓
+  [3] OCR Bridge processes files
+       ↓ (extracts invoice data)
+       ↓
+  [4] Data saved to database
+       ↓ (files moved to Processed\)
+       ↓
+  ✅ FULLY AUTOMATED - NO MANUAL STEPS REQUIRED!
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📁 KEY DIRECTORIES                                              │
+└─────────────────────────────────────────────────────────────────┘
+
+  Startup script:    E:\DanfosalApp\DanfosalStartup.bat
+  Captured receipts: C:\Danfosal\Inbox\EasyPOS\
+  Processed files:   C:\Danfosal\Inbox\EasyPOS\Processed\
+  Failed attempts:   C:\Danfosal\Inbox\EasyPOS\Failed\
+  Logs:              C:\Danfosal\Logs\
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🚫 STOP/DISABLE SERVICES                                        │
+└─────────────────────────────────────────────────────────────────┘
+
+  Remove from Startup:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Win + R → shell:startup → Delete shortcut
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Stop services now:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Stop Print Capture
+  net stop "DanfosEasyPOSCapture"
+
+  # Stop OCR Bridge
+  Get-Process node | Where {$_.MainWindowTitle -like "*EasyPOS*"} | Stop-Process
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╔════════════════════════════════════════════════════════════════╗
+║  📘 Full Documentation: STARTUP_AUTOMATION_GUIDE.md             ║
+╚════════════════════════════════════════════════════════════════╝

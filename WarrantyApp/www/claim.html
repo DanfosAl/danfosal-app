@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kërkesë garancie — Danfos Garanci</title>
+<link rel="stylesheet" href="css/tokens/colors.css">
+<link rel="stylesheet" href="css/tokens/typography.css">
+<link rel="stylesheet" href="css/tokens/spacing.css">
+<link rel="stylesheet" href="css/tokens/effects.css">
+<link rel="stylesheet" href="css/garanci.css">
+<link rel="stylesheet" href="css/modern.css">
+<link rel="icon" type="image/svg+xml" href="assets/garanci-logo.svg">
+<style>.claim-layout{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:24px;margin-top:26px;align-items:start}@media(max-width:1100px){.claim-layout{grid-template-columns:minmax(0,1fr)}.claim-layout>section:first-child{position:static!important}#results-list{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}</style>
+</head>
+<body>
+<div class="gn-page" id="app-root">
+  <div id="header-slot"></div>
+  <main class="gn-main">
+    <button class="gn-back-link" onclick="location.href='index.html'">↶ Kthehu në ballinë</button>
+    <div class="gn-eyebrow">PRANIMI NË SERVIS · KLIENTI DHE MAKINERIA</div>
+    <h1 class="gn-h1">Regjistro një kërkesë garancie</h1>
+
+    <p class="dg-sub">Gjeni klientin, verifikoni mbulesën dhe regjistroni problemin në një vend.</p>
+    <p id="page-error" class="dg-error" role="alert" hidden></p>
+    <div class="claim-layout">
+      <section style="position:sticky;top:96px;display:grid;gap:14px;">
+        <div style="position:relative;">
+          <span style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:16px;color:rgba(245,243,255,.45);">◎</span>
+          <input id="search-input" aria-label="Kërko klientin" placeholder="Emër, telefon, NIPT ose qytet…" style="width:100%;height:54px;padding:0 16px 0 44px;border:1px solid rgba(255,255,255,.14);border-radius:20px;background:rgba(255,255,255,.06);backdrop-filter:blur(18px);font-family:var(--font-sans);font-size:14px;font-weight:600;color:#fff;outline:none;" />
+        </div>
+        <div id="results-list" style="display:grid;gap:10px;"></div>
+      </section>
+
+      <section style="display:grid;gap:20px;">
+        <div id="customer-panel" class="gn-card" style="display:none;">
+          <div class="gn-card-top-accent-cyan"></div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <span class="gn-avatar" id="cust-avatar"></span>
+            <div style="flex:1;min-width:200px;">
+              <strong id="cust-name" style="display:block;font-family:var(--font-display);font-size:22px;letter-spacing:-.02em;color:#fff;"></strong>
+              <span id="cust-meta" style="font-size:13px;color:rgba(245,243,255,.55);"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span id="phone-missing-flag" class="gn-tag-missing gn-tag" style="display:none;padding:6px 12px;font-size:11px;">Telefoni mungon</span>
+              <button class="gn-chip" id="cust-edit-toggle">✎ Redakto klientin</button>
+            </div>
+          </div>
+
+          <div id="cust-edit-grid" style="display:none;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:18px;padding:18px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);">
+            <div style="display:grid;gap:8px;">
+              <span style="font-size:12px;font-weight:800;color:rgba(245,243,255,.6);">Numri i telefonit</span>
+              <input id="cust-phone-input" class="gn-input" placeholder="Shtoni numrin e telefonit" />
+            </div>
+            <div style="display:grid;gap:8px;">
+              <span style="font-size:12px;font-weight:800;color:rgba(245,243,255,.6);">Qyteti</span>
+              <input id="cust-city-input" class="gn-input" placeholder="Shtoni qytetin" />
+            </div>
+            <div style="display:grid;gap:8px;">
+              <span style="font-size:12px;font-weight:800;color:rgba(245,243,255,.6);">NIPT</span>
+              <input id="cust-nipt-input" class="gn-input" placeholder="NIPT, nëse zbatohet" />
+            </div>
+          </div>
+
+          <div style="margin-top:24px;font-size:12.5px;font-weight:800;letter-spacing:.08em;color:rgba(245,243,255,.45);">MAKINERITË E BLERA — ZGJIDHNI ATË ME DEFEKT</div>
+          <div id="machine-list" style="display:grid;gap:12px;margin-top:12px;"></div>
+
+          <div id="writeback-prompt" style="display:none;margin-top:18px;"></div>
+          <div id="synced-banner" style="display:none;margin-top:18px;"></div>
+        </div>
+
+        <div id="defect-card" class="gn-card" style="display:none;">
+          <strong style="font-family:var(--font-display);font-size:20px;color:#fff;">Detajet e defektit</strong>
+          <div style="display:grid;gap:8px;margin-top:16px;">
+            <span class="gn-field-label" style="margin-bottom:0;">Përshkrimi i problemit</span>
+            <textarea id="issue-text" class="gn-input gn-textarea" placeholder="P.sh. Pompa humb presionin pas 5 minutash punë; dëgjohet zhurmë nga motori."></textarea>
+          </div>
+          <div id="similar-claims" style="display:none;margin-top:14px;"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:18px;">
+            <div style="display:grid;gap:8px;">
+              <span class="gn-field-label" style="margin-bottom:0;">Prioriteti</span>
+              <div id="priority-chips" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            </div>
+            <div style="display:grid;gap:8px;">
+              <span class="gn-field-label" style="margin-bottom:0;">Mënyra e trajtimit</span>
+              <div id="mode-chips" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="submit-row" style="display:none;flex-wrap:wrap;align-items:center;gap:12px;">
+          <button class="gn-btn gn-btn-primary" id="submit-claim-btn">Rishiko dhe regjistro kërkesën</button>
+          <span id="claim-summary" style="font-size:12.5px;color:rgba(245,243,255,.5);"></span>
+        </div>
+
+        <div id="claimed-panel" style="display:none;"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="js/claim.js"></script>
+</body>
+</html>

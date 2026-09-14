@@ -1,27 +1,88 @@
-﻿# Build artifacts - DO NOT COMMIT
-dist/
-*.exe
-*.dll
-*.pak
-*.bin
-*.dat
+# =============================================================
+# Danfosal App - repository ignore rules
+#
+# Principle: only SOURCE is tracked. Anything that can be
+# regenerated (npm install, electron-builder, gradle) or that is
+# a secret stays out of git.
+# =============================================================
+
+# --- Dependencies (regenerate with npm install) ---
 node_modules/
 .venv/
 
-# Build outputs
-resources/app/dist/
+# --- Build output (regenerate with npm run dist) ---
+dist/
+release-build/
 resources/app/android/app/build/
 resources/app/android/.gradle/
-
-# Large binaries
 *.asar
-ffmpeg.dll
-chrome_*.pak
-d3dcompiler_*.dll
-vk_swiftshader.*
-vulkan-*.dll
 
-# Logs
+# --- Downloaded toolchains: never belong in a project folder ---
+# The Android SDK is ~619 MB and is installed per-machine, not per-repo.
+resources/app/android-sdk/
+
+# --- Compiled / packaged binaries ---
+*.exe
+*.dll
+*.so
+*.apk
+*.pak
+*.bin
+*.dat
+*.node
+locales/
+LICENSES.chromium.html
+
+# --- Large model/training data (redownloadable from upstream) ---
+*.traineddata
+
+# --- QA artifacts and ad-hoc backups (not source) ---
+WarrantyApp/artifacts/
+WarrantyApp/backups/
+artifacts/qa/
+
+# --- Logs & scratch ---
 *.log
 firebase-debug.log
 npm-debug.log
+logs/
+.firebase/
+
+# =============================================================
+# SECRETS - CRITICAL: never commit these
+# The GitHub remote (DanfosAl/danfosal-app) is PUBLIC.
+# =============================================================
+
+# Firebase admin service account (full database access)
+**/serviceAccountKey*.json
+!**/serviceAccountKey.example.json
+
+# Android signing keys. These are IRREPLACEABLE - losing them means
+# never being able to update an already-published Android app - so they
+# are kept on disk and backed up out of band, but never pushed.
+*.keystore
+*.jks
+
+# SMTP credentials for the (retired) weekly email reports
+resources/app/config/email-config.json
+
+# Offline sync data: contains real invoice/customer records
+**/pending_sync.json
+
+# =============================================================
+# BUSINESS DATA - customer, sales, cost and stock records
+# These stay on this machine. A customer sales spreadsheet was once
+# committed to www/ and ended up both in public git history and on
+# public Firebase Hosting - never again.
+# =============================================================
+*.xlsx
+*.xls
+docs/records/
+stock-correction-*.csv
+stock-backup-*.json
+resources/app/exports/
+
+# Local environment overrides
+.env
+.env.*
+!.env.example

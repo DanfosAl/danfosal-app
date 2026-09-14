@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lësho garanci — Danfos Garanci</title>
+<link rel="stylesheet" href="css/tokens/colors.css">
+<link rel="stylesheet" href="css/tokens/typography.css">
+<link rel="stylesheet" href="css/tokens/spacing.css">
+<link rel="stylesheet" href="css/tokens/effects.css">
+<link rel="stylesheet" href="css/garanci.css">
+<link rel="stylesheet" href="css/modern.css">
+<link rel="icon" type="image/svg+xml" href="assets/garanci-logo.svg">
+<style>.issue-layout{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:24px;margin-top:26px;align-items:start}.issue-machine{position:relative;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);display:grid;grid-template-columns:auto minmax(140px,1.6fr) minmax(85px,1fr) minmax(100px,1fr) auto;gap:10px;align-items:center}@media(max-width:1150px){.issue-layout{grid-template-columns:minmax(0,1fr)}.issue-layout>section:first-child{position:static!important}#invoice-list{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}.issue-machine{grid-template-columns:auto minmax(0,1fr) auto}.issue-machine>input[data-slot-field="modelCode"],.issue-machine>input[data-slot-field="serial"]{grid-column:2}.issue-machine>button{grid-column:3;grid-row:1}}</style>
+</head>
+<body>
+<div class="gn-page" id="app-root">
+  <div id="header-slot"></div>
+  <main class="gn-main">
+    <button class="gn-back-link" onclick="location.href='index.html'">↶ Kthehu në ballinë</button>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div>
+        <div class="gn-eyebrow">CERTIFIKATË E RE · PLOTËSIM AUTOMATIK</div>
+        <h1 class="gn-h1">Lësho një garanci të re</h1>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span class="gn-tag gn-tag-auto" id="auto-count-tag" style="font-size:12px;padding:8px 13px;">0 fusha të plotësuara automatikisht</span>
+        <span class="gn-tag gn-tag-missing" id="missing-count-tag" style="font-size:12px;padding:8px 13px;">0 për t'u plotësuar</span>
+      </div>
+    </div>
+
+    <div class="issue-layout">
+      <section class="gn-card" style="position:sticky;top:96px;padding:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.1);">
+          <strong style="font-family:var(--font-display);font-size:16px;color:#fff;">5 faturat e fundit</strong>
+          <span style="font-size:11px;font-weight:800;color:#7ff0dd;letter-spacing:.08em;">NGA FATURIMI</span>
+        </div>
+        <div id="invoice-list" style="display:grid;">
+          <p style="padding:20px;color:rgba(245,243,255,.5);font-size:13px;">Duke ngarkuar…</p>
+        </div>
+        <div style="padding:14px 20px;background:rgba(255,255,255,.03);font-size:12px;line-height:1.5;color:rgba(245,243,255,.45);">Faturat mbërrijnë automatikisht nga sistemi i faturimit. Zgjidhni një për të mbushur formularin.</div>
+      </section>
+
+      <section style="display:grid;gap:20px;">
+        <div class="gn-card" style="overflow:visible;">
+          <div class="gn-card-top-accent"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div>
+              <strong style="font-family:var(--font-display);font-size:20px;color:#fff;">Të dhënat e garancisë</strong>
+              <p id="source-label" style="margin:6px 0 0;font-size:13px;color:rgba(245,243,255,.5);">Zgjidhni një faturë ose plotësoni manualisht.</p>
+            </div>
+            <button class="gn-chip" id="toggle-edit-btn">✎ Redakto manualisht</button>
+          </div>
+
+          <div id="field-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-top:22px;"></div>
+
+          <div style="margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.1);">
+            <span class="gn-field-label" style="margin-bottom:2px;">Makineritë e mbuluara nga garancia</span>
+            <p style="margin:0 0 14px;font-size:12.5px;color:rgba(245,243,255,.5);">Shënoni ✓ makineritë që përfshihen. Mund të shtoni edhe makineri që nuk janë pjesë e kësaj fature.</p>
+            <div id="machine-rows" style="display:grid;gap:10px;"></div>
+            <button class="gn-chip" id="add-machine-btn" style="margin-top:12px;">+ Shto makinë tjetër</button>
+          </div>
+        </div>
+
+        <div class="gn-banner-success">
+          <span class="gn-check-badge">✓</span>
+          <span style="font-size:13.5px;font-weight:700;line-height:1.5;">Parapamje dhe konfirmim aktiv — asgjë nuk i dërgohet klientit para se ta miratoni ju.</span>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+          <button class="gn-btn gn-btn-primary" id="issue-btn" disabled>Rishiko dhe lësho garancinë</button>
+          <span style="font-size:12.5px;color:rgba(245,243,255,.5);">Periudha: 24 muaj pjesë · 12 muaj punë</span>
+        </div>
+
+        <div id="issued-panel" style="display:none;"></div>
+        <p id="page-error" class="dg-error" role="alert" hidden></p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDocs, runTransaction, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { firebaseConfig, renderHeader, renderAuroraBackground, escapeHtml, formatDateAlb, addMonths, nextSequenceNumber, PARTS_MONTHS_DEFAULT, LABOUR_MONTHS_DEFAULT, confirmAction, announceConnection } from "./js/garanci-shared.js";
+import { loadRecentInvoices, toMillis } from "./js/garanci-data.js";
+
+document.getElementById('header-slot').outerHTML = renderHeader('issue');
+document.getElementById('app-root').insertAdjacentHTML('afterbegin', renderAuroraBackground());
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const FIELD_DEFS = [
+    { key: 'klienti', label: 'Klienti' },
+    { key: 'nipt', label: 'NIPT' },
+    { key: 'telefon', label: 'Telefon' },
+    { key: 'fatura', label: 'Nr. i faturës' },
+    { key: 'data', label: 'Data e blerjes' }
+];
+
+let recentInvoices = [];
+let customersByName = {};
+let productCatalog = [];    // [{name, code}] from the products collection, for the machine-name autocomplete
+let activeInvoice = null;   // the selected order doc, or null for a fully manual entry
+let manualEditAll = false;
+let autoValues = {};        // field values derived from the selected invoice (before manual edits) — klienti/nipt/telefon/fatura/data only
+let editedValues = {};      // user overrides, keyed by field
+let issued = false;
+let lastCertNo = null;
+let submitting = false;
+
+// One row per machine on this certificate. `origIndex` points back into activeInvoice.items
+// for rows that came from the invoice (so corrections can be written back to the right item);
+// null for rows the user added manually that aren't part of this invoice at all.
+let machineSlots = [];      // [{ name, modelCode, serial, included, origIndex }]
+
+function fieldValue(key) {
+    if (Object.prototype.hasOwnProperty.call(editedValues, key)) return editedValues[key];
+    return autoValues[key] || '';
+}
+
+function computeAutoValues() {
+    autoValues = {};
+    if (!activeInvoice) return;
+    const data = activeInvoice;
+    const customer = customersByName[(data.clientName || data.customerName || '').trim().toLowerCase()];
+    autoValues.klienti = data.clientName || data.customerName || '';
+    autoValues.nipt = (customer && customer.nipt) || '';
+    autoValues.telefon = (customer && customer.phone) || data.telephone || data.phoneNumber || '';
+    autoValues.fatura = data.invoiceNumber || '';
+    autoValues.data = formatDateAlb(data.timestamp);
+}
+
+function renderInvoiceList() {
+    const wrap = document.getElementById('invoice-list');
+    if (recentInvoices.length === 0) {
+        wrap.innerHTML = `<p style="padding:20px;color:rgba(245,243,255,.5);font-size:13px;">Asnjë faturë e gjetur.</p>`;
+        return;
+    }
+    wrap.innerHTML = recentInvoices.map((inv, idx) => {
+        const item0 = (inv.items || [])[0] || {};
+        const total = inv.total != null ? `€${Number(inv.total).toLocaleString()}` : '';
+        const active = activeInvoice === inv;
+        return `
+        <button data-idx="${idx}" style="display:block;width:100%;text-align:left;padding:16px 20px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:${active ? 'rgba(139,92,255,.14)' : 'transparent'};cursor:pointer;">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <b style="font-family:var(--font-display);font-size:14px;color:#fff;">${escapeHtml(inv.invoiceNumber || ('#' + inv.id.slice(0, 6)))}</b>
+            <span style="font-size:12px;font-weight:800;color:rgba(245,243,255,.45);">${formatDateAlb(inv.timestamp)}</span>
+          </span>
+          <span style="display:block;margin-top:6px;font-size:14px;font-weight:800;color:#fff;">${escapeHtml(inv.clientName || inv.customerName || 'Klient')}</span>
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;">
+            <span style="font-size:12.5px;color:rgba(245,243,255,.55);">${escapeHtml(item0.name || item0.product || '')}</span>
+            <span style="font-size:12.5px;font-weight:800;color:rgba(245,243,255,.8);">${total}</span>
+          </span>
+        </button>`;
+    }).join('');
+    wrap.querySelectorAll('button[data-idx]').forEach(btn => {
+        btn.addEventListener('click', () => selectInvoice(recentInvoices[Number(btn.dataset.idx)]));
+    });
+}
+
+// Every row — whether it came from the invoice or was added manually — gets the same
+// checkbox + editable name/code/serial + autocomplete. This is the direct fix for staff
+// discovering they could type an extra machine into a comma-joined field but never exclude
+// it again short of deleting the text: now every machine, invoice or manual, is a real row
+// with its own checkbox.
+function renderMachineRows() {
+    const wrap = document.getElementById('machine-rows');
+    if (machineSlots.length === 0) {
+        wrap.innerHTML = `<p style="font-size:12.5px;color:rgba(245,243,255,.45);">Asnjë makineri ende — zgjidhni një faturë ose shtoni një manualisht.</p>`;
+        return;
+    }
+    wrap.innerHTML = machineSlots.map((slot, i) => `
+        <div class="issue-machine">
+          <input type="checkbox" data-slot-idx="${i}" data-slot-field="included" ${slot.included ? 'checked' : ''} title="Përfshi në garanci" />
+          <div style="position:relative;">
+            <input class="gn-input" aria-label="Emri i makinerisë ${i + 1}" style="padding:9px 12px;font-size:13px;" data-slot-idx="${i}" data-slot-field="name" value="${escapeHtml(slot.name)}" placeholder="Emri i makinerisë" autocomplete="off" />
+            <div id="slot-autocomplete-${i}" class="gn-autocomplete-list"></div>
+          </div>
+          <input class="gn-input" aria-label="Kodi i makinerisë ${i + 1}" style="padding:9px 12px;font-size:13px;" data-slot-idx="${i}" data-slot-field="modelCode" value="${escapeHtml(slot.modelCode)}" placeholder="Kodi" />
+          <input class="gn-input" aria-label="Seriali i makinerisë ${i + 1}" style="padding:9px 12px;font-size:13px;" data-slot-idx="${i}" data-slot-field="serial" value="${escapeHtml(slot.serial)}" placeholder="Nr. serial" />
+          <button data-remove-slot="${i}" title="${slot.origIndex !== null ? 'Fshi nga garancia (mbetet në faturë)' : 'Hiq'}" style="border:0;background:none;color:rgba(245,243,255,.45);cursor:pointer;font-size:16px;padding:4px;">✕</button>
+        </div>`).join('');
+
+    wrap.querySelectorAll('input[data-slot-field]').forEach(input => {
+        const evt = input.type === 'checkbox' ? 'change' : 'input';
+        input.addEventListener(evt, () => {
+            const idx = Number(input.dataset.slotIdx);
+            const field = input.dataset.slotField;
+            machineSlots[idx][field] = input.type === 'checkbox' ? input.checked : input.value;
+            if (field === 'name') renderSlotAutocomplete(idx, input.value);
+        });
+        if (input.dataset.slotField === 'name') {
+            input.addEventListener('blur', () => {
+                setTimeout(() => { const l = document.getElementById(`slot-autocomplete-${input.dataset.slotIdx}`); if (l) l.classList.remove('open'); }, 150);
+            });
+        }
+    });
+    wrap.querySelectorAll('[data-remove-slot]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            machineSlots.splice(Number(btn.dataset.removeSlot), 1);
+            renderMachineRows();
+        });
+    });
+}
+
+function renderSlotAutocomplete(idx, term) {
+    const list = document.getElementById(`slot-autocomplete-${idx}`);
+    if (!list) return;
+    const q = term.trim().toLowerCase();
+    if (q.length < 2) { list.classList.remove('open'); return; }
+    const matches = productCatalog.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
+    if (matches.length === 0) { list.classList.remove('open'); return; }
+    list.innerHTML = matches.map((p, i) => `
+        <div class="gn-autocomplete-item" data-pidx="${i}">
+          ${escapeHtml(p.name)}${p.code ? `<div class="gn-ac-sub">${escapeHtml(p.code)}</div>` : ''}
+        </div>`).join('');
+    list.classList.add('open');
+    list.querySelectorAll('[data-pidx]').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const product = matches[Number(el.dataset.pidx)];
+            machineSlots[idx].name = product.name;
+            machineSlots[idx].modelCode = product.code || '';
+            list.classList.remove('open');
+            renderMachineRows();
+        });
+    });
+}
+
+document.getElementById('add-machine-btn').addEventListener('click', () => {
+    machineSlots.push({ name: '', modelCode: '', serial: '', included: true, origIndex: null });
+    renderMachineRows();
+    const inputs = document.querySelectorAll('#machine-rows input[data-slot-field="name"]');
+    const last = inputs[inputs.length - 1];
+    if (last) last.focus();
+});
+
+function renderFields() {
+    const grid = document.getElementById('field-grid');
+    let autoCount = 0, missingCount = 0;
+    grid.innerHTML = FIELD_DEFS.map(f => {
+        const value = fieldValue(f.key);
+        const hasAutoValue = !!autoValues[f.key];
+        const isEdited = Object.prototype.hasOwnProperty.call(editedValues, f.key);
+        let tagClass, tagLabel, editable;
+        if (manualEditAll) {
+            tagClass = 'gn-tag-edit'; tagLabel = 'REDAKTIM'; editable = true;
+        } else if (hasAutoValue && !isEdited) {
+            tagClass = 'gn-tag-auto'; tagLabel = 'AUTO'; editable = false;
+        } else if (!value) {
+            tagClass = 'gn-tag-missing'; tagLabel = 'MUNGON'; editable = true;
+        } else {
+            tagClass = 'gn-tag-auto'; tagLabel = 'AUTO'; editable = false;
+        }
+        if (value) autoCount++; else missingCount++;
+        const missingStyle = (!value && !manualEditAll) ? ' gn-missing' : '';
+        return `
+        <div style="display:grid;gap:8px;align-content:start;">
+          <span class="gn-field-label">${f.label}<span class="gn-tag ${tagClass}">${tagLabel}</span></span>
+          <input data-key="${f.key}" aria-label="${f.label}" class="gn-input${missingStyle}" value="${escapeHtml(value)}" ${editable ? '' : 'readonly'} placeholder="Shkruani ${f.label.toLowerCase()}" autocomplete="off" />
+        </div>`;
+    }).join('');
+
+    grid.querySelectorAll('input[data-key]').forEach(input => {
+        input.addEventListener('input', () => {
+            editedValues[input.dataset.key] = input.value;
+            updateCounters();
+        });
+    });
+
+    document.getElementById('auto-count-tag').textContent = `${autoCount} fusha të plotësuara automatikisht`;
+    document.getElementById('missing-count-tag').textContent = `${missingCount} për t'u plotësuar`;
+}
+
+function updateCounters() {
+    let autoCount = 0, missingCount = 0;
+    FIELD_DEFS.forEach(f => { if (fieldValue(f.key)) autoCount++; else missingCount++; });
+    document.getElementById('auto-count-tag').textContent = `${autoCount} fusha të plotësuara automatikisht`;
+    document.getElementById('missing-count-tag').textContent = `${missingCount} për t'u plotësuar`;
+}
+
+function selectInvoice(inv) {
+    if (submitting) return;
+    activeInvoice = inv;
+    machineSlots = (inv.items || []).map((it, i) => ({
+        name: it.name || it.product || '',
+        modelCode: it.code || it.productCode || '',
+        serial: it.serialNumber || '',
+        included: true,
+        origIndex: i
+    }));
+    editedValues = {};
+    issued = false;
+    document.getElementById('issue-btn').disabled = false;
+    document.getElementById('issue-btn').textContent = 'Rishiko dhe lësho garancinë';
+    document.getElementById('issued-panel').style.display = 'none';
+    computeAutoValues();
+    document.getElementById('source-label').textContent = `Burimi: fatura ${inv.invoiceNumber || ('#' + inv.id.slice(0, 6))} · plotësuar automatikisht`;
+    renderInvoiceList();
+    renderMachineRows();
+    renderFields();
+}
+
+document.getElementById('toggle-edit-btn').addEventListener('click', () => {
+    manualEditAll = !manualEditAll;
+    document.getElementById('toggle-edit-btn').classList.toggle('active', manualEditAll);
+    renderFields();
+});
+
+document.getElementById('issue-btn').addEventListener('click', async () => {
+    if (submitting || issued) return;
+    const klienti = fieldValue('klienti').trim();
+    const includedSlots = machineSlots.filter(s => s.included && s.name.trim()).map(s => ({ ...s }));
+    if (!klienti || includedSlots.length === 0) {
+        alert('Klienti dhe të paktën një makineri janë të domosdoshme para se të gjenerohet garancia.');
+        return;
+    }
+    const certItems = includedSlots.map(s => ({ name: s.name.trim(), modelCode: s.modelCode.trim(), serialNumber: s.serial.trim(), sourceItemIndex: s.origIndex }));
+    const invoice = activeInvoice;
+    const nipt = fieldValue('nipt').trim();
+    const telefon = fieldValue('telefon').trim();
+    const invoiceNumber = fieldValue('fatura').trim();
+    const purchaseLabel = fieldValue('data').trim();
+    const purchaseParts = purchaseLabel.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+    const purchaseDate = purchaseParts ? new Date(Number(purchaseParts[3]), Number(purchaseParts[2]) - 1, Number(purchaseParts[1])) : null;
+    if (purchaseLabel && (!purchaseDate || purchaseDate.getDate() !== Number(purchaseParts[1]) || purchaseDate.getMonth() !== Number(purchaseParts[2]) - 1)) {
+        alert('Shkruani datën e blerjes në formatin DD.MM.VVVV.');
+        return;
+    }
+    const customer = customersByName[klienti.toLowerCase()];
+    const customerPatch = {};
+    if (nipt && nipt !== (customer?.nipt || '')) customerPatch.nipt = nipt;
+    if (telefon && telefon !== (customer?.phone || '')) customerPatch.phone = telefon;
+    const corrections = [];
+    const itemPatches = [];
+    const oldClient = invoice ? (invoice.clientName || invoice.customerName || '') : '';
+    if (invoice && klienti !== oldClient) corrections.push(`Klienti në faturë: ${oldClient || '—'} → ${klienti}`);
+    if (invoice) includedSlots.forEach(slot => {
+        if (slot.origIndex === null) return;
+        const original = invoice.items[slot.origIndex];
+        const fields = [
+            { key: Object.hasOwn(original, 'name') ? 'name' : 'product', value: slot.name.trim(), old: original.name || original.product || '', label: 'Makineria' },
+            { key: Object.hasOwn(original, 'productCode') && !Object.hasOwn(original, 'code') ? 'productCode' : 'code', value: slot.modelCode.trim(), old: original.code || original.productCode || '', label: 'Kodi' },
+            { key: 'serialNumber', value: slot.serial.trim(), old: original.serialNumber || '', label: 'Seriali' }
+        ].filter(f => f.value && f.value !== f.old);
+        if (fields.length) itemPatches.push({ index: slot.origIndex, original, fields });
+        fields.forEach(f => corrections.push(`${f.label} · rreshti ${slot.origIndex + 1}: ${f.old || '—'} → ${f.value}`));
+    });
+    Object.entries(customerPatch).forEach(([key, value]) => corrections.push(`${key === 'phone' ? 'Telefoni' : 'NIPT'} në profil: ${customer?.[key] || '—'} → ${value}`));
+    if (!customer && (nipt || telefon)) corrections.push(`Do të krijohet profili i klientit: ${klienti}`);
+
+    const btn = document.getElementById('issue-btn');
+    submitting = true;
+    btn.disabled = true;
+    try {
+        const confirmed = await confirmAction({
+            title: 'Rishiko certifikatën e garancisë',
+            body: `Klienti: ${klienti}\nFatura: ${invoiceNumber || 'Manuale'}\nData e blerjes: ${purchaseLabel || '—'}\n\n${certItems.map((it, i) => `${i + 1}. ${it.name} · kodi ${it.modelCode || '—'} · S/N ${it.serialNumber || '—'}`).join('\n')}\n\nMbulesa: 24 muaj pjesë · 12 muaj punë, nga dita e lëshimit.\n\n${corrections.length ? 'Ndryshimet që do të ruhen bashkë me certifikatën:\n' + corrections.join('\n') : 'Të dhënat e faturës dhe profilit janë të pandryshuara.'}`,
+            confirmLabel: 'Konfirmo dhe lësho'
+        });
+        if (!confirmed) return;
+        const certNo = await nextSequenceNumber(db, 'warrantyCertNo', 'GAR');
+        const issuedAt = Timestamp.now();
+        const warrantyUntil = Timestamp.fromDate(addMonths(issuedAt, PARTS_MONTHS_DEFAULT));
+        const cardDoc = doc(collection(db, 'warrantyCards'));
+        const sourceRef = invoice ? doc(db, invoice.collectionName, invoice.id) : null;
+        const customerRef = (nipt || telefon) ? (customer?.id ? doc(db, 'customers', customer.id) : doc(collection(db, 'customers'))) : null;
+        const cardData = {
+            certNo,
+            saleId: invoice ? invoice.id : null,
+            saleType: invoice ? (invoice.collectionName === 'onlineOrders' ? 'onlineOrder' : 'storeSale') : 'manual',
+            customerName: klienti,
+            items: certItems,
+            location: 'Danfos',
+            invoiceNumber,
+            purchaseDate: purchaseDate ? Timestamp.fromDate(purchaseDate) : null,
+            partsMonths: PARTS_MONTHS_DEFAULT,
+            labourMonths: LABOUR_MONTHS_DEFAULT,
+            warrantyUntil,
+            createdAt: issuedAt
+        };
+        await runTransaction(db, async tx => {
+            const sourceSnap = sourceRef ? await tx.get(sourceRef) : null;
+            const customerSnap = customerRef && customer?.id ? await tx.get(customerRef) : null;
+            const orderPatch = {};
+            if (sourceRef) {
+                if (!sourceSnap.exists()) throw new Error('Fatura nuk ekziston më. Ringarkoni faqen.');
+                const fresh = sourceSnap.data();
+                const items = [...(fresh.items || [])];
+                for (const slot of includedSlots.filter(slot => slot.origIndex !== null)) {
+                    const current = items[slot.origIndex];
+                    const original = invoice.items[slot.origIndex];
+                    if (!current || ['name', 'product', 'code', 'productCode', 'serialNumber'].some(key => (current[key] || '') !== (original[key] || ''))) throw new Error('Makineria në faturë ka ndryshuar. Ringarkoni faqen për ta rishikuar.');
+                }
+                for (const change of itemPatches) {
+                    const current = items[change.index];
+                    if (!current || ['name', 'product', 'code', 'productCode', 'serialNumber'].some(key => (current[key] || '') !== (change.original[key] || ''))) throw new Error('Makineria në faturë ka ndryshuar. Ringarkoni faqen për ta rishikuar.');
+                    items[change.index] = { ...current, ...Object.fromEntries(change.fields.map(f => [f.key, f.value])) };
+                }
+                if (itemPatches.length) orderPatch.items = items;
+                if (klienti !== oldClient) {
+                    if ((fresh.clientName || fresh.customerName || '') !== oldClient) throw new Error('Klienti në faturë ka ndryshuar. Ringarkoni faqen.');
+                    orderPatch.clientName = klienti;
+                }
+            }
+            if (customerSnap) {
+                if (!customerSnap.exists()) throw new Error('Profili i klientit ka ndryshuar. Ringarkoni faqen.');
+                if (Object.keys(customerPatch).some(key => (customerSnap.data()[key] || '') !== (customer[key] || ''))) throw new Error('Profili u përditësua ndërkohë. Ringarkoni faqen për ta rishikuar.');
+            }
+            if (sourceRef && Object.keys(orderPatch).length) tx.update(sourceRef, orderPatch);
+            if (customerRef && !customer?.id) tx.set(customerRef, { name: klienti, phone: telefon, nipt, email: '', address: '', status: 'Active', image: '' });
+            else if (customerRef && Object.keys(customerPatch).length) tx.update(customerRef, customerPatch);
+            tx.set(cardDoc, cardData);
+        });
+        if (customerRef) customersByName[klienti.toLowerCase()] = { id: customerRef.id, nipt, phone: telefon };
+        issued = true;
+        lastCertNo = certNo;
+        btn.textContent = 'Garancia u lëshua';
+        renderIssuedPanel(cardDoc.id, klienti, certItems, purchaseLabel);
+    } catch (err) {
+        console.error('Failed to issue warranty:', err);
+        alert('Garancia nuk u gjenerua: ' + err.message);
+    } finally {
+        submitting = false;
+        btn.disabled = issued;
+    }
+});
+
+function renderIssuedPanel(cardId, customerName, certItems, purchaseLabel) {
+    // Same param scheme as warranty-cards-list.html's reprintUrl() — the print page fills its
+    // product/serial/buyer/date/location fields from these query params, not from Firestore;
+    // `id` is only used there to fetch repair history. Its template has one product/serial
+    // field each, so multiple machines join with ", " same as the old comma-field approach.
+    const printParams = new URLSearchParams({
+        product: certItems.map(it => it.name).join(', '),
+        serial: certItems.map(it => it.serialNumber).filter(Boolean).join(', '),
+        buyer: customerName,
+        date: purchaseLabel,
+        location: 'Danfos',
+        id: cardId
+    });
+    const printUrl = `https://danfosal-app.web.app/warranty-card.html?${printParams.toString()}`;
+    const profileUrl = `https://danfosal-app.web.app/customer-portal.html?q=${encodeURIComponent(customerName)}`;
+    const panel = document.getElementById('issued-panel');
+    panel.style.display = 'block';
+    panel.className = 'gn-banner-issued';
+    panel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:rgba(255,201,60,.9);color:#2a1a00;font-size:16px;">⌗</span>
+        <div>
+          <b style="display:block;font-family:var(--font-display);font-size:17px;color:#fff;">Certifikata ${escapeHtml(lastCertNo)} u gjenerua</b>
+          <span style="display:block;margin-top:3px;font-size:13px;color:rgba(245,243,255,.6);">Të dhënat iu dërguan faqes së garancisë në aplikacionin kryesor.</span>
+        </div>
+      </div>
+      <div style="display:grid;gap:8px;font-size:13px;color:rgba(245,243,255,.72);">
+        <span>✓ Fusha e garancisë u mbush ${activeInvoice ? 'nga fatura ' + escapeHtml(activeInvoice.invoiceNumber || activeInvoice.id.slice(0, 6)) : 'manualisht'}</span>
+        <span>✓ Makineritë e zgjedhura dhe serialet u ruajtën në certifikatë</span>
+        <span>◷ Faqja e printimit hapet në aplikacionin kryesor</span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="gn-btn gn-btn-primary" href="${printUrl}" target="_blank">⌗ Hap faqen e printimit</a>
+        <a class="gn-btn gn-btn-glass" href="${profileUrl}" target="_blank">Shiko profilin e klientit</a>
+      </div>`;
+}
+
+async function init() {
+    const [invoices, customersSnap, productsSnap] = await Promise.all([
+        loadRecentInvoices(db, 5),
+        getDocs(collection(db, 'customers')),
+        getDocs(collection(db, 'products'))
+    ]);
+    recentInvoices = invoices;
+    customersByName = {};
+    customersSnap.forEach(d => {
+        const data = d.data();
+        const name = (data.name || '').trim();
+        if (!name) return;
+        customersByName[name.toLowerCase()] = { id: d.id, nipt: data.nipt || '', phone: data.phone || '' };
+    });
+    productCatalog = productsSnap.docs
+        .map(d => ({ name: (d.data().name || '').trim(), code: d.data().code || '' }))
+        .filter(p => p.name);
+    renderInvoiceList();
+    renderFields();
+    renderMachineRows();
+    document.getElementById('issue-btn').disabled = false;
+    announceConnection('connected');
+}
+
+function reportLoadError(err) {
+    console.error('Failed to load issue screen:', err);
+    announceConnection('error');
+    const error = document.getElementById('page-error');
+    error.hidden = false;
+    error.textContent = 'Të dhënat nuk u ngarkuan. Kontrolloni lidhjen dhe ringarkoni faqen.';
+}
+auth.onAuthStateChanged(user => {
+    if (user) init().catch(reportLoadError);
+    else signInAnonymously(auth).catch(reportLoadError);
+});
+</script>
+</body>
+</html>

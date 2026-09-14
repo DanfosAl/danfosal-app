@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🤖 AI Dashboard - Danfosal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="glassmorphism.css">
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body class="min-h-screen">
     
@@ -39,7 +41,7 @@
             <!-- Next Actions Summary -->
             <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-2xl p-6 text-white">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">📋 Next Actions</h3>
+                    <h3 class="text-xl font-bold"><span class="material-symbols-outlined" style="vertical-align:-4px;">checklist</span> Next Actions</h3>
                     <div id="actionsCount" class="bg-white/30 px-4 py-2 rounded-lg text-2xl font-bold">-</div>
                 </div>
                 <p id="actionsDescription" class="text-green-50">Loading recommendations...</p>
@@ -52,7 +54,7 @@
             <!-- Anomalies Summary -->
             <div class="bg-gradient-to-br from-red-500 to-pink-600 rounded-xl shadow-2xl p-6 text-white">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">⚠️ Anomalies</h3>
+                    <h3 class="text-xl font-bold"><span class="material-symbols-outlined" style="vertical-align:-4px;">warning</span> Anomalies</h3>
                     <div id="anomaliesCount" class="bg-white/30 px-4 py-2 rounded-lg text-2xl font-bold">-</div>
                 </div>
                 <p id="anomaliesDescription" class="text-red-50">Scanning for unusual patterns...</p>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warranty Cards - Danfosal App</title>
+    <link rel="stylesheet" href="css/tailwind-default.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="keyboard-navigation.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script type="module" src="global-search.js" defer></script>
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <div class="max-w-4xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-3xl">shield</span>
+                    Warranty Cards
+                </h1>
+                <p class="theme-text-secondary">Every warranty card generated, with serial numbers, in one place.</p>
+            </div>
+            <a href="index.html" class="glass-btn inline-flex items-center">
+                <span class="material-symbols-outlined mr-2" style="font-size:1.1em;">home</span>
+                Dashboard
+            </a>
+        </header>
+
+        <div class="glass-container mb-6">
+            <input type="text" id="search-input" placeholder="Search by customer name, product, or serial number..."
+                class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+        </div>
+
+        <div id="cards-list-container" class="space-y-3">
+            <p class="theme-text-secondary text-center">Loading warranty cards...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let allCards = [];
+        const listContainer = document.getElementById('cards-list-container');
+        const searchInput = document.getElementById('search-input');
+
+        function formatDate(createdAt) {
+            if (!createdAt) return '';
+            const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+            return d.toLocaleDateString('en-GB');
+        }
+
+        function reprintUrl(card) {
+            const productNames = (card.items || []).map(i => i.name).join(', ');
+            const serials = (card.items || []).map(i => i.serialNumber || '').join(', ');
+            const params = new URLSearchParams({
+                product: productNames,
+                serial: serials,
+                buyer: card.customerName || '',
+                date: formatDate(card.createdAt),
+                location: card.location || '',
+                id: card.id
+            });
+            return `warranty-card.html?${params.toString()}`;
+        }
+
+        function render() {
+            const term = searchInput.value.trim().toLowerCase();
+            const filtered = !term ? allCards : allCards.filter(card => {
+                const haystack = [
+                    card.customerName || '',
+                    ...(card.items || []).map(i => `${i.name} ${i.serialNumber || ''}`)
+                ].join(' ').toLowerCase();
+                return haystack.includes(term);
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `<p class="theme-text-secondary text-center">No warranty cards found.</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(card => {
+                const items = card.items || [];
+                const itemsHtml = items.map(i =>
+                    `<span class="inline-block bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs mr-1 mb-1">${i.name}${i.serialNumber ? ` <span class="text-emerald-400">· SN ${i.serialNumber}</span>` : ''}</span>`
+                ).join('');
+                const badge = card.saleType === 'onlineOrder' ? 'Online Order' : card.saleType === 'storeSale' ? 'In-Store Sale' : 'Manual';
+
+                return `
+                <div class="glass-card p-4">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div class="flex-1 min-w-[200px]">
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="font-bold text-lg theme-text">${card.customerName || 'Unknown customer'}</p>
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">${badge}</span>
+                            </div>
+                            <p class="text-sm theme-text-secondary mb-2">${formatDate(card.createdAt)} · ${card.location || ''}</p>
+                            <div>${itemsHtml}</div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <a href="${reprintUrl(card)}" target="_blank" class="glass-btn text-sm inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined" style="font-size:1.1em;">print</span> Reprint
+                            </a>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        searchInput.addEventListener('input', render);
+
+        const startApp = () => {
+            const cardsRef = collection(db, 'warrantyCards');
+            onSnapshot(query(cardsRef, orderBy('createdAt', 'desc')), (snapshot) => {
+                allCards = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                render();
+            }, (err) => {
+                console.error('Failed to load warranty cards:', err);
+                listContainer.innerHTML = `<p class="text-red-400 text-center">Failed to load warranty cards.</p>`;
+            });
+        };
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                startApp();
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

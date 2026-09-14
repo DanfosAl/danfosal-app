@@ -405,7 +405,7 @@ class AIChatbotInterface {
                     
                     // Navigate to warranty page
                     setTimeout(() => {
-                        if (window.location.href.includes('orders_online.html')) {
+                        if (window.location.href.includes('online-orders.html')) {
                             if (typeof window.openWarrantyModal === 'function') {
                                 window.openWarrantyModal(orderId);
                             } else {
@@ -413,7 +413,7 @@ class AIChatbotInterface {
                             }
                         } else {
                             sessionStorage.setItem('pendingWarrantyOrder', orderId);
-                            window.location.href = 'orders_online.html';
+                            window.location.href = 'online-orders.html';
                         }
                     }, 1500);
                     

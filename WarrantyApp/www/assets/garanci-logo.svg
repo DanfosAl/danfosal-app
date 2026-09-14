@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Danfos Garanci">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25243c"/><stop offset="1" stop-color="#090f19"/></linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8570ce"/><stop offset="1" stop-color="#302a53"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff0ad"/><stop offset=".42" stop-color="#ffd75e"/><stop offset="1" stop-color="#eab635"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#a488ff" stop-opacity=".32"/><stop offset="1" stop-color="#a488ff" stop-opacity="0"/></radialGradient>
+    <clipPath id="bounds"><rect x="8" y="8" width="496" height="496" rx="108"/></clipPath>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#tile)"/>
+  <rect x="10" y="10" width="492" height="492" rx="106" fill="none" stroke="#ffffff" stroke-opacity=".15" stroke-width="3"/>
+  <g clip-path="url(#bounds)">
+  <circle cx="204" cy="170" r="201" fill="url(#halo)"/>
+  <rect x="123" y="101" width="236" height="285" rx="31" transform="rotate(-13 241 244)" fill="#111522" opacity=".7"/>
+  <rect x="113" y="90" width="236" height="285" rx="31" transform="rotate(-13 231 232)" fill="url(#paper)" stroke="#c2adfa" stroke-opacity=".65" stroke-width="4"/>
+  <path d="M267 110 390 157V258c0 86-68 140-123 168-55-28-123-82-123-168V157Z" fill="#080d19" opacity=".45" transform="translate(0 10)"/>
+  <path d="M267 99 390 146V247c0 86-68 140-123 168-55-28-123-82-123-168V146Z" fill="url(#gold)"/>
+  <path d="m267 118 106 41v88c0 72-54 121-106 149-52-28-106-77-106-149v-88Z" fill="none" stroke="#fff9db" stroke-opacity=".55" stroke-width="3"/>
+  <path d="m207 252 41 40 80-91" fill="none" stroke="#202038" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m207 250 41 40 80-91" fill="none" stroke="#292541" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

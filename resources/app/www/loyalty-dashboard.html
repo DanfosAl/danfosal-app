@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Loyalty Dashboard - Danfosal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind-default.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 50%, rgba(249, 115, 22, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+            animation: gradientShift 15s ease infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(5%, 5%) rotate(120deg); }
+            66% { transform: translate(-5%, 5%) rotate(240deg); }
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 1.25rem;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .metric-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .rank-1 { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #000; }
+        .rank-2 { background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); color: #000; }
+        .rank-3 { background: linear-gradient(135deg, #fb923c 0%, #f97316 100%); color: #000; }
+        .rank-default { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+
+        .customer-row, .product-row {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s ease;
+            min-width: 0;
+        }
+
+        .customer-row:hover, .product-row:hover {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+        }
+
+        .row-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .row-info {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .row-stats {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #60a5fa;
+            border-radius: 50%;
+            width: 3rem;
+            height: 3rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+        }
+
+        .nav-link.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+    </style>
+    <script type="module" src="global-search.js" defer></script>
+</head>
+<body>
+    <div class="container mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold mb-2"><span class="material-symbols-outlined" style="vertical-align:-4px;">loyalty</span> Customer Loyalty Dashboard</h1>
+                <p class="text-gray-400">Top customers and trending products</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="index.html" class="nav-link">← Back</a>
+                <a href="smart-dashboard.html" class="nav-link">Smart Dashboard</a>
+                <button onclick="generatePDFReport()" class="nav-link hover:bg-green-600 hover:text-white" id="pdf-export-btn">
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">description</span> Genero Raportin Ekzekutiv
+                </button>
+                <button onclick="loadDashboardData()" class="nav-link hover:bg-blue-600 hover:text-white">
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">refresh</span> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" id="summary-metrics">
+            <div class="metric-box">
+                <div class="metric-value" id="total-customers">--</div>
+                <div class="metric-label">Total Customers</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value" id="total-revenue">--</div>
+                <div class="metric-label">Total Revenue</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value" id="top10-revenue">--</div>
+                <div class="metric-label">Top 10 Revenue</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value" id="top10-percentage">--</div>
+                <div class="metric-label">Top 10 Share</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Top 10 Customers -->
+            <div class="card">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined">group</span>
+                    <span>Top 10 Customers</span>
+                </h2>
+                <div id="top-customers-list" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Top 5 Products -->
+            <div class="card">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined">inventory_2</span>
+                    <span>Top 5 Products (from Top 10)</span>
+                </h2>
+                <div id="top-products-list" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Best Customer Spotlight -->
+        <div class="card mt-8" id="best-customer-card" style="display: none;">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined">star</span>
+                <span>Best Customer Spotlight</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="best-customer-details">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Top Product Spotlight -->
+        <div class="card mt-8" id="top-product-card" style="display: none;">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined">flag</span>
+                <span>Top Product Spotlight</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="top-product-details">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Dashboard loading function
+        async function loadDashboard() {
+            try {
+                console.log('📊 Loading loyalty dashboard data...');
+                
+                // Load customers with sales data
+                console.log('👥 Step 1: Loading customers...');
+                const customers = await loadCustomersWithSales();
+                console.log(`✓ Loaded ${customers.length} customers`);
+                
+                // Identify top 10 customers
+                console.log('🏆 Step 2: Identifying top customers...');
+                const topCustomers = identifyTopCustomers(customers);
+                console.log(`✓ Found ${topCustomers.length} top customers`);
+                
+                // Analyze top products
+                console.log('📦 Step 3: Analyzing top products...');
+                const topProducts = analyzeTopProducts(topCustomers);
+                console.log(`✓ Analyzed ${topProducts.length} top products`);
+                
+                // Render dashboard
+                console.log('🎨 Step 4: Rendering dashboard...');
+                renderSummary(customers, topCustomers);
+                renderTopCustomers(topCustomers);
+                renderTopProducts(topProducts);
+                renderSpotlights(topCustomers, topProducts);
+                
+                console.log('✅ Dashboard loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Error loading dashboard:', error);
+                console.error('📋 Error details:');
+                console.error('   Message:', error.message);
+                console.error('   Code:', error.code);
+                console.error('   Name:', error.name);
+                console.error('   Stack:', error.stack);
+                
+                let errorMsg = `Error: ${error.message || 'Unknown error'}`;
+                if (error.code) errorMsg += `\n\nCode: ${error.code}`;
+                
+                alert(`❌ Failed to load dashboard\n\n${errorMsg}\n\nCheck console for full details.`);
+            }
+        };
+
+        async function loadCustomersWithSales() {
+            const customersSnapshot = await getDocs(collection(db, 'customers'));
+            const customerData = [];
+
+            for (const doc of customersSnapshot.docs) {
+                const customer = doc.data();
+                const customerId = doc.id;
+                const customerName = customer.name;
+                
+                const invoiceCount = (customer.invoiceHistory || []).length;
+                
+                // Get store sales
+                const storeSalesQuery = query(
+                    collection(db, 'storeSales'),
+                    where('clientName', '==', customerName)
+                );
+                const storeSalesSnapshot = await getDocs(storeSalesQuery);
+                
+                let storeSalesTotal = 0;
+                const allItems = [];
+                
+                storeSalesSnapshot.forEach(saleDoc => {
+                    const sale = saleDoc.data();
+                    storeSalesTotal += (sale.total || 0);
+                    if (sale.items) allItems.push(...sale.items);
+                });
+                
+                // Get online orders
+                const onlineOrdersQuery = query(
+                    collection(db, 'onlineOrders'),
+                    where('clientName', '==', customerName)
+                );
+                const onlineOrdersSnapshot = await getDocs(onlineOrdersQuery);
+                
+                let onlineOrdersTotal = 0;
+                
+                onlineOrdersSnapshot.forEach(orderDoc => {
+                    const order = orderDoc.data();
+                    // OnlineOrders may have 'total' or 'price' field
+                    onlineOrdersTotal += (order.total || order.price || 0);
+                    if (order.items) allItems.push(...order.items);
+                });
+                
+                const totalSpend = storeSalesTotal + onlineOrdersTotal;
+                const totalTransactions = storeSalesSnapshot.size + onlineOrdersSnapshot.size;
+                
+                customerData.push({
+                    id: customerId,
+                    name: customerName,
+                    invoiceCount,
+                    totalSpend,
+                    storeSalesTotal,
+                    onlineOrdersTotal,
+                    totalTransactions,
+                    allItems,
+                    lastInvoiceDate: customer.lastInvoiceDate || null
+                });
+            }
+
+            return customerData;
+        }
+
+        function identifyTopCustomers(customers) {
+            return [...customers]
+                .sort((a, b) => {
+                    if (b.totalSpend !== a.totalSpend) {
+                        return b.totalSpend - a.totalSpend;
+                    }
+                    return b.invoiceCount - a.invoiceCount;
+                })
+                .slice(0, 10);
+        }
+
+        function analyzeTopProducts(topCustomers) {
+            const productMap = new Map();
+            
+            topCustomers.forEach(customer => {
+                customer.allItems.forEach(item => {
+                    const productName = item.name || item.product || 'Unknown Product';
+                    const productCode = item.code || item.productCode || '';
+                    const quantity = item.quantity || 1;
+                    const price = item.price || 0;
+                    const revenue = quantity * price;
+                    
+                    if (!productMap.has(productName)) {
+                        productMap.set(productName, {
+                            name: productName,
+                            code: productCode,
+                            totalQuantity: 0,
+                            totalRevenue: 0,
+                            orderCount: 0
+                        });
+                    }
+                    
+                    const product = productMap.get(productName);
+                    product.totalQuantity += quantity;
+                    product.totalRevenue += revenue;
+                    product.orderCount += 1;
+                });
+            });
+            
+            return Array.from(productMap.values())
+                .sort((a, b) => b.totalRevenue - a.totalRevenue)
+                .slice(0, 5);
+        }
+
+        function renderSummary(customers, topCustomers) {
+            const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpend, 0);
+            const top10Revenue = topCustomers.reduce((sum, c) => sum + c.totalSpend, 0);
+            const top10Percentage = totalRevenue > 0 ? (top10Revenue / totalRevenue * 100) : 0;
+            
+            document.getElementById('total-customers').textContent = customers.length;
+            document.getElementById('total-revenue').textContent = '€' + totalRevenue.toFixed(0);
+            document.getElementById('top10-revenue').textContent = '€' + top10Revenue.toFixed(0);
+            document.getElementById('top10-percentage').textContent = top10Percentage.toFixed(1) + '%';
+        }
+
+        function renderTopCustomers(topCustomers) {
+            const container = document.getElementById('top-customers-list');
+            container.classList.remove('loading');
+            
+            if (topCustomers.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center">No customer data available</p>';
+                return;
+            }
+            
+            container.innerHTML = topCustomers.map((customer, index) => {
+                const rank = index + 1;
+                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-default';
+                
+                return `
+                    <div class="customer-row">
+                        <div class="rank-badge ${rankClass}">${rank}</div>
+                        <div class="row-info flex-1">
+                            <div class="row-name font-semibold text-lg" title="${customer.name}">${customer.name}</div>
+                            <div class="text-sm text-gray-400">${customer.totalTransactions} transactions • ${customer.invoiceCount} invoices</div>
+                        </div>
+                        <div class="row-stats text-right">
+                            <div class="font-bold text-xl text-blue-400">€${customer.totalSpend.toFixed(2)}</div>
+                            <div class="text-xs text-gray-400">Total Spend</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTopProducts(topProducts) {
+            const container = document.getElementById('top-products-list');
+            container.classList.remove('loading');
+            
+            if (topProducts.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-center">No product data available</p>';
+                return;
+            }
+            
+            container.innerHTML = topProducts.map((product, index) => {
+                const rank = index + 1;
+                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-default';
+                
+                return `
+                    <div class="product-row">
+                        <div class="rank-badge ${rankClass}">${rank}</div>
+                        <div class="row-info flex-1">
+                            <div class="row-name font-semibold text-lg" title="${product.name}">${product.name}</div>
+                            <div class="text-sm text-gray-400">${product.code || 'No code'} • ${product.orderCount} orders</div>
+                        </div>
+                        <div class="row-stats text-right">
+                            <div class="font-bold text-xl text-green-400">€${product.totalRevenue.toFixed(2)}</div>
+                            <div class="text-xs text-gray-400">${product.totalQuantity} sold</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSpotlights(topCustomers, topProducts) {
+            // Best Customer Spotlight
+            if (topCustomers.length > 0) {
+                const bestCustomer = topCustomers[0];
+                document.getElementById('best-customer-card').style.display = 'block';
+                document.getElementById('best-customer-details').innerHTML = `
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-yellow-400">🥇</div>
+                        <div class="text-xl font-semibold mt-2">${bestCustomer.name}</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-400">€${bestCustomer.totalSpend.toFixed(2)}</div>
+                        <div class="text-sm text-gray-400">Total Spend</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-400">${bestCustomer.totalTransactions}</div>
+                        <div class="text-sm text-gray-400">Transactions</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-400">${bestCustomer.invoiceCount}</div>
+                        <div class="text-sm text-gray-400">Invoices</div>
+                    </div>
+                `;
+            }
+            
+            // Top Product Spotlight
+            if (topProducts.length > 0) {
+                const topProduct = topProducts[0];
+                document.getElementById('top-product-card').style.display = 'block';
+                document.getElementById('top-product-details').innerHTML = `
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-green-400">🎯</div>
+                        <div class="text-lg font-semibold mt-2">${topProduct.name}</div>
+                        <div class="text-xs text-gray-400">${topProduct.code || 'No code'}</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-400">€${topProduct.totalRevenue.toFixed(2)}</div>
+                        <div class="text-sm text-gray-400">Revenue</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-400">${topProduct.totalQuantity}</div>
+                        <div class="text-sm text-gray-400">Units Sold</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-400">${topProduct.orderCount}</div>
+                        <div class="text-sm text-gray-400">Orders</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Make loadDashboardData available for manual refresh button
+        window.loadDashboardData = loadDashboard;
+
+        // Wait for authentication before loading data (matching index.html pattern)
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log("✅ User authenticated:", user.uid);
+                loadDashboard(); // Load data immediately when authenticated
+            } else {
+                console.log("🔄 Signing in anonymously...");
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+
+        // Auto-refresh every 5 minutes
+        setInterval(() => {
+            console.log('🔄 Auto-refreshing dashboard...');
+            loadDashboard();
+        }, 5 * 60 * 1000);
+
+        /**
+         * Generate Executive PDF Report
+         */
+        async function generatePDFReport() {
+            const btn = document.getElementById('pdf-export-btn');
+            const originalText = btn.innerHTML;
+            
+            try {
+                // Show loading state
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Duke gjeneruar...';
+                btn.style.opacity = '0.6';
+
+                // Check if we're in Electron environment
+                if (typeof require !== 'undefined') {
+                    try {
+                        const { ipcRenderer } = require('electron');
+                        
+                        // Call Electron IPC to generate PDF
+                        console.log('📄 Requesting PDF generation via IPC...');
+                        const result = await ipcRenderer.invoke('generate-executive-report');
+                        
+                        console.log('✅ PDF generated:', result);
+                        
+                        // Success feedback
+                        btn.innerHTML = '✅ U krijua!';
+                        btn.style.backgroundColor = '#10b981';
+                        
+                        // Show success message
+                        alert(`✅ Raporti u krijua me sukses!\n\n📂 Vendodhja: ${result.outputPath}\n📄 Emri: ${result.filename}`);
+                        
+                        // Open PDF
+                        const { shell } = require('electron');
+                        shell.openPath(result.outputPath);
+                        
+                    } catch (error) {
+                        console.error('IPC Error:', error);
+                        throw error;
+                    }
+                } else {
+                    // Fallback for web environment
+                    console.log('📄 Web environment detected, calling backend API...');
+                    
+                    const response = await fetch('/api/generate-executive-report', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    // Success feedback
+                    btn.innerHTML = '✅ U krijua!';
+                    btn.style.backgroundColor = '#10b981';
+                    
+                    // Download PDF
+                    window.open(result.downloadUrl, '_blank');
+                    alert('✅ Raporti u krijua me sukses!');
+                }
+                
+            } catch (error) {
+                console.error('❌ PDF generation failed:', error);
+                
+                // Error feedback
+                btn.innerHTML = '❌ Gabim';
+                btn.style.backgroundColor = '#ef4444';
+                
+                alert(`❌ Gabim gjatë gjenerimit të raportit:\n\n${error.message}`);
+            } finally {
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.style.opacity = '1';
+                    btn.style.backgroundColor = '';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analitika — Danfos Garanci</title>
+<link rel="stylesheet" href="css/tokens/colors.css">
+<link rel="stylesheet" href="css/tokens/typography.css">
+<link rel="stylesheet" href="css/tokens/spacing.css">
+<link rel="stylesheet" href="css/tokens/effects.css">
+<link rel="stylesheet" href="css/garanci.css">
+<link rel="stylesheet" href="css/modern.css">
+<link rel="icon" href="assets/garanci-logo.svg">
+</head>
+<body>
+<div class="gn-page" id="app-root">
+  <div id="header-slot"></div>
+  <main class="gn-main">
+    <button class="gn-back-link" onclick="location.href='index.html'">↶ Kthehu në ballinë</button>
+    <div class="gn-eyebrow">BESUESHMËRIA &amp; KOSTOT</div>
+    <h1 class="gn-h1">Analitika</h1>
+    <p style="margin:10px 0 0;font-size:15px;color:rgba(245,243,255,.55);">Çfarë tregojnë të dhënat e garancive dhe kërkesave — jo vetëm çfarë ka ndodhur, por çfarë duhet bërë.</p>
+
+    <section class="dg-stats" id="repair-costs" style="margin-top:24px;"><div class="dg-stat" data-depth><span>Kosto e riparimeve</span><strong id="total-repair-cost">—</strong><small>Pjesë dhe punë · EUR</small></div><div class="dg-stat" data-depth><span>Për t'u marrë nga furnitorët</span><strong id="supplier-pending">—</strong><small>Kërkuar minus marrë · EUR</small></div><div class="dg-stat" data-depth><span>Riparime me kosto</span><strong id="costed-tickets">—</strong><small>Nga shënimet e servisit</small></div></section>
+    <section class="dg-panel" style="margin-top:20px;"><div class="dg-panel-head"><h2 style="font-size:20px;">Kostot sipas produktit</h2></div><div id="product-costs" class="dg-stack"><p style="padding:20px;">Duke ngarkuar…</p></div></section>
+    <p id="analytics-error" class="dg-error" role="alert" hidden></p>
+    <section style="margin-top:30px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <strong style="font-family:var(--font-display);font-size:20px;color:#fff;">Besueshmëria e produkteve</strong>
+        <span style="font-size:12.5px;color:rgba(245,243,255,.5);">Norma e kërkesave për garanci = kërkesa ÷ njësi të shitura</span>
+      </div>
+      <div id="reliability-table" style="margin-top:16px;display:grid;gap:8px;">
+        <p style="color:rgba(245,243,255,.5);">Duke llogaritur…</p>
+      </div>
+    </section>
+
+    <section style="margin-top:40px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div>
+          <strong style="font-family:var(--font-display);font-size:20px;color:#fff;">Garanci që skadojnë së shpejti</strong>
+          <p style="margin:6px 0 0;font-size:12.5px;color:rgba(245,243,255,.5);">Klientët për të kontaktuar për rinovim ose kontratë shërbimi, para se garancia të skadojë.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="gn-chip active" id="renewals-filter-pending">Për t'u kontaktuar</button>
+          <button class="gn-chip" id="renewals-filter-done">Të kontaktuar</button>
+        </div>
+      </div>
+      <div id="renewals-list" style="margin-top:16px;display:grid;gap:10px;">
+        <p style="color:rgba(245,243,255,.5);">Duke ngarkuar…</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, doc, updateDoc, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { firebaseConfig, renderHeader, renderAuroraBackground, escapeHtml, formatDateAlb, confirmAction, announceConnection } from "./js/garanci-shared.js";
+import { toMillis } from "./js/garanci-data.js";
+
+document.getElementById('header-slot').outerHTML = renderHeader('analytics');
+document.getElementById('app-root').insertAdjacentHTML('afterbegin', renderAuroraBackground());
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const MIN_UNITS_SOLD = 3; // below this, one bad claim swings the rate too much to mean anything
+const RENEWAL_WINDOW_DAYS = 30;
+
+async function loadReliability() {
+    const [storeSnap, onlineSnap, ticketsSnap] = await Promise.all([
+        getDocs(collection(db, 'storeSales')),
+        getDocs(collection(db, 'onlineOrders')),
+        getDocs(collection(db, 'serviceTickets'))
+    ]);
+
+    const soldByProduct = {}; // normalized name -> { label, qty }
+    function ingestSales(snap) {
+        snap.forEach(d => {
+            (d.data().items || []).forEach(it => {
+                const label = (it.name || it.product || '').trim();
+                if (!label) return;
+                const key = label.toLowerCase();
+                if (!soldByProduct[key]) soldByProduct[key] = { label, qty: 0 };
+                soldByProduct[key].qty += Number(it.quantity) || 1;
+            });
+        });
+    }
+    ingestSales(storeSnap);
+    ingestSales(onlineSnap);
+
+    const claimsByProduct = {};
+    renderRepairCosts(ticketsSnap.docs.map(d => d.data()));
+    ticketsSnap.forEach(d => {
+        const label = (d.data().productName || '').trim();
+        if (!label) return;
+        const key = label.toLowerCase();
+        claimsByProduct[key] = (claimsByProduct[key] || 0) + 1;
+    });
+
+    const rows = Object.entries(soldByProduct)
+        .filter(([, v]) => v.qty >= MIN_UNITS_SOLD)
+        .map(([key, v]) => ({ label: v.label, qty: v.qty, claims: claimsByProduct[key] || 0, rate: (claimsByProduct[key] || 0) / v.qty }));
+
+    const avgRate = rows.length ? rows.reduce((s, r) => s + r.rate, 0) / rows.length : 0;
+    rows.sort((a, b) => b.rate - a.rate);
+    renderReliabilityTable(rows, avgRate);
+    announceConnection('connected');
+}
+
+function renderRepairCosts(tickets) {
+    const totals = new Map(); let total = 0, pending = 0, count = 0;
+    tickets.forEach(t => {
+        const c = t.repairCosts; if (!c || c.currency && c.currency !== 'EUR') return;
+        const cost = (Number(c.parts) || 0) + (Number(c.labour) || 0);
+        const outstanding = Math.max(0, (Number(c.supplierClaim) || 0) - (Number(c.supplierReceived) || 0));
+        total += cost; pending += outstanding; if (cost || outstanding) count++;
+        const label = (t.productName || 'Pa emër').trim(), key = label.toLowerCase();
+        const row = totals.get(key) || { label, total: 0, pending: 0 }; row.total += cost; row.pending += outstanding; totals.set(key, row);
+    });
+    const euro = n => new Intl.NumberFormat('sq-AL', {style:'currency', currency:'EUR'}).format(n);
+    document.getElementById('total-repair-cost').textContent = euro(total);
+    document.getElementById('supplier-pending').textContent = euro(pending);
+    document.getElementById('costed-tickets').textContent = count;
+    document.getElementById('product-costs').innerHTML = [...totals.values()].filter(r=>r.total||r.pending).sort((a,b)=>b.total-a.total).map(r=>`<div class="dg-row"><b>${escapeHtml(r.label)}</b><span>${euro(r.total)} · për t'u marrë ${euro(r.pending)}</span></div>`).join('') || '<p style="padding:20px;">Nuk ka ende kosto të regjistruara. Shtojini nga detajet e servisit.</p>';
+}
+
+function renderReliabilityTable(rows, avgRate) {
+    const wrap = document.getElementById('reliability-table');
+    if (rows.length === 0) {
+        wrap.innerHTML = `<p style="color:rgba(245,243,255,.5);">Ende nuk ka mjaftueshëm të dhëna (nevojiten të paktën ${MIN_UNITS_SOLD} njësi të shitura për produkt).</p>`;
+        return;
+    }
+    const top = rows.slice(0, 15);
+    wrap.innerHTML = `
+      <div class="gn-card" style="padding:0;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:2fr 100px 100px 140px;gap:12px;padding:12px 20px;font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(245,243,255,.45);border-bottom:1px solid rgba(255,255,255,.08);">
+          <span>PRODUKTI</span><span>SHITUR</span><span>KËRKESA</span><span>NORMA</span>
+        </div>
+        ${top.map(r => {
+            const pct = (r.rate * 100).toFixed(1);
+            const isHigh = avgRate > 0 && r.rate >= avgRate * 1.5 && r.claims >= 2;
+            return `
+            <div style="display:grid;grid-template-columns:2fr 100px 100px 140px;gap:12px;padding:13px 20px;align-items:center;border-bottom:1px solid rgba(255,255,255,.05);">
+              <span style="font-size:13.5px;color:#fff;">${escapeHtml(r.label)}</span>
+              <span style="font-size:13px;color:rgba(245,243,255,.7);">${r.qty}</span>
+              <span style="font-size:13px;color:rgba(245,243,255,.7);">${r.claims}</span>
+              <span style="display:flex;align-items:center;gap:8px;">
+                <b style="font-family:var(--font-display);font-size:14px;color:${isHigh ? '#ff8291' : '#fff'};">${pct}%</b>
+                ${isHigh ? '<span class="gn-badge-expired" style="padding:2px 8px;font-size:10px;">MBI MESATAREN</span>' : ''}
+              </span>
+            </div>`;
+        }).join('')}
+      </div>
+      <p style="margin-top:10px;font-size:12px;color:rgba(245,243,255,.4);">Mesatarja në të gjitha produktet (me të paktën ${MIN_UNITS_SOLD} të shitura): ${(avgRate * 100).toFixed(1)}%. Produktet e shënuara kanë normë të paktën 1.5× mbi mesataren, me 2+ kërkesa reale.</p>`;
+}
+
+let allCards = [];
+let customerPhoneByName = {};
+let renewalsFilter = 'pending';
+
+async function loadRenewals() {
+    const [cardsSnap, customersSnap] = await Promise.all([
+        getDocs(collection(db, 'warrantyCards')),
+        getDocs(collection(db, 'customers'))
+    ]);
+    customerPhoneByName = {};
+    customersSnap.forEach(d => {
+        const data = d.data();
+        if (data.name) customerPhoneByName[data.name.trim().toLowerCase()] = data.phone || '';
+    });
+
+    const now = Date.now();
+    const cutoff = now + RENEWAL_WINDOW_DAYS * 86400000;
+    allCards = [];
+    cardsSnap.forEach(d => {
+        const data = d.data();
+        if (!data.warrantyUntil) return;
+        const untilMs = toMillis(data.warrantyUntil);
+        if (untilMs >= now && untilMs <= cutoff) {
+            allCards.push({ id: d.id, ...data, untilMs });
+        }
+    });
+    allCards.sort((a, b) => a.untilMs - b.untilMs);
+    renderRenewals();
+}
+
+function renderRenewals() {
+    const wrap = document.getElementById('renewals-list');
+    const filtered = allCards.filter(c => renewalsFilter === 'done' ? !!c.outreachContactedAt : !c.outreachContactedAt);
+    if (filtered.length === 0) {
+        wrap.innerHTML = `<p style="color:rgba(245,243,255,.5);">${renewalsFilter === 'done' ? 'Asnjë klient i kontaktuar ende.' : 'Asnjë garanci nuk skadon në 30 ditët e ardhshme.'}</p>`;
+        return;
+    }
+    wrap.innerHTML = filtered.map(c => {
+        const daysLeft = Math.max(0, Math.ceil((c.untilMs - Date.now()) / 86400000));
+        const phone = customerPhoneByName[(c.customerName || '').trim().toLowerCase()] || '';
+        const machines = (c.items || []).map(i => i.name).join(', ');
+        return `
+        <div class="gn-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+          <div style="min-width:200px;">
+            <b style="font-size:14.5px;color:#fff;">${escapeHtml(c.customerName || 'Klient')}</b>
+            <span style="font-size:12.5px;color:rgba(245,243,255,.55);"> · ${escapeHtml(phone || 'telefoni mungon')}</span>
+            <p style="margin:4px 0 0;font-size:12.5px;color:rgba(245,243,255,.5);">${escapeHtml(machines)} · ${escapeHtml(c.certNo || '')}</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="text-align:right;">
+              <span style="display:block;font-size:12px;color:rgba(245,243,255,.5);">skadon</span>
+              <b style="font-family:var(--font-display);font-size:14px;color:#fff;">${formatDateAlb(c.untilMs)} · ${daysLeft} ditë</b>
+            </div>
+            ${renewalsFilter === 'pending'
+                ? `<button class="gn-btn-sm" data-mark-contacted="${c.id}">✓ U kontaktua</button>`
+                : `<span class="gn-badge-active">Kontaktuar</span>`}
+          </div>
+        </div>`;
+    }).join('');
+
+    wrap.querySelectorAll('[data-mark-contacted]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try {
+                const id = btn.dataset.markContacted;
+                if (!await confirmAction({title:'Shëno klientin si të kontaktuar?', body:`${allCards.find(c=>c.id===id)?.customerName || 'Klienti'} · Kontakti do të regjistrohet për këtë garanci.`, confirmLabel:'U kontaktua'})) { btn.disabled=false; return; }
+                await updateDoc(doc(db, 'warrantyCards', id), { outreachContactedAt: Timestamp.now() });
+                const card = allCards.find(c => c.id === id);
+                if (card) card.outreachContactedAt = Timestamp.now();
+                renderRenewals();
+            } catch (err) {
+                console.error('Failed to mark as contacted:', err);
+                alert('Dështoi: ' + err.message);
+                btn.disabled = false;
+            }
+        });
+    });
+}
+
+document.getElementById('renewals-filter-pending').addEventListener('click', () => {
+    renewalsFilter = 'pending';
+    document.getElementById('renewals-filter-pending').classList.add('active');
+    document.getElementById('renewals-filter-done').classList.remove('active');
+    renderRenewals();
+});
+document.getElementById('renewals-filter-done').addEventListener('click', () => {
+    renewalsFilter = 'done';
+    document.getElementById('renewals-filter-done').classList.add('active');
+    document.getElementById('renewals-filter-pending').classList.remove('active');
+    renderRenewals();
+});
+
+auth.onAuthStateChanged(user => {
+    if (user) {
+        loadReliability().catch(reportError);
+        loadRenewals().catch(reportError);
+    } else {
+        signInAnonymously(auth).catch(reportError);
+    }
+});
+function reportError(err) { console.error(err); announceConnection('error'); const el=document.getElementById('analytics-error'); el.hidden=false; el.textContent='Të dhënat nuk u ngarkuan plotësisht. Kontrolloni lidhjen dhe rifreskoni faqen.'; }
+</script>
+</body>
+</html>

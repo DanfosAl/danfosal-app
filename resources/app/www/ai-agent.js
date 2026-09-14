@@ -824,7 +824,7 @@ Should I:
             'products': 'products.html',
             'inventory': 'smart-inventory-scanner.html',
             'analytics': 'advanced-analytics.html',
-            'orders': 'orders_online.html',
+            'orders': 'online-orders.html',
             'debtors': 'debtors_list.html',
             'creditors': 'creditors_list.html',
             'dashboard': 'index.html'

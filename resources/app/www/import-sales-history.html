@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📊 Import Sales History - Danfosal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <link rel="stylesheet" href="glassmorphism.css">
     <style>
@@ -147,32 +148,33 @@
         .log-entry.error { color: #ef4444; }
         .log-entry.info { color: #3b82f6; }
     </style>
+    <script type="module" src="global-search.js" defer></script>
 </head>
 <body>
     <div class="navbar">
         <div class="nav-container">
             <div class="nav-title">
-                <span class="logo">📊</span>
+                <span class="logo material-symbols-outlined">bar_chart</span>
                 <span>Import Sales History</span>
             </div>
             <div class="nav-menu">
-                <a href="index.html" class="nav-link">🏠 Dashboard</a>
-                <a href="settings.html" class="nav-link">⚙️ Settings</a>
+                <a href="index.html" class="nav-link"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">home</span> Dashboard</a>
+                <a href="settings.html" class="nav-link"><span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">settings</span> Settings</a>
             </div>
         </div>
     </div>
 
     <div class="container import-container">
         <header style="text-align: center; margin-bottom: 40px;">
-            <h1 class="gradient-text" style="font-size: 2.5rem; margin-bottom: 10px;">📊 Import Sales History</h1>
+            <h1 class="gradient-text" style="font-size: 2.5rem; margin-bottom: 10px;"><span class="material-symbols-outlined" style="vertical-align:-6px;">bar_chart</span> Import Sales History</h1>
             <p style="opacity: 0.7; font-size: 1.1rem;">Import të dhënat historike të shitjeve nga Excel për statistika më të pasura</p>
         </header>
 
         <!-- Instructions -->
         <div class="card" style="margin-bottom: 30px;">
-            <h3 style="margin-bottom: 15px;">📋 Udhëzime</h3>
+            <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">description</span> Udhëzime</h3>
             <ul style="line-height: 1.8; opacity: 0.9;">
-                <li>✅ Excel file duhet të ketë këto kolona (me emra të saktë):</li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#10b981;">check_circle</span> Excel file duhet të ketë këto kolona (me emra të saktë):</li>
                 <li style="margin-left: 30px;">• <strong>Kodi/Llogaria</strong> - Kodi i produktit (shumë i rëndësishëm për statistika)</li>
                 <li style="margin-left: 30px;">• <strong>Përshkrimi</strong> - Emri i produktit</li>
                 <li style="margin-left: 30px;">• <strong>Sasia</strong> - Sasia e shitur</li>
@@ -180,11 +182,11 @@
                 <li style="margin-left: 30px;">• <strong>Cmimi_EUR</strong> - Totali</li>
                 <li style="margin-left: 30px;">• <strong>Data</strong> - Data e shitjes (DD/MM/YYYY)</li>
                 <li style="margin-left: 30px;">• <strong>Subjekti</strong> - Emri i blerësit (për Customer Portal)</li>
-                <li>✅ Sistemi kontrollon duplikate bazuar në <strong>KOD + DATA + BLERËS</strong></li>
-                <li>✅ Nëse gjen duplikate, <strong>PËRDITËSON</strong> shitjet me kod produkti dhe emër blerësi</li>
-                <li>✅ Përdorni filtrin "Shfaq vetëm Aktive" për të importuar vetëm produkte aktive</li>
-                <li>🗑️ <strong>Cleanup Mode:</strong> Aktivizoni VETËM për herën e parë për të fshirë shitjet që nuk janë në Excel</li>
-                <li>⚠️ TESTONI me 5-10 rreshta para se të importoni të gjitha!</li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#10b981;">check_circle</span> Sistemi kontrollon duplikate bazuar në <strong>KOD + DATA + BLERËS</strong></li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#10b981;">check_circle</span> Nëse gjen duplikate, <strong>PËRDITËSON</strong> shitjet me kod produkti dhe emër blerësi</li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#10b981;">check_circle</span> Përdorni filtrin "Shfaq vetëm Aktive" për të importuar vetëm produkte aktive</li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">delete</span> <strong>Cleanup Mode:</strong> Aktivizoni VETËM për herën e parë për të fshirë shitjet që nuk janë në Excel</li>
+                <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#f59e0b;">warning</span> TESTONI me 5-10 rreshta para se të importoni të gjitha!</li>
             </ul>
         </div>
 
@@ -200,33 +202,33 @@
 
         <!-- Statistics -->
         <div id="stats-section" style="display: none;">
-            <h3 style="margin-bottom: 15px;">📊 Statistikat e Importit</h3>
+            <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">bar_chart</span> Statistikat e Importit</h3>
             
             <!-- Filters -->
             <div style="margin-bottom: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
                 <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 15px;">
                     <input type="checkbox" id="filter-active-only" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
-                    <span style="font-weight: 600; font-size: 1.1rem;">🔍 Shfaq vetëm Produktet Aktive (për import)</span>
+                    <span style="font-weight: 600; font-size: 1.1rem;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">search</span> Shfaq vetëm Produktet Aktive (për import)</span>
                 </label>
                 <p style="margin: 0 0 15px 30px; opacity: 0.8; font-size: 0.9rem;">Kur aktivizohet, vetëm shitjet e produkteve aktive do të importohen. Produktet jo-aktive do të fshihen nga lista.</p>
             </div>
 
             <!-- DANGER ZONE -->
             <div style="margin-bottom: 20px; padding: 20px; background: rgba(239, 68, 68, 0.1); border-radius: 10px; border: 2px solid rgba(239, 68, 68, 0.5);">
-                <h4 style="color: #ef4444; margin-bottom: 15px;">⚠️ ZONA E RREZIKSHME - LEXO ME KUJDES!</h4>
+                <h4 style="color: #ef4444; margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">warning</span> ZONA E RREZIKSHME - LEXO ME KUJDES!</h4>
                 
                 <label style="display: flex; align-items: center; cursor: pointer; margin-bottom: 15px;">
                     <input type="checkbox" id="delete-all-mode" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
-                    <span style="font-weight: 600; font-size: 1.1rem; color: #ef4444;">🗑️ FSHI TË GJITHA SHITJET DHE FILLO NGA E PARA</span>
+                    <span style="font-weight: 600; font-size: 1.1rem; color: #ef4444;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">delete</span> FSHI TË GJITHA SHITJET DHE FILLO NGA E PARA</span>
                 </label>
                 <div style="padding: 15px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; border-left: 4px solid #ef4444;">
-                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #ef4444;">⚠️ KUJDES TË MADH:</p>
+                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #ef4444;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">warning</span> KUJDES TË MADH:</p>
                     <ul style="margin: 0; padding-left: 20px; color: #ef4444;">
                         <li>Do të FSHIJË TË GJITHA shitjet nga baza e të dhënave</li>
                         <li>Do të FSHIJË shitjet nga App-i DHE ato të importuara</li>
                         <li>Pas fshirjes, do të importojë vetëm shitjet nga Excel-i i ri</li>
-                        <li>❌ NUK KA RIKTHIM - të dhënat fshihen përgjithmonë!</li>
-                        <li>✅ Përdor VETËM nëse ke TË GJITHA shitjet në Excel</li>
+                        <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">close</span> NUK KA RIKTHIM - të dhënat fshihen përgjithmonë!</li>
+                        <li><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px; color:#10b981;">check_circle</span> Përdor VETËM nëse ke TË GJITHA shitjet në Excel</li>
                     </ul>
                 </div>
             </div>
@@ -241,11 +243,11 @@
                     <div class="value" id="stat-duplicate" style="color: #f59e0b;">0</div>
                 </div>
                 <div class="stat-box" style="background: rgba(139, 92, 246, 0.1);">
-                    <h4>📦 Porosi Online</h4>
+                    <h4><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> Porosi Online</h4>
                     <div class="value" id="stat-online" style="color: #8b5cf6;">0</div>
                 </div>
                 <div class="stat-box" style="background: rgba(34, 197, 94, 0.1);">
-                    <h4>🏪 Shitje Dyqan</h4>
+                    <h4><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">storefront</span> Shitje Dyqan</h4>
                     <div class="value" id="stat-store" style="color: #22c55e;">0</div>
                 </div>
                 <div class="stat-box" style="background: rgba(156, 163, 175, 0.1);">
@@ -261,16 +263,16 @@
             <!-- Order Type Info -->
             <div style="margin-top: 15px; padding: 15px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border-left: 4px solid #8b5cf6;">
                 <p style="margin: 0; font-size: 0.95rem;">
-                    <strong>ℹ️ Si identifikohen porosit:</strong><br>
-                    📦 <strong>Porosi Online</strong>: Rreshta që përmbajnë telefon, adresë ose qytet (regjistrohen në onlineOrders)<br>
-                    🏪 <strong>Shitje Dyqan</strong>: Rreshta pa informacion klienti (regjistrohen në storeSales)
+                    <strong><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">info</span> Si identifikohen porosit:</strong><br>
+                    <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">inventory_2</span> <strong>Porosi Online</strong>: Rreshta që përmbajnë telefon, adresë ose qytet (regjistrohen në onlineOrders)<br>
+                    <span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">storefront</span> <strong>Shitje Dyqan</strong>: Rreshta pa informacion klienti (regjistrohen në storeSales)
                 </p>
             </div>
         </div>
 
         <!-- Preview Table -->
         <div id="preview-section" style="display: none;">
-            <h3 style="margin-bottom: 15px;">👁️ Parapamja e të Dhënave</h3>
+            <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">visibility</span> Parapamja e të Dhënave</h3>
             <div style="overflow-x: auto;">
                 <table class="preview-table" id="preview-table">
                     <thead>
@@ -294,7 +296,7 @@
 
         <!-- Progress -->
         <div id="progress-section" style="display: none;">
-            <h3 style="margin-bottom: 15px;">⏳ Progresi i Importit</h3>
+            <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">hourglass_empty</span> Progresi i Importit</h3>
             <div class="progress-bar">
                 <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
             </div>
@@ -303,17 +305,17 @@
 
         <!-- Log -->
         <div id="log-section" style="display: none;">
-            <h3 style="margin-bottom: 15px;">📋 Log</h3>
+            <h3 style="margin-bottom: 15px;"><span class="material-symbols-outlined" style="font-size:1em; vertical-align:-3px;">description</span> Log</h3>
             <div class="log-container" id="log-container"></div>
         </div>
 
         <!-- Action Buttons -->
         <div id="action-buttons" style="display: none; text-align: center; margin-top: 30px;">
             <button class="btn" id="import-btn" style="margin: 0 10px;">
-                ✅ Import Shitjet e Reja (<span id="import-count">0</span>)
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">check_circle</span> Import Shitjet e Reja (<span id="import-count">0</span>)
             </button>
             <button class="btn" id="cancel-btn" style="margin: 0 10px; background: rgba(239, 68, 68, 0.2);">
-                ❌ Anulo
+                <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">close</span> Anulo
             </button>
         </div>
     </div>

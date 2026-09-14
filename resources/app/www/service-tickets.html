@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service &amp; Repair Tickets - Danfosal App</title>
+    <link rel="stylesheet" href="css/tailwind-default.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="keyboard-navigation.js"></script>
+    <link rel="stylesheet" href="glassmorphism.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script type="module" src="global-search.js" defer></script>
+    <style>
+        .status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .status-received { background: rgba(59,130,246,0.2); color: #60a5fa; }
+        .status-in_progress { background: rgba(245,158,11,0.2); color: #fbbf24; }
+        .status-waiting_parts { background: rgba(168,85,247,0.2); color: #c084fc; }
+        .status-completed { background: rgba(16,185,129,0.2); color: #34d399; }
+        .status-rejected { background: rgba(239,68,68,0.2); color: #f87171; }
+        .status-cancelled { background: rgba(148,163,184,0.2); color: #94a3b8; }
+        .priority-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; }
+        .priority-Urgjent { background: rgba(239,68,68,0.2); color: #f87171; }
+        .priority-Normal { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+        .priority-E-ulet { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .ticket-details { display: none; }
+        .ticket-details.open { display: block; }
+        /* Chromium renders <option> with a white popup background by default;
+           without this, white text on dark <select>s becomes unreadable. */
+        select { color: #fff; }
+        select option { background: #1e293b; color: #fff; }
+        .autocomplete-list { position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; max-height: 220px; overflow-y: auto; display: none; }
+        .autocomplete-list.open { display: block; }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 13px; color: #e2e8f0; }
+        .autocomplete-item:hover, .autocomplete-item.active { background: rgba(16,185,129,0.15); }
+        .autocomplete-item .ac-sub { font-size: 11px; color: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 theme-transition">
+
+    <div class="max-w-4xl mx-auto relative z-10">
+        <header class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-3xl">build</span>
+                    Service &amp; Repair Tickets
+                </h1>
+                <p class="theme-text-secondary">Track equipment sent in for repair or warranty service.</p>
+            </div>
+            <a href="index.html" class="glass-btn inline-flex items-center">
+                <span class="material-symbols-outlined mr-2" style="font-size:1.1em;">home</span>
+                Dashboard
+            </a>
+        </header>
+
+        <div class="glass-container mb-6">
+            <h3 class="text-xl font-bold mb-4 theme-text flex items-center gap-2">
+                <span class="material-symbols-outlined">add_circle</span>
+                New Ticket
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="relative">
+                    <input type="text" id="ticket-customer-name" placeholder="Customer name" autocomplete="off" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <div id="customer-autocomplete" class="autocomplete-list"></div>
+                </div>
+                <div>
+                    <div class="flex gap-2">
+                        <input type="text" id="ticket-customer-phone" placeholder="Phone (optional)" class="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <button type="button" id="save-phone-btn" style="display:none;" class="glass-btn bg-emerald-600 hover:bg-emerald-700 text-xs whitespace-nowrap px-3">Update Profile</button>
+                    </div>
+                    <p id="save-phone-confirm" class="text-xs text-emerald-400 mt-1" style="display:none;">Saved to customer profile.</p>
+                </div>
+                <div class="md:col-span-2" id="machine-picker-wrap" style="display:none;">
+                    <label class="block text-xs theme-text-secondary mb-1">This customer's purchases — pick the machine the claim is about:</label>
+                    <select id="machine-picker" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="">-- Select a purchased machine, or fill in manually below --</option>
+                    </select>
+                </div>
+                <input type="text" id="ticket-product-name" placeholder="Product / machine" class="bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                <div>
+                    <div class="flex gap-2">
+                        <input type="text" id="ticket-serial-number" placeholder="Serial number (optional)" class="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <button type="button" id="save-serial-btn" style="display:none;" class="glass-btn bg-emerald-600 hover:bg-emerald-700 text-xs whitespace-nowrap px-3">Update Profile</button>
+                    </div>
+                    <p id="save-serial-confirm" class="text-xs text-emerald-400 mt-1" style="display:none;">Saved to the order and warranty card.</p>
+                </div>
+                <textarea id="ticket-issue" placeholder="What's wrong with it?" rows="2" class="md:col-span-2 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+            </div>
+            <button id="add-ticket-btn" class="glass-btn bg-emerald-600 hover:bg-emerald-700 mt-4 inline-flex items-center gap-2">
+                <span class="material-symbols-outlined" style="font-size:1.1em;">add</span>
+                Create Ticket
+            </button>
+        </div>
+
+        <div class="flex items-center gap-3 mb-4 flex-wrap">
+            <input type="text" id="search-input" placeholder="Search by customer, product, or serial number..."
+                class="flex-1 min-w-[220px] bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+            <select id="status-filter" class="bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="all">All statuses</option>
+                <option value="received">Received</option>
+                <option value="in_progress">In Progress</option>
+                <option value="waiting_parts">Waiting for Parts</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+
+        <div id="tickets-list-container" class="space-y-3">
+            <p class="theme-text-secondary text-center">Loading tickets...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, onSnapshot, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
+            authDomain: "danfosal-app.firebaseapp.com",
+            projectId: "danfosal-app",
+            storageBucket: "danfosal-app.appspot.com",
+            messagingSenderId: "565855692028",
+            appId: "1:565855692028:web:c7cb647497cb3df9452379",
+            measurementId: "G-50JPG2KKEC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const STATUS_LABELS = {
+            received: 'Received',
+            in_progress: 'In Progress',
+            waiting_parts: 'Waiting for Parts',
+            completed: 'Completed',
+            rejected: 'Rejected',
+            cancelled: 'Cancelled'
+        };
+
+        // Timeline entries are shared with the Danfos Garanci app's "Ecuria e kërkesës" view
+        // (same serviceTickets.timeline field) — kept in Albanian there regardless of which
+        // app appended the entry, so the history reads as one consistent narrative.
+        const STATUS_LABELS_SQ = {
+            received: 'Pa caktuar',
+            in_progress: 'Në shqyrtim',
+            waiting_parts: 'Pjesë e porositur',
+            completed: 'Zgjidhur',
+            rejected: 'Refuzuar',
+            cancelled: 'Anuluar'
+        };
+
+        function timelineWhenLabel() {
+            const d = new Date();
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const time = d.toLocaleTimeString('sq-AL', { hour: '2-digit', minute: '2-digit' });
+            return `${dd}.${mm}.${d.getFullYear()} ${time}`;
+        }
+
+        let allTickets = [];
+        let openTicketId = null;
+        const listContainer = document.getElementById('tickets-list-container');
+        const searchInput = document.getElementById('search-input');
+        const statusFilter = document.getElementById('status-filter');
+
+        function formatDate(ts) {
+            if (!ts) return '';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toLocaleDateString('en-GB');
+        }
+
+        function toMillis(ts) {
+            if (!ts) return 0;
+            if (ts.toMillis) return ts.toMillis();
+            if (ts.seconds) return ts.seconds * 1000;
+            const parsed = new Date(ts).getTime();
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // --- Customer + purchase lookup, for the New Ticket autocomplete/machine picker ---
+        let customerPurchases = {};   // lowercased customer name -> array of purchased items
+        let customerDirectory = [];   // [{ name, phone, customerId }] — customerId is null if no real profile doc exists yet
+        let linkedSale = null;        // { saleId, collectionName, itemIndex } once a specific machine is picked
+        let knownPhone = '';          // phone value as of the last customer selection, to detect edits
+        let knownSerial = '';         // serial value as of the last machine selection, to detect edits
+        let currentCustomerId = null; // real customers/{id} doc for the selected customer, if one exists
+
+        async function loadCustomerData() {
+            try {
+                const [ordersSnap, salesSnap, customersSnap] = await Promise.all([
+                    getDocs(collection(db, 'onlineOrders')),
+                    getDocs(collection(db, 'storeSales')),
+                    getDocs(collection(db, 'customers'))
+                ]);
+                const map = {};
+                const namesSeen = {};
+
+                function ingest(docSnap, collectionName) {
+                    const data = docSnap.data();
+                    const name = (data.clientName || '').trim();
+                    if (!name) return;
+                    const key = name.toLowerCase();
+                    if (!map[key]) map[key] = [];
+                    (data.items || []).forEach((item, itemIndex) => {
+                        map[key].push({
+                            name: item.name || item.product || 'Item',
+                            serialNumber: item.serialNumber || '',
+                            saleId: docSnap.id,
+                            collectionName,
+                            itemIndex,
+                            date: data.timestamp
+                        });
+                    });
+                    if (!namesSeen[key]) {
+                        namesSeen[key] = { name, phone: data.telephone || data.clientPhone || '', customerId: null };
+                    }
+                }
+
+                ordersSnap.forEach(d => ingest(d, 'onlineOrders'));
+                salesSnap.forEach(d => ingest(d, 'storeSales'));
+
+                // Dedicated customer profiles are the authoritative source for phone —
+                // storeSales in particular never carries one, so without this a customer
+                // whose only purchase was an in-store sale would never get a phone match.
+                // This is also the only source of a real customers/{id} to update or create.
+                customersSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const name = (data.name || '').trim();
+                    if (!name) return;
+                    const key = name.toLowerCase();
+                    if (!namesSeen[key]) namesSeen[key] = { name, phone: '', customerId: null };
+                    if (data.phone) namesSeen[key].phone = data.phone;
+                    namesSeen[key].customerId = docSnap.id;
+                });
+
+                customerPurchases = map;
+                customerDirectory = Object.values(namesSeen);
+            } catch (err) {
+                console.error('Failed to load customer purchase history:', err);
+            }
+        }
+
+        function hideMachinePicker() {
+            document.getElementById('machine-picker-wrap').style.display = 'none';
+            document.getElementById('machine-picker').innerHTML = '<option value="">-- Select a purchased machine, or fill in manually below --</option>';
+            linkedSale = null;
+            knownSerial = '';
+            updateSaveButtonVisibility();
+        }
+
+        function updateSaveButtonVisibility() {
+            const phoneVal = document.getElementById('ticket-customer-phone').value.trim();
+            const phoneBtn = document.getElementById('save-phone-btn');
+            phoneBtn.style.display = (phoneVal && phoneVal !== knownPhone) ? 'inline-block' : 'none';
+            document.getElementById('save-phone-confirm').style.display = 'none';
+
+            const serialVal = document.getElementById('ticket-serial-number').value.trim();
+            const serialBtn = document.getElementById('save-serial-btn');
+            serialBtn.style.display = (linkedSale && serialVal && serialVal !== knownSerial) ? 'inline-block' : 'none';
+            document.getElementById('save-serial-confirm').style.display = 'none';
+        }
+
+        function selectCustomer(name) {
+            const customerInput = document.getElementById('ticket-customer-name');
+            customerInput.value = name;
+            document.getElementById('customer-autocomplete').classList.remove('open');
+
+            const match = customerDirectory.find(c => c.name === name);
+            currentCustomerId = match ? match.customerId : null;
+            knownPhone = (match && match.phone) || '';
+            document.getElementById('ticket-customer-phone').value = knownPhone;
+
+            const items = customerPurchases[name.toLowerCase()] || [];
+            const wrap = document.getElementById('machine-picker-wrap');
+            const select = document.getElementById('machine-picker');
+            linkedSale = null;
+            knownSerial = '';
+
+            if (items.length === 0) {
+                wrap.style.display = 'none';
+                updateSaveButtonVisibility();
+                return;
+            }
+
+            const sorted = [...items].sort((a, b) => toMillis(b.date) - toMillis(a.date));
+            select.innerHTML = '<option value="">-- Select a purchased machine, or fill in manually below --</option>' +
+                sorted.map((it, i) => {
+                    const label = `${it.name}${it.serialNumber ? ' (SN ' + it.serialNumber + ')' : ''} — ${formatDate(it.date)}`;
+                    return `<option value="${i}">${label}</option>`;
+                }).join('');
+            select.dataset.items = JSON.stringify(sorted);
+            wrap.style.display = 'block';
+            updateSaveButtonVisibility();
+        }
+
+        function render() {
+            const term = searchInput.value.trim().toLowerCase();
+            const status = statusFilter.value;
+
+            let filtered = allTickets;
+            if (status !== 'all') filtered = filtered.filter(t => t.status === status);
+            if (term) {
+                filtered = filtered.filter(t => {
+                    const haystack = `${t.customerName || ''} ${t.productName || ''} ${t.serialNumber || ''}`.toLowerCase();
+                    return haystack.includes(term);
+                });
+            }
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `<p class="theme-text-secondary text-center">No tickets found.</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(t => `
+                <div class="glass-card p-4">
+                    <div class="flex items-start justify-between gap-4 flex-wrap cursor-pointer" data-toggle="${t.id}">
+                        <div class="flex-1 min-w-[200px]">
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                <p class="font-bold text-lg theme-text">${t.customerName || 'Unknown customer'}</p>
+                                <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status] || t.status}</span>
+                                ${t.priority ? `<span class="priority-badge priority-${t.priority === 'Urgjent' ? 'Urgjent' : t.priority === 'Normal' ? 'Normal' : 'E-ulet'}">${t.priority}</span>` : ''}
+                                ${t.claimNo ? `<span class="text-xs theme-text-secondary">${t.claimNo}</span>` : ''}
+                            </div>
+                            <p class="text-sm theme-text-secondary">${t.productName || ''}${t.serialNumber ? ` · SN ${t.serialNumber}` : ''}${t.mode ? ` · ${t.mode}` : ''}</p>
+                            <p class="text-sm text-gray-400 mt-1">${t.issueDescription || ''}</p>
+                        </div>
+                        <div class="text-xs theme-text-secondary shrink-0">${formatDate(t.createdAt)}</div>
+                    </div>
+                    <div class="ticket-details ${openTicketId === t.id ? 'open' : ''} mt-4 pt-4 border-t border-white/10" id="details-${t.id}">
+                        <div class="flex items-center gap-3 flex-wrap mb-3">
+                            <label class="text-sm theme-text-secondary">Status:</label>
+                            <select data-status-for="${t.id}" class="bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                                ${Object.keys(STATUS_LABELS).map(s => `<option value="${s}" ${t.status === s ? 'selected' : ''}>${STATUS_LABELS[s]}</option>`).join('')}
+                            </select>
+                            ${t.customerPhone ? `<span class="text-sm theme-text-secondary">· ${t.customerPhone}</span>` : ''}
+                        </div>
+                        <textarea data-notes-for="${t.id}" placeholder="Notes (parts ordered, diagnosis, etc.)" rows="2" class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none mb-3">${t.notes || ''}</textarea>
+                        <div class="flex gap-2">
+                            <button data-save-for="${t.id}" class="glass-btn bg-emerald-600 hover:bg-emerald-700 text-sm">Save Changes</button>
+                            <button data-delete-for="${t.id}" class="glass-btn bg-red-600/80 hover:bg-red-700 text-sm">Delete Ticket</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        searchInput.addEventListener('input', render);
+        statusFilter.addEventListener('change', render);
+
+        // --- Customer autocomplete ---
+        const customerInput = document.getElementById('ticket-customer-name');
+        const autocompleteList = document.getElementById('customer-autocomplete');
+
+        customerInput.addEventListener('input', () => {
+            hideMachinePicker();
+            const term = customerInput.value.trim().toLowerCase();
+            if (!term) { autocompleteList.classList.remove('open'); return; }
+            const matches = customerDirectory.filter(c => c.name.toLowerCase().includes(term)).slice(0, 8);
+            if (matches.length === 0) { autocompleteList.classList.remove('open'); return; }
+            autocompleteList.innerHTML = matches.map(c => `
+                <div class="autocomplete-item" data-name="${c.name.replace(/"/g, '&quot;')}">
+                    ${c.name}${c.phone ? `<div class="ac-sub">${c.phone}</div>` : ''}
+                </div>
+            `).join('');
+            autocompleteList.classList.add('open');
+        });
+
+        autocompleteList.addEventListener('click', (e) => {
+            const item = e.target.closest('.autocomplete-item');
+            if (item) selectCustomer(item.dataset.name);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#ticket-customer-name') && !e.target.closest('#customer-autocomplete')) {
+                autocompleteList.classList.remove('open');
+            }
+        });
+
+        document.getElementById('machine-picker').addEventListener('change', (e) => {
+            const idx = e.target.value;
+            if (idx === '') { linkedSale = null; knownSerial = ''; updateSaveButtonVisibility(); return; }
+            const items = JSON.parse(e.target.dataset.items || '[]');
+            const item = items[parseInt(idx)];
+            if (!item) return;
+            document.getElementById('ticket-product-name').value = item.name;
+            knownSerial = item.serialNumber || '';
+            document.getElementById('ticket-serial-number').value = knownSerial;
+            linkedSale = { saleId: item.saleId, collectionName: item.collectionName, itemIndex: item.itemIndex };
+            updateSaveButtonVisibility();
+        });
+
+        document.getElementById('ticket-customer-phone').addEventListener('input', updateSaveButtonVisibility);
+        document.getElementById('ticket-serial-number').addEventListener('input', updateSaveButtonVisibility);
+
+        document.getElementById('save-phone-btn').addEventListener('click', async () => {
+            const name = document.getElementById('ticket-customer-name').value.trim();
+            const phone = document.getElementById('ticket-customer-phone').value.trim();
+            if (!name || !phone) return;
+            try {
+                if (currentCustomerId) {
+                    await updateDoc(doc(db, 'customers', currentCustomerId), { phone });
+                } else {
+                    const newDoc = await addDoc(collection(db, 'customers'), {
+                        name, phone, email: '', address: '', status: 'Active', image: ''
+                    });
+                    currentCustomerId = newDoc.id;
+                }
+                knownPhone = phone;
+                document.getElementById('save-phone-btn').style.display = 'none';
+                document.getElementById('save-phone-confirm').style.display = 'block';
+                await loadCustomerData(); // refresh so the directory reflects the new phone right away
+            } catch (err) {
+                console.error('Failed to update customer profile:', err);
+                alert('Could not update the customer profile: ' + err.message);
+            }
+        });
+
+        document.getElementById('save-serial-btn').addEventListener('click', async () => {
+            if (!linkedSale) return;
+            const serialNumber = document.getElementById('ticket-serial-number').value.trim();
+            const customerName = document.getElementById('ticket-customer-name').value.trim();
+            const productName = document.getElementById('ticket-product-name').value.trim();
+            if (!serialNumber) return;
+            try {
+                const saleDoc = await getDoc(doc(db, linkedSale.collectionName, linkedSale.saleId));
+                if (!saleDoc.exists()) { alert('Original order not found — it may have been deleted.'); return; }
+                const saleData = saleDoc.data();
+                const items = [...(saleData.items || [])];
+                if (!items[linkedSale.itemIndex]) { alert('That item no longer exists on the order.'); return; }
+                items[linkedSale.itemIndex] = { ...items[linkedSale.itemIndex], serialNumber };
+                await updateDoc(doc(db, linkedSale.collectionName, linkedSale.saleId), { items });
+
+                // Keep the matching warranty card in sync too, same as editing the order directly would
+                const saleTypeLabel = linkedSale.collectionName === 'onlineOrders' ? 'onlineOrder' : 'storeSale';
+                const existing = await getDocs(query(collection(db, 'warrantyCards'), where('saleId', '==', linkedSale.saleId)));
+                const warrantyItem = { name: productName, serialNumber };
+                if (!existing.empty) {
+                    const cardData = existing.docs[0].data();
+                    const cardItems = [...(cardData.items || [])];
+                    const pos = cardItems.findIndex(i => i.name === productName);
+                    if (pos === -1) cardItems.push(warrantyItem); else cardItems[pos] = { ...cardItems[pos], serialNumber };
+                    await updateDoc(doc(db, 'warrantyCards', existing.docs[0].id), { items: cardItems, saleType: saleTypeLabel });
+                } else {
+                    await addDoc(collection(db, 'warrantyCards'), {
+                        saleId: linkedSale.saleId, saleType: saleTypeLabel, customerName,
+                        items: [warrantyItem], location: 'Danfos', createdAt: Timestamp.now()
+                    });
+                }
+
+                knownSerial = serialNumber;
+                document.getElementById('save-serial-btn').style.display = 'none';
+                document.getElementById('save-serial-confirm').style.display = 'block';
+                await loadCustomerData();
+            } catch (err) {
+                console.error('Failed to save serial number:', err);
+                alert('Could not save the serial number: ' + err.message);
+            }
+        });
+
+        document.getElementById('add-ticket-btn').addEventListener('click', async () => {
+            const customerName = document.getElementById('ticket-customer-name').value.trim();
+            const customerPhone = document.getElementById('ticket-customer-phone').value.trim();
+            const productName = document.getElementById('ticket-product-name').value.trim();
+            const serialNumber = document.getElementById('ticket-serial-number').value.trim();
+            const issueDescription = document.getElementById('ticket-issue').value.trim();
+
+            if (!customerName || !productName || !issueDescription) {
+                alert('Please fill in customer name, product, and the issue description.');
+                return;
+            }
+
+            await addDoc(collection(db, 'serviceTickets'), {
+                customerName, customerPhone, productName, serialNumber, issueDescription,
+                status: 'received',
+                notes: '',
+                linkedSaleId: linkedSale ? linkedSale.saleId : null,
+                linkedSaleType: linkedSale ? (linkedSale.collectionName === 'onlineOrders' ? 'onlineOrder' : 'storeSale') : null,
+                timeline: [{ title: 'Kërkesa u regjistruar', when: timelineWhenLabel(), who: 'Recepsioni' }],
+                createdAt: Timestamp.now()
+            });
+
+            document.getElementById('ticket-customer-name').value = '';
+            document.getElementById('ticket-customer-phone').value = '';
+            document.getElementById('ticket-product-name').value = '';
+            document.getElementById('ticket-serial-number').value = '';
+            document.getElementById('ticket-issue').value = '';
+            hideMachinePicker();
+        });
+
+        listContainer.addEventListener('click', async (e) => {
+            const toggle = e.target.closest('[data-toggle]');
+            const saveBtn = e.target.closest('[data-save-for]');
+            const deleteBtn = e.target.closest('[data-delete-for]');
+
+            if (saveBtn) {
+                const id = saveBtn.dataset.saveFor;
+                const ticket = allTickets.find(t => t.id === id);
+                const wasCompleted = ticket && ticket.status === 'completed';
+                const statusSelect = document.querySelector(`[data-status-for="${id}"]`);
+                const notesArea = document.querySelector(`[data-notes-for="${id}"]`);
+                const newStatus = statusSelect.value;
+                const newNotes = notesArea.value.trim();
+                const update = { status: newStatus, notes: newNotes };
+                if (newStatus === 'completed') update.completedAt = Timestamp.now();
+
+                // Log status changes and new technician comments to the shared timeline — this
+                // is the only place status/notes get edited from this app, and until now none
+                // of it ever reached the Garanci app's "Ecuria e kërkesës" (it only showed
+                // whatever was logged at creation/approval time, from the other app).
+                if (ticket) {
+                    const timeline = [...(ticket.timeline || [])];
+                    const when = timelineWhenLabel();
+                    if (ticket.status !== newStatus) {
+                        timeline.push({ title: `Statusi u ndryshua: ${STATUS_LABELS_SQ[newStatus] || newStatus}`, when, who: 'Teknik' });
+                    }
+                    if (newNotes && newNotes !== (ticket.notes || '')) {
+                        timeline.push({ title: `Koment: ${newNotes}`, when, who: 'Teknik' });
+                    }
+                    if (timeline.length > (ticket.timeline || []).length) update.timeline = timeline;
+                }
+
+                await updateDoc(doc(db, 'serviceTickets', id), update);
+
+                // Marking a ticket completed for the first time logs the repair on its warranty card
+                if (newStatus === 'completed' && !wasCompleted && ticket) {
+                    await syncRepairToWarrantyCard({ ...ticket, notes: newNotes });
+                }
+                return;
+            }
+
+            if (deleteBtn) {
+                const id = deleteBtn.dataset.deleteFor;
+                if (confirm('Delete this service ticket permanently?')) {
+                    await deleteDoc(doc(db, 'serviceTickets', id));
+                }
+                return;
+            }
+
+            if (toggle) {
+                const id = toggle.dataset.toggle;
+                openTicketId = openTicketId === id ? null : id;
+                render();
+            }
+        });
+
+        async function syncRepairToWarrantyCard(ticket) {
+            const repairEntry = {
+                date: new Date().toLocaleDateString('en-GB'),
+                description: [ticket.issueDescription, ticket.notes].filter(Boolean).join(' — ')
+            };
+            try {
+                let cardDoc = null;
+
+                if (ticket.linkedSaleId) {
+                    const bySale = await getDocs(query(collection(db, 'warrantyCards'), where('saleId', '==', ticket.linkedSaleId)));
+                    if (!bySale.empty) {
+                        cardDoc = bySale.docs[0];
+                    } else {
+                        // No warranty card exists yet for this sale — create one so the repair has somewhere to live
+                        await addDoc(collection(db, 'warrantyCards'), {
+                            saleId: ticket.linkedSaleId,
+                            saleType: ticket.linkedSaleType || 'manual',
+                            customerName: ticket.customerName,
+                            items: [{ name: ticket.productName, serialNumber: ticket.serialNumber || '' }],
+                            location: 'Danfos',
+                            createdAt: Timestamp.now(),
+                            repairs: [repairEntry]
+                        });
+                        return;
+                    }
+                } else if (ticket.serialNumber) {
+                    // No linked sale on the ticket — fall back to matching by serial number
+                    const allCards = await getDocs(collection(db, 'warrantyCards'));
+                    cardDoc = allCards.docs.find(d => (d.data().items || []).some(i => i.serialNumber === ticket.serialNumber));
+                }
+
+                if (cardDoc) {
+                    const existingRepairs = cardDoc.data().repairs || [];
+                    await updateDoc(doc(db, 'warrantyCards', cardDoc.id), {
+                        repairs: [...existingRepairs, repairEntry]
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to sync repair to warranty card:', err);
+            }
+        }
+
+        const startApp = () => {
+            loadCustomerData();
+            const ticketsRef = collection(db, 'serviceTickets');
+            onSnapshot(query(ticketsRef, orderBy('createdAt', 'desc')), (snapshot) => {
+                allTickets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                render();
+            }, (err) => {
+                console.error('Failed to load service tickets:', err);
+                listContainer.innerHTML = `<p class="text-red-400 text-center">Failed to load service tickets.</p>`;
+            });
+        };
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                startApp();
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+            }
+        });
+    </script>
+</body>
+</html>

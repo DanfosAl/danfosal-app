@@ -34,9 +34,6 @@ function createWindow() {
   });
 
   mainWindow.loadFile('www/index.html');
-  
-  // Open DevTools in development
-  // mainWindow.webContents.openDevTools();
 }
 
 // Manual Update Check from Web App
@@ -95,6 +92,30 @@ function compareVersions(v1, v2) {
 ipcMain.handle('check-for-updates', async () => {
   const updateInfo = await checkForWebUpdates();
   return updateInfo;
+});
+
+// Generate Executive Report PDF
+ipcMain.handle('generate-executive-report', async () => {
+  console.log('📄 Generating executive PDF report...');
+  
+  try {
+    const PDFExportService = require('./export-pdf');
+    const service = new PDFExportService();
+    
+    // Generate PDF with default options
+    const result = await service.generatePDF();
+    
+    console.log('✅ PDF generated successfully:', result.outputPath);
+    
+    return {
+      success: true,
+      outputPath: result.outputPath,
+      filename: result.filename
+    };
+  } catch (error) {
+    console.error('❌ PDF generation failed:', error);
+    throw error;
+  }
 });
 
 // Fetch URL without CORS restrictions (for fiscal invoice pages)

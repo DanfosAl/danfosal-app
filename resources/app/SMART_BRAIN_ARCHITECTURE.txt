@@ -1,0 +1,198 @@
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  🧠 DANFOSAL SMART BRAIN ARCHITECTURE                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              INPUT LAYER                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────┐
+    │  EasyPOS     │  User prints invoice
+    │  Thermal     │  to POS80_REAL printer
+    │  Printer     │
+    └──────┬───────┘
+           │
+           ▼
+    ┌──────────────────────┐
+    │  Print Capture       │  Intercepts spool file
+    │  Service (C#)        │  Converts EMF → PNG
+    │  Windows Service     │  Extracts metadata
+    └──────┬───────────────┘
+           │
+           ▼
+    ┌──────────────────────┐
+    │  Receipt Files       │  JSON + PNG created
+    │  C:\Danfosal\Inbox   │  in watch directory
+    │  \EasyPOS\           │
+    └──────┬───────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SMART BRAIN LAYER                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+           │
+           ▼
+    ┌──────────────────────────────────────────────────────────────────────────┐
+    │                    OCR Bridge + Smart Brain Engine                        │
+    │                          (easypos-ocr-bridge.js)                         │
+    └──────────────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+    ┌──────────────────────┐
+    │  File Watcher        │  Detects new JSON files
+    │  + Failsafe Polling  │  30s interval backup
+    └──────┬───────────────┘
+           │
+           ▼
+    ┌──────────────────────┐
+    │  Tesseract OCR       │  Extracts text from PNG
+    │  (tesseract.js)      │  Albanian + English
+    └──────┬───────────────┘
+           │
+           ▼
+    ┌────────────────────────────────────────────────────────────────────────┐
+    │                        🧠 SMART BRAIN ANALYSIS                          │
+    │                                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 1: Duplicate Detection                                    │   │
+    │  │   Query: invoiceHistory.invoiceNumber                         │   │
+    │  │   Action: If found → SKIP                                     │   │
+    │  └───────────┬───────────────────────────────────────────────────┘   │
+    │              ▼                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 2: Return/Cancellation Detection                         │   │
+    │  │   Check: Negative total, keywords, invoice pattern           │   │
+    │  │   Action: If return → Record in 'returns' + Update stock ↑   │   │
+    │  └───────────┬───────────────────────────────────────────────────┘   │
+    │              ▼                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 3: Customer Deduplication                                │   │
+    │  │   Strategy 1: Search by NIPT                                  │   │
+    │  │   Strategy 2: Search by exact name                            │   │
+    │  │   Strategy 3: Fuzzy name match                                │   │
+    │  │   Action: Link to existing OR create new (if not Walk-in)    │   │
+    │  └───────────┬───────────────────────────────────────────────────┘   │
+    │              ▼                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 4: Online Order Matching                                 │   │
+    │  │   Query: onlineOrders where customerName + status=pending     │   │
+    │  │   Match: Compare items (names + quantities)                   │   │
+    │  │   Action: If match → Update order status + Link invoice       │   │
+    │  └───────────┬───────────────────────────────────────────────────┘   │
+    │              ▼                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 5: Walk-in Sale Registration (if no match)              │   │
+    │  │   Action: Create new sale in 'storeSales'                     │   │
+    │  │   Metadata: type="easypos", timestamp, items, total, etc.    │   │
+    │  └───────────┬───────────────────────────────────────────────────┘   │
+    │              ▼                                                         │
+    │  ┌───────────────────────────────────────────────────────────────┐   │
+    │  │ Step 6: Invoice History Recording                             │   │
+    │  │   Action: Record in 'invoiceHistory' with action type        │   │
+    │  │   Metadata: relatedId (saleId or orderId), timestamp          │   │
+    │  └───────────────────────────────────────────────────────────────┘   │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DATABASE LAYER                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                      Firebase Firestore                               │
+    │                      (danfosal-app project)                          │
+    └──────────────────────────────────────────────────────────────────────┘
+
+        ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+        │ invoiceHistory  │   │    returns      │   │   customers     │
+        │                 │   │                 │   │                 │
+        │ • invoiceNumber │   │ • type          │   │ • name          │
+        │ • action        │   │ • items         │   │ • nipt ★ NEW   │
+        │ • relatedId     │   │ • total         │   │ • address       │
+        │ • processedAt   │   │ • timestamp     │   │ • email         │
+        └─────────────────┘   └─────────────────┘   └─────────────────┘
+              ★ NEW                  ★ NEW               ENHANCED
+
+        ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+        │   storeSales    │   │  onlineOrders   │   │     stock       │
+        │                 │   │                 │   │                 │
+        │ • items         │   │ • customerName  │   │ • productId     │
+        │ • total         │   │ • status        │   │ • quantity      │
+        │ • type="easypos"│   │ • linkedInvoice │   │ • lastUpdated ★│
+        │ • customerId    │   │   Number ★ NEW  │   │ • lastUpdate   │
+        │ • timestamp     │   │ • processedAt ★ │   │   Reason ★ NEW │
+        └─────────────────┘   └─────────────────┘   └─────────────────┘
+              EXISTING             ENHANCED               ENHANCED
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          OUTPUT LAYER                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────────┐
+    │  Processed Files     │  Moved to Processed\ folder
+    │  • Receipt_*.json    │  with database metadata
+    │  • Receipt_*.png     │  _database: {saleId, customerId}
+    │  • *_data.json       │
+    └──────────────────────┘
+
+    ┌──────────────────────┐
+    │  Logs                │  Detailed processing logs
+    │  • easypos-ocr-      │  Shows Smart Brain decisions
+    │    bridge.log        │  and actions taken
+    └──────────────────────┘
+
+    ┌──────────────────────┐
+    │  Danfosal App UI     │  Real-time data updates
+    │  • Store Sales       │  Unified online + physical
+    │  • Customers         │  Clean, deduplicated
+    │  • Inventory         │  Accurate stock levels
+    └──────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         SMART BRAIN LOGIC SUMMARY                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ IF invoice already processed     → SKIP (log duplicate)                      │
+│ ELSE IF return/cancellation       → Record in 'returns' + Update stock ↑     │
+│ ELSE IF customer exists (NIPT)    → Link to existing                         │
+│ ELSE IF customer exists (Name)    → Link to existing                         │
+│ ELSE IF not Walk-in               → Create new customer                      │
+│ IF matches online order           → Update order status + Link invoice       │
+│ ELSE                              → Create walk-in sale                       │
+│ FINALLY                           → Record in invoiceHistory                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           KEY BENEFITS                                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+• 🎯 UNIFIED ANALYTICS: Online and physical sales in one system
+• 🔄 AUTOMATIC RECONCILIATION: Receipts matched to orders automatically
+• 📊 CLEAN DATABASE: No duplicate customers or invoices
+• 📦 INVENTORY INTEGRITY: Returns restore stock automatically
+• 🚫 ERROR PREVENTION: Duplicate detection prevents double-counting
+• 📝 AUDIT TRAIL: Complete history of all transactions
+• ⚡ ZERO MANUAL ENTRY: Everything automated from print capture
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        IMPLEMENTATION STATUS                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ Code Implementation: COMPLETE
+✅ Documentation: COMPLETE (4 guides + 1 summary)
+✅ Test Scripts: COMPLETE (test + migration)
+✅ Firebase Config: READY (indexes.json created)
+⏳ Firebase Setup: PENDING (user action required)
+⏳ Production Testing: PENDING (after Firebase setup)
+
+Next: Follow FIREBASE_SMART_BRAIN_SETUP.md to complete setup! 🚀
+```

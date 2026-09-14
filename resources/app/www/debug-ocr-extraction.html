@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug OCR - Copy Raw Text</title>
+    <link rel="stylesheet" href="css/tailwind-default.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🔍 OCR Debug Tool - Extract Raw Text</h1>
+        
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl mb-4">Upload Invoice:</h2>
+            <input type="file" id="file-input" accept="image/*,.pdf" 
+                   class="w-full px-4 py-2 bg-gray-700 rounded-lg border border-gray-600"
+                   onchange="handleFile(event)">
+        </div>
+
+        <div id="status" class="bg-blue-900 rounded-lg p-4 mb-6 hidden">
+            <p class="text-blue-200">Processing...</p>
+        </div>
+
+        <div id="result" class="bg-gray-800 rounded-lg p-6 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">📄 Raw OCR Text:</h2>
+                <button onclick="copyText()" 
+                        class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">
+                    📋 Copy All Text
+                </button>
+            </div>
+            <textarea id="raw-text" 
+                      class="w-full h-96 bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm"
+                      readonly></textarea>
+            <p class="text-gray-400 text-sm mt-2">
+                ⬆️ This is exactly what Tesseract extracted. Copy this and send it to me so I can fix the patterns!
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let rawOcrText = '';
+
+        async function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('status').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+
+            try {
+                let imageDataUrl;
+
+                if (file.type === 'application/pdf') {
+                    // Convert ALL PDF pages to single image
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    
+                    const numPages = pdf.numPages;
+                    console.log(`📄 PDF has ${numPages} pages`);
+                    
+                    const scale = 2.0;
+                    const pageCanvases = [];
+                    let totalHeight = 0;
+                    let maxWidth = 0;
+                    
+                    // Render each page
+                    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                        document.querySelector('#status p').textContent = `Converting page ${pageNum}/${numPages}...`;
+                        
+                        const page = await pdf.getPage(pageNum);
+                        const viewport = page.getViewport({ scale });
+                        
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+                        
+                        pageCanvases.push(canvas);
+                        totalHeight += viewport.height;
+                        maxWidth = Math.max(maxWidth, viewport.width);
+                    }
+                    
+                    // Combine all pages
+                    const combinedCanvas = document.createElement('canvas');
+                    combinedCanvas.width = maxWidth;
+                    combinedCanvas.height = totalHeight;
+                    const combinedContext = combinedCanvas.getContext('2d');
+                    
+                    let currentY = 0;
+                    for (const pageCanvas of pageCanvases) {
+                        combinedContext.drawImage(pageCanvas, 0, currentY);
+                        currentY += pageCanvas.height;
+                    }
+                    
+                    imageDataUrl = combinedCanvas.toDataURL('image/png');
+                } else {
+                    // Regular image
+                    const reader = new FileReader();
+                    imageDataUrl = await new Promise((resolve) => {
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                // Run OCR
+                const result = await Tesseract.recognize(imageDataUrl, 'eng', {
+                    logger: (m) => {
+                        if (m.status === 'recognizing text') {
+                            document.querySelector('#status p').textContent = 
+                                `Processing... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+
+                rawOcrText = result.data.text;
+
+                // Display result
+                document.getElementById('status').classList.add('hidden');
+                document.getElementById('result').classList.remove('hidden');
+                document.getElementById('raw-text').value = rawOcrText;
+
+                // Auto-select for easy copying
+                document.getElementById('raw-text').select();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                document.getElementById('status').classList.add('hidden');
+            }
+        }
+
+        function copyText() {
+            const textarea = document.getElementById('raw-text');
+            textarea.select();
+            document.execCommand('copy');
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+            btn.classList.add('bg-green-800');
+            
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.classList.remove('bg-green-800');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

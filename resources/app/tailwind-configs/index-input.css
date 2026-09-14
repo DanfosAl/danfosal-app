@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    @apply bg-bg-main text-text-primary;
+}
+.glass-morphism {
+    @apply bg-card-dark/60 backdrop-blur-xl border border-white/5;
+}
+.card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-neon hover:border-accent-primary/30;
+}
+.stat-value {
+    @apply font-display font-bold text-4xl tracking-tight;
+}
+.stat-label {
+    @apply text-sm font-medium text-text-secondary uppercase tracking-wider;
+}
+.action-card {
+    @apply relative overflow-hidden rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] cursor-pointer border border-white/5;
+}
+.action-icon-bg {
+    @apply w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

@@ -6,7 +6,7 @@
 **Application Version:** 1.4.1  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; installed September 13, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
-**Last Updated:** September 14, 2026 (manifest v4.2 — documentation finalized for the September 13 Danfos Garanci release: dark/3D redesign, custom logo, service workspace, verified rebuild and reinstall; see Finding #19)  
+**Last Updated:** September 14, 2026 (repository cleanup and reorganization: 3.1 GB quarantined, public customer-data exposure found and contained; see Finding #22)  
 **Overall Grade:** A- (Security: A- | Performance: A | Organization: A | Documentation: A+ | held back from A by Finding #4 — backups not actually scheduled)
 
 > **Confirmed scope (Aug 24, 2026):** This app is used only by the owner (Kushtrim), on his own PC and his own phone (sideloaded APK) — it is **not distributed** to staff, customers, or the public, and it is **not connected to Albania's e-Fiscalization/tax system**. A separate app (linked to EasyPOS) is the official system of record for taxes. This app exists purely to track sales/data for the owner's own business decisions, because it's more data-rich than the official fiscal app. This supersedes the fiscal-compliance framing in `docs/archive/GOLDEN_MANIFEST_v1.md` — float-money precision, NIPT/IIC OCR validation, and confidence-gating are **not** legal-risk items for this app and should not be re-flagged as such.
@@ -527,7 +527,7 @@ Then re-verify with `schtasks /query` that it shows up before trusting this find
 
 > **Historical implementation notes:** Finding #19 documents the current installed Garanci 1.1.0. Its design, per-machine matching, save flows and service features supersede the corresponding August behavior below. The Hosting gap described here was resolved on August 25 (v3.7 release entry).
 
-A design handoff (`E:\DanfosalApp\Warranty App\handoff\` — `GOLDEN_MANIFEST.md` spec + `Garanci Nate.dc.html` clickable prototype) asked for a way for sales staff to issue Kärcher warranty certificates and register/track warranty claims. The handoff assumed a fictional PHP+WooCommerce backend with REST endpoints; remapped everything to this app's real Firebase Firestore backend instead.
+A design handoff (now `WarrantyApp/docs/design-handoff/` — `GOLDEN_MANIFEST.md` spec + `Garanci Nate.dc.html` clickable prototype) asked for a way for sales staff to issue Kärcher warranty certificates and register/track warranty claims. The handoff assumed a fictional PHP+WooCommerce backend with REST endpoints; remapped everything to this app's real Firebase Firestore backend instead.
 
 **Built as a genuinely separate Electron app**, not pages bolted onto this one: new top-level folder `E:\DanfosalApp\WarrantyApp\` with its own `package.json` (`appId: com.danfosal.warranty`, `productName: "Danfos Garanci"`), its own installer, its own `main.js` — but it is **not a separate backend**. It connects to the exact same Firebase project (`danfosal-app`) with the same anonymous-auth pattern used everywhere in this app, and directly reads/writes collections this app already owns:
 
@@ -608,8 +608,8 @@ Two more features, this time for `resources/app/` itself rather than Garanci —
 **Follow-up, same day — all three open items closed at the owner's request:**
 
 1. **Watchdog now runs every 30 minutes, completely silently.** Scheduled task **"Danfosal EasyPOS Watchdog"** runs `wscript.exe //nologo "E:\DanfosalApp\run-startup-hidden.vbs"` every 30 min (interactive user, `MultipleInstances=IgnoreNew`, 10-min execution limit, Hidden). The new `run-startup-hidden.vbs` calls the batch file with `WshShell.Run(..., 0, False)` — window style 0 — because a `.bat` invoked directly (Startup shortcut, or Task Scheduler "run only when user is logged on") **always flashes a console window**, which the owner explicitly did not want. `wscript.exe` is a windowed host and shows nothing. **Verified by simulating the actual failure:** killed the bridge → 0 instances → ran the task → bridge back to 1, `LastTaskResult: 0`, no duplicate spawned on a second run, and no lingering hidden `cmd` afterwards.
-2. **Weekly reports removed.** All 4 processes (2 × `node weekly-report-scheduler.js` plus their 2 `cmd.exe` parents) stopped after verifying each by command line, and the scheduler step was deleted from `DanfosalStartup.bat` so nothing restarts it. `weekly-report-scheduler.js` and `start-scheduler-hidden.vbs` are left on disk, unused, in case they are ever wanted again.
-3. **Startup shortcuts pruned to one.** `Danfosal EasyPOS.lnk` (duplicate of the same `.bat`) and `start-easypos-pipeline.lnk` were moved to `E:\DanfosalApp\_disabled-startup-shortcuts\` rather than deleted. **`start-easypos-pipeline.ps1` turned out to be actively harmful, not merely redundant**: it launches the print-capture service in debug mode via `Start-Process powershell -NoExit` (a visible window that never closes) and then runs `node easypos-ocr-bridge.js` in the foreground **with no duplicate guard** — a second bridge. It also checks for a bare `Danfos.EasyPOS.PrintCaptureService` process, which is obsolete now that capture runs as a proper Windows service. The surviving `DanfosalStartup.lnk` was repointed at the silent VBS launcher, so logon is silent too.
+2. **Weekly reports removed.** All 4 processes (2 × `node weekly-report-scheduler.js` plus their 2 `cmd.exe` parents) stopped after verifying each by command line, and the scheduler step was deleted from `DanfosalStartup.bat` so nothing restarts it. `weekly-report-scheduler.js`, `start-scheduler-hidden.vbs` and the SMTP `config/` folder were later moved to the quarantine folder during the Finding #22 cleanup, in case they are ever wanted again.
+3. **Startup shortcuts pruned to one.** `Danfosal EasyPOS.lnk` (duplicate of the same `.bat`) and `start-easypos-pipeline.lnk` were moved aside rather than deleted (since Finding #22 they are in the quarantine folder, and `start-easypos-pipeline.ps1` now lives in `tools/easypos-print-capture/scripts/`). **`start-easypos-pipeline.ps1` turned out to be actively harmful, not merely redundant**: it launches the print-capture service in debug mode via `Start-Process powershell -NoExit` (a visible window that never closes) and then runs `node easypos-ocr-bridge.js` in the foreground **with no duplicate guard** — a second bridge. It also checks for a bare `Danfos.EasyPOS.PrintCaptureService` process, which is obsolete now that capture runs as a proper Windows service. The surviving `DanfosalStartup.lnk` was repointed at the silent VBS launcher, so logon is silent too.
 
 **Additional hardening applied while wiring this up:** the batch file's two `pause` statements (Node-not-found and bridge-script-missing paths) would have blocked a *hidden* process forever, accumulating a new stuck copy every 30 minutes. Both are now skipped under `/silent`, as is the closing 10-second courtesy wait.
 
@@ -643,7 +643,7 @@ Follows the pipeline recovery in Finding #20. A live test print (a reprint of in
 - **6 products would go negative** and must not be auto-applied — they need a physical count: `SC 3` (6 in stock, 24 sold → −18), `RM 760Classic` (1 → −12), and four items already at 0 (`Filter bags-fleece 10x T`, `NT 22/1 Ap L`, `CA 50 C ECO**1`, `HD 5/15 C Plus *EU`, each −1).
 - **37 item names (76 units) have no catalogue match** and cannot be corrected automatically — mostly receipt names the catalogue doesn't carry verbatim (`Karcher SC 2`, `Karcher WD3`, `Karcher Puzzi 8/1`, `Nozzle set DN35`) plus OCR typos (`Micrafiber per pastrim…`). These need manual mapping.
 - **Evidence the drift is real, not double-counting:** for the products that carry purchase history in `batches`, 9 of 10 have a current stock consistent with EasyPOS sales having *never* been deducted (comparing `purchased − other-channel sales` against `purchased − all sales`). Manual sales via `store-sales.html` do deduct correctly (`increment(-item.quantity)`), and both online-order paths only ever *restore* stock, so EasyPOS was the only leak.
-- Per-product breakdown: `stock-correction-2026-09-14.csv` in the repo root.
+- Per-product breakdown: `docs/records/stock-correction-2026-09-14.csv`. This is local only; `docs/records/` is gitignored because the remote is public.
 
 **Matcher improvement made during this analysis:** added an exact-match-after-stripping-the-producer-prefix tier, so receipt names like `Karcher SC 3` resolve to the catalogue's `SC 3` (this alone recovered 28 units).
 
@@ -656,7 +656,7 @@ Follows the pipeline recovery in Finding #20. A live test print (a reprint of in
 - **Digit guard, added after a near-miss:** `SC2`'s closest neighbour by edit distance is `SC 3` (one character), so fuzzy matching alone would have decremented the wrong product for any unknown model. Digits must now be identical — verified `SC 9`, `Karcher SC 7`, `WV 9 Plus`, `…95cm` are all refused. Exception: a digit followed by a token-final `l`/`1` is treated as a unit, because OCR reads litres `5L` as `51` (`Rulapak KC Degreaser 51` → `Rulopak KC Degreaser 5L`).
 - Result: unmatched receipt names fell from **37 (76 units) to 13 (22 units)**; the 3 remaining ambiguous names are genuine product *series* (`Karcher AD` ×12, `Karcher SG 4/2` ×2, `T5` ×3) and are correctly refused. Most of the 13 no-match names are services, not stock (`Solucion per Tapete`, `Nderrim pllake per Makinen BD`).
 
-*Correction applied:* **103 products, 573 units, EUR 16,171 at cost.** Backup of every prior stock value written to `stock-backup-before-correction-2026-09-14.json`; audit record at `stockCorrections/easypos-historical-2026-09-14` also acts as a **re-run guard** (a second run aborts, so the deduction cannot be applied twice). Verified afterwards: sampled products match their expected values exactly and **no product is left with negative stock**.
+*Correction applied:* **103 products, 573 units, EUR 16,171 at cost.** Backup of every prior stock value written to `docs/records/stock-backup-before-correction-2026-09-14.json` (local only); audit record at `stockCorrections/easypos-historical-2026-09-14` also acts as a **re-run guard** (a second run aborts, so the deduction cannot be applied twice). Verified afterwards: sampled products match their expected values exactly and **no product is left with negative stock**.
 
 **Deployment model — the bridge is NOT in the installer, and that is deliberate.** `package.json`'s `build.files` ships only `www/**`, `main.js`, `preload.js`, `package.json` and `node_modules`. `easypos-ocr-bridge.js`, `DanfosalStartup.bat` and `run-startup-hidden.vbs` live outside that list and run from the source tree at `E:\DanfosalApp\`. So **rebuilding or reinstalling Danfosal App never updates the bridge**, and conversely a bridge edit needs no installer rebuild.
 
@@ -673,11 +673,51 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **22. REPOSITORY CLEANUP & REORGANIZATION: PUBLIC CUSTOMER-DATA EXPOSURE FOUND** — ✅ **DONE (September 14, 2026)**, 2 follow-ups open
+
+**Starting point.** `E:\DanfosalApp` held **4.0 GB and ~26,000 files** (not counting `node_modules`), but only **209 were tracked in git**. The last commit was January 10, and all of `WarrantyApp/` had never been under version control. Roughly 90 loose files sat at the root of `resources/app`, with docs spread across four places.
+
+**How it was made reversible.**
+1. The commit `730105f` ("checkpoint full working tree", local only, never pushed) captured all source first, including WarrantyApp for the first time.
+2. Nothing was deleted. Everything removed went to **`E:\DanfosalApp_QUARANTINE_2026-09-14\`**: 3.1 GB, 26,535 files, same folder structure as before. Its `QUARANTINE_MANIFEST.txt` records the reason for each item and the one-line restore command. **Delete that folder after a few days of normal use.**
+
+**Quarantined:**
+
+| Item | Size | Why |
+|---|---|---|
+| Old installers (1.3.2, 1.4.0, Garanci 1.0.0) and both `win-unpacked/` | ~2.2 GB | Build output that gets regenerated |
+| `resources/app/android-sdk/` | 619 MB | Unused. `android/local.properties` points Gradle at `C:\Users\User\AppData\Local\Android\Sdk`. |
+| Electron 37.10.1 runtime (exe, DLLs, `locales/`, `.pak`) at the repo root | ~300 MB | Unpacked there in Nov 2025. Used by neither the installed app, `npm start`, nor the pipeline. |
+| `.venv/`, root `eng.traineddata`, APK "- Copy" | 20 MB | The venv was empty (only pip). The bridge reads the `resources/app` copy of the OCR data, because tesseract.js caches in its working directory. |
+| 11 one-off Feb 2026 fix scripts (`fix-romina-order.js`, `cleanup-lindita.js` …), `add-theme-manager.ps1`, `fix-all-auth.ps1` | small | Already applied, and nothing references them |
+| Weekly report scheduler, its launcher, `config/` (SMTP), its log and PDF output | small | Feature retired by the owner (Finding #20) |
+| `start`, `stop`, `query` | tiny | Accidental files. In PowerShell `sc` is an alias for `Set-Content`, so `sc query DanfosPOS_Service` wrote a file instead of running `sc.exe`. |
+| `resources/app/.github/` | tiny | An inert CI workflow. GitHub only reads `.github/` at the repository root, so it has never run. |
+| `electron-build.config.js`, `desktop-package.json`, `www/pdfjs-dist.min.js`, `www/*.code-workspace` | tiny | Unreferenced. electron-builder never loads a file with that name, and the pdfjs file was a placeholder stub. |
+
+**Kept on purpose:** the `resources/app` path itself, which the print-capture service, the watchdog and the scheduled task all reference absolutely. The bridge, `start-bridge-hidden.vbs`, `firebase-admin-config.js`, `export-pdf.js` and `analytics-engine.js` stay at that root, because the bridge and `main.js:102` require them. Also kept: the `www/` utility pages (owner's decision), every `node_modules/` (the live bridge loads `resources/app/node_modules` at runtime), both keystores, and `functions/`. That function is **live**: the webhook verify handshake returns HTTP 200.
+
+**Reorganized:**
+- **One docs home**: `docs/guides/` (34 guides), `docs/archive/` (38 historical notes), and `docs/records/` (local-only business data, gitignored).
+- **`resources/app/scripts/{data,deploy,android,maintenance}/`**. The 9 data tools had their `require('./…')` paths rewritten to `../../…`, and `package.json` scripts were updated to match. All 9 pass a syntax check and every relative require resolves. The 15 PowerShell scripts got a `Set-Location` guard pinning the working directory to `resources/app`. In 8 of them the guard had to go *after* a `param()` block, which PowerShell requires to come first, so it was placed using PowerShell's own parser. All 15 parse cleanly, and no file changed encoding.
+- The design handoff moved to `WarrantyApp/docs/design-handoff/`, which also removes the space from the old `Warranty App/` folder name. `start-easypos-pipeline.ps1` moved beside the service it starts (`tools/easypos-print-capture/scripts/`). `www/.firebaserc` moved to `resources/app/.firebaserc`, where the Firebase CLI actually looks for it.
+- `README.md` at the root was rewritten; before, it contained only a title. `resources/app/README.md` (UTF-16, describing v1.1.0 at a path that no longer exists) was replaced.
+
+**Security findings from the audit:**
+- **Customer data was publicly downloadable.** `www/shitje_me_adresa_online.xlsx` held **1,726 sales rows with customer names and phone numbers**. Firebase Hosting publishes `www/`, so it was served to anyone at `danfosal-app.web.app/shitje_me_adresa_online.xlsx` (verified HTTP 200). It is also **in the public GitHub repo's history** (`DanfosAl/danfosal-app` is public), and it was still in `origin/main`. Nothing in the app referenced it. It has now been removed from `www/`, and `firebase.json` Hosting now ignores `**/*.md`, `*.xlsx`, `*.xls`, `*.csv` and `*.code-workspace`, so internal notes stop being published too. **⚠️ Still open:** (1) a Hosting redeploy to take the live copy down, which needs `firebase login --reauth`; (2) purging it from git history plus a force-push, which only happens with the owner's decision.
+- **Gmail SMTP password** in `config/email-config.json`. It was tracked locally but **never pushed**. It has been stripped from the checkpoint commit, is gitignored, and the file is quarantined. The scheduler's log shows Google already rejecting the credential. Still, confirm it is revoked.
+- **The live Cloud Function's `/api/new-lead`** accepts unauthenticated writes to `onlineOrders`. This was flagged as a separate task.
+- **`.gitignore` rewritten** around "only source is tracked". It now blocks secrets, `*.keystore`/`*.jks` (the remote is public), business data (`*.xlsx`, `docs/records/`, stock exports), toolchains and build output.
+
+**Verified after the cleanup:** the watchdog ran exactly as the scheduled task runs it, exited 0, found the bridge at 1 instance with an unchanged PID, the print-capture service `Running`, and the inbox empty. Danfosal App 1.4.1 was rebuilt from the cleaned tree (see the release entry for the reinstall).
+
+---
+
 #### **19. DANFOS GARANCI 1.1.0 — DARK/3D WORKSPACE, CUSTOM LOGO & SERVICE FEATURES** — ✅ **IMPLEMENTED, VERIFIED & REINSTALLED (September 13, 2026)**
 
 **Scope and source of truth.** The owner approved the interactive concept, requested additional 3D effects, then authorized implementation and reinstallation, including a new logo replacing Electron's. The production source is `E:\DanfosalApp\WarrantyApp\`; the installed product is **Danfos Garanci 1.1.0**, separate from **Danfosal App 1.4.1**. The main app, protected OCR/Instagram integrations, and hosted print template were not changed by this release. Both apps still use the same `danfosal-app` Firebase project and anonymous authentication.
 
-The original `Warranty App/handoff/GOLDEN_MANIFEST.md` and `Garanci Nate.dc.html` are historical design references. Their PHP/WooCommerce integration assumptions are not the implemented architecture. The approved September concept is `C:\Users\User\.codex\visualizations\2026\09\09\01a08651-75ac-75a2-b0f2-be96ace8fc90\danfos-garanci-concept.html` (single **f** in `danfos`; the earlier `danffos` link was invalid). Production behavior is defined by this section and the current `WarrantyApp/www/` files, not the concept's sample records.
+The original `WarrantyApp/docs/design-handoff/GOLDEN_MANIFEST.md` and `Garanci Nate.dc.html` are historical design references. Their PHP/WooCommerce integration assumptions are not the implemented architecture. The approved September concept is `C:\Users\User\.codex\visualizations\2026\09\09\01a08651-75ac-75a2-b0f2-be96ace8fc90\danfos-garanci-concept.html` (single **f** in `danfos`; the earlier `danffos` link was invalid). Production behavior is defined by this section and the current `WarrantyApp/www/` files, not the concept's sample records.
 
 **a) Visual system and logo**
 
@@ -737,10 +777,10 @@ Statuses remain `received`, `in_progress`, `waiting_parts`, `completed`, `reject
 - Build from `E:\DanfosalApp\WarrantyApp\` with `npm run dist`. No separate CSS/JS compilation step. Generate icon assets with `node build/make-icon.cjs` when the SVG changes (requires Sharp in the development runtime).
 - Installer: `E:\DanfosalApp\WarrantyApp\dist\Danfos Garanci Setup 1.1.0.exe` (334,914,763 bytes). SHA-256: `4ED0808105E45EA1864DC03CFA1CA6B66CB6175B1C46861DBEDBC4CE029CFDAA`.
 - Reinstalled September 13 with `/S /currentuser`; installer exit code **0**. Installed executable: `C:\Users\User\AppData\Local\Programs\Danfos Garanci\Danfos Garanci.exe`; verified file version **1.1.0**. Desktop and Start menu shortcuts target this executable and its icon. The updated app was opened after verification.
-- Source backup: `WarrantyApp/backups/before-modern-ui-20260910-133459`. Pre-install local profile backup: `WarrantyApp/backups/profile-before-1.1.0-20260913`. The previous `Danfos Garanci Setup 1.0.0.exe` remains in `WarrantyApp/dist/`. These release backups do not resolve the separate automated Firestore backup scheduling finding (#4).
+- Source backup `before-modern-ui-20260910-133459`, pre-install local profile backup `profile-before-1.1.0-20260913`, and the previous `Danfos Garanci Setup 1.0.0.exe` were all moved to `E:\DanfosalApp_QUARANTINE_2026-09-14\WarrantyApp\` in the Finding #22 cleanup. The source itself is now in git. These release backups do not resolve the separate automated Firestore backup scheduling finding (#4).
 - Passed: `tests/models.cjs`, `tests/ui-smoke.cjs`, `tests/issue-claim-flow.cjs`, `tests/manual-warranty-flow.cjs`. Coverage includes multi-item/manual-without-serial identity, review/cancel, duplicate prevention, fresh source fields, conflicts, atomic photo count/compression, repeat completion, compact layouts, appearance persistence, pointer tilt, pause and reduced motion. Browser mutation tests use an in-memory Firebase SDK fixture and block external requests.
 - `tests/live-smoke.cjs` verified all seven main navigation views against real records; `--installed` verified the installed home and machine views. Those checks were read-only, with Firestore commit endpoints blocked. No production business records were created or edited during release verification.
-- `tests/package-check.cjs` verified all **36 web assets** and `main.js` byte-for-byte against the installed archive, and confirmed QA fixtures/artifacts/backups were excluded. The icon extracted from the executable was visually checked. Test evidence and screenshots are in `WarrantyApp/artifacts/qa/`.
+- `tests/package-check.cjs` verified all **36 web assets** and `main.js` byte-for-byte against the installed archive, and confirmed QA fixtures/artifacts/backups were excluded. The icon extracted from the executable was visually checked. The September 13 test evidence and screenshots were moved to the quarantine folder in the Finding #22 cleanup. Re-running the tests regenerates `WarrantyApp/artifacts/qa/`.
 
 **Current limits:** no automatic updater; data loading requires the existing Firebase connection; technician names are free text rather than staff accounts; scheduling/parts are entered manually through service detail; customer drafts are not delivered automatically; older ambiguous records cannot have missing identity/history reconstructed. The machine directory includes source sale items, including accessories/consumables, rather than an independently classified equipment registry. Existing product-name normalization limits in the reliability report remain.
 
@@ -972,9 +1012,10 @@ await db.collection('products').get();
 - [Danfos Garanci 1.1.0 release notes](WarrantyApp/RELEASE_NOTES.md) — installed release, test evidence, installer hash and rollback copies.
 - [CHANGELOG.md](docs/CHANGELOG.md) - Version history and updates
 - [AUTHENTICATION_FIX_SUMMARY.md](docs/archive/AUTHENTICATION_FIX_SUMMARY.md) - Complete authentication implementation details
-- [REPOSITORY_CLEANUP_PLAN.md](REPOSITORY_CLEANUP_PLAN.md) - Comprehensive cleanup analysis and execution
-- [Active Guides](resources/app/docs/guides/) - 21 user and deployment guides
-- [Historical Archive](resources/app/docs/archive/) - archived fix logs, superseded manifest snapshots ([v1](docs/archive/GOLDEN_MANIFEST_v1.md), [v3.0 update summary](docs/archive/GOLDEN_MANIFEST_v3.0_UPDATE_SUMMARY.txt)), and completed one-time implementation specs for the EasyPOS print-capture service ([IMPLEMENTATION_MANIFEST_CODE.md](docs/archive/IMPLEMENTATION_MANIFEST_CODE.md), [VS_AGENT_EXECUTION_MANIFEST.md](docs/archive/VS_AGENT_EXECUTION_MANIFEST.md)) — that tool (`tools/easypos-print-capture/`) is already built; these two docs are the historical build plan, not living documentation
+- [README.md](README.md) - repository layout, how the EasyPOS pipeline fits together, and what each kind of change requires
+- [January 2026 cleanup plan](docs/archive/REPOSITORY_CLEANUP_PLAN_2026-01.md) - superseded by Finding #22
+- [Active Guides](docs/guides/) - 34 user and deployment guides
+- [Historical Archive](docs/archive/) - archived fix logs, superseded manifest snapshots ([v1](docs/archive/GOLDEN_MANIFEST_v1.md), [v3.0 update summary](docs/archive/GOLDEN_MANIFEST_v3.0_UPDATE_SUMMARY.txt)), and completed one-time implementation specs for the EasyPOS print-capture service ([IMPLEMENTATION_MANIFEST_CODE.md](docs/archive/IMPLEMENTATION_MANIFEST_CODE.md), [VS_AGENT_EXECUTION_MANIFEST.md](docs/archive/VS_AGENT_EXECUTION_MANIFEST.md)) — that tool (`tools/easypos-print-capture/`) is already built; these two docs are the historical build plan, not living documentation
 
 ---
 

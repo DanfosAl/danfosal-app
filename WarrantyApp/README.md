@@ -1,10 +1,10 @@
 # Danfos Garanci (Warranty App)
 
 Standalone Electron app for issuing Kärcher warranty certificates and
-registering/tracking warranty claims. Built from a design handoff at
-`E:\DanfosalApp\Warranty App\handoff\` (`GOLDEN_MANIFEST.md` + the
-`Garanci Nate.dc.html` prototype) — that folder is reference material only,
-not part of this app.
+registering/tracking warranty claims. Built from a design handoff kept in
+[`docs/design-handoff/`](docs/design-handoff/) (`GOLDEN_MANIFEST.md` + the
+`Garanci Nate.dc.html` prototype). That folder is reference material only.
+`build.files` does not include it, so it never ships in the installer.
 
 ## Relationship to the main Danfosal App
 
@@ -100,7 +100,8 @@ Verification: `node tests/models.cjs` covers identity and update rules.
 `tests/ui-smoke.cjs`, `tests/issue-claim-flow.cjs` and
 `tests/manual-warranty-flow.cjs` use Playwright with an
 in-memory Firebase SDK fixture and block external requests; they never write
-production data. Screenshots and results are under `artifacts/qa/`.
+production data. Screenshots and results are written to `artifacts/qa/`
+(regenerated on every run and never committed).
 The build includes only `www`, `main.js`, package metadata and production modules;
 fixtures, QA artifacts, and source backups are excluded.
 

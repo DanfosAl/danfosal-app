@@ -7,7 +7,16 @@
   },
   "hosting": {
     "public": "www",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.md",
+      "**/*.xlsx",
+      "**/*.xls",
+      "**/*.csv",
+      "**/*.code-workspace"
+    ],
     "headers": [
       {
         "source": "/downloads/*.apk",

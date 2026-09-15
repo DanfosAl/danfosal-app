@@ -104,6 +104,9 @@
             "node_modules/**/*",
             "!node_modules/tailwindcss/**",
             "!node_modules/@tailwindcss/**",
+            "!node_modules/@capacitor/android/**",
+            "!node_modules/@capacitor/*/android/**",
+            "!node_modules/@capacitor/*/ios/**",
             "!tailwind-configs/**"
         ]
     }

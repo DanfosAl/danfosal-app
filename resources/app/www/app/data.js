@@ -4,7 +4,7 @@
 // which is how one app showed three different customer counts and "profit equal to revenue".
 // New screens read these definitions instead of inventing their own. The rules match the
 // Phase 0 data fix (GOLDEN_MANIFEST Finding #25).
-import { db, ready, collection, getDocs } from './firebase.js';
+import { db, ready, collection, getDocs, doc, getDoc } from './firebase.js';
 
 export const VAT = 1.2;                  // Albanian standard VAT, 20%
 export const RESTOCK_DAYS = 42;          // a Kärcher restock takes ~6 weeks (owner, 21 Sep 2026)
@@ -55,6 +55,7 @@ export const netRevenue = s => Number(s.subtotal) > 0 ? Number(s.subtotal) : (Nu
 // A line's net unit cost. `cost` is stored VAT-inclusive (till sales, the 2025 import and the
 // Phase 0 backfill all follow that convention); `netCost` is exact where it exists.
 export function lineNetCost(item) {
+    if (item.isService) return 0;          // labour/services carry no stock cost
     if (Number(item.netCost) > 0) return Number(item.netCost);
     if (Number(item.cost) > 0) return Number(item.cost) / VAT;
     return null;
@@ -80,6 +81,62 @@ export function productNetCost(p) {
     return null;
 }
 
+// Margin on a product's list price. Prices are VAT-inclusive, costs are compared net.
+export function productMargin(p) {
+    const net = productNetCost(p), price = Number(p.price) || 0;
+    if (!net || !price) return null;
+    return (price / VAT - net) / (price / VAT);
+}
+
+// Compare receipt names the way the bridge does: case, spacing and punctuation don't matter.
+export const squash = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const foldText = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// Rank products for a typed query (till, linking, search): exact names first, then names that
+// start with the query, then the products you actually sell, then shorter names.
+export function rankProducts(products, query, soldUnits = {}, limit = 10) {
+    const q = foldText(query).trim();
+    if (!q) return [];
+    const terms = q.split(/\s+/);
+    return products
+        .map(p => ({ p, hay: foldText(`${p.name} ${p.code || ''} ${p.producer || ''}`), name: foldText(p.name) }))
+        .filter(x => terms.every(t => x.hay.includes(t)))
+        .map(x => ({ p: x.p, score: (squash(x.p.name) === squash(q) ? 5 : 0) + (x.name.startsWith(q) ? 3 : 0) + Math.min(soldUnits[x.p._id] || 0, 40) / 40 - x.name.length / 300 }))
+        .sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
+}
+
+function editDistance(a, b) {
+    if (a === b) return 0;
+    if (!a) return b.length; if (!b) return a.length;
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+        const cur = [i];
+        for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = cur;
+    }
+    return prev[b.length];
+}
+
+// Approximate suggestions for a receipt name that matched nothing exactly (linking). Receipt names
+// are exactly the ones that don't match: OCR drops a slash ("NT 2211 Ap L" for "NT 22/1 Ap L"),
+// adds words ("CA 50 C Eco 5l cleaner") or a producer prefix. So score by close spelling and shared
+// words instead of requiring every word to match. The owner still picks - nothing links by itself.
+export function suggestProducts(products, text, limit = 6) {
+    const strip = s => foldText(s).replace(/^(k[aä]rcher|karcher|kaercher)\s+/, '');
+    const target = squash(strip(text));
+    const tokens = strip(text).split(/[^a-z0-9]+/).filter(t => t.length >= 2);
+    if (!target) return [];
+    return products.map(p => {
+        const name = squash(strip(p.name));
+        if (!name) return null;
+        const similarity = 1 - editDistance(target, name) / Math.max(target.length, name.length);
+        const shared = tokens.length ? tokens.filter(t => name.includes(t)).length / tokens.length : 0;
+        const contains = name.includes(target) || target.includes(name) ? 0.25 : 0;
+        return { p, score: 0.6 * similarity + 0.4 * shared + contains };
+    }).filter(x => x && x.score >= 0.35).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
+}
+
 // Which catalogue product a sale line is. Older EasyPOS lines have made-up ids
 // ("easypos-mop-per-pastrim-80cm"); the Phase 0 fix linked them via costProductId.
 export function productIdOfLine(item, knownIds) {
@@ -103,7 +160,38 @@ export async function loadAll() {
         const invoices = await getDocs(collection(db, 'debtors', d.id, 'invoices'));
         invoices.forEach(i => debts.push({ _id: i.id, debtorId: d.id, debtor: d.data().name || '', ...i.data() }));
     }));
-    return { products, sales, orders, customers, tickets, warranties, debts, corrections, loadedAt: Date.now() };
+    // Receipt names the owner marked as services (labour, no stock) in Stock > Link receipt items.
+    let receiptServices = [];
+    try {
+        const s = await getDoc(doc(db, 'settings', 'receiptNames'));
+        if (s.exists()) receiptServices = s.data().services || [];
+    } catch { /* first use: the document doesn't exist yet */ }
+    return { products, sales, orders, customers, tickets, warranties, debts, corrections, receiptServices, loadedAt: Date.now() };
+}
+
+// Every EasyPOS receipt line that isn't linked to a catalogue product, grouped by the name on the
+// receipt. Such lines never reduced stock and have no cost, so profit on them is unknown.
+export function unlinkedReceiptLines(m) {
+    const knownIds = new Set(m.products.map(p => p._id));
+    const services = new Set((m.receiptServices || []).map(squash));
+    const groups = new Map();
+    m.sales.forEach(sale => {
+        if (sale.type !== 'easypos') return;
+        (sale.items || []).forEach((item, index) => {
+            if (item.isService || productIdOfLine(item, knownIds)) return;
+            const name = String(item.name || item.product || '').trim();
+            if (!name || services.has(squash(name))) return;
+            const key = squash(name);
+            const g = groups.get(key) || { name, key, lines: [], units: 0, revenue: 0, last: 0 };
+            const qty = Number(item.quantity) || 1;
+            g.lines.push({ saleId: sale._id, index, qty });
+            g.units += qty;
+            g.revenue += (Number(item.price) || 0) * qty;
+            g.last = Math.max(g.last, saleTime(sale) || 0);
+            groups.set(key, g);
+        });
+    });
+    return [...groups.values()].sort((a, b) => b.last - a.last);
 }
 
 // ------------------------------------------------------------------ analysis
@@ -146,22 +234,20 @@ export function analyze(m, now = Date.now()) {
     const margin30 = costedNet30 > 0 ? (costedNet30 - cost30) / costedNet30 : null;
 
     // ---- stock: how fast each product sells, what to reorder, what isn't moving
-    const soldUnits = {};
-    const unmatched = {};
-    const countLines = (list, timeOf, isEasypos) => list.forEach(rec => {
-        if (!(timeOf(rec) >= sinceWindow)) return;
+    const soldUnits = {}, lastSoldAt = {};
+    const countLines = (list, timeOf) => list.forEach(rec => {
+        const t = timeOf(rec);
         (rec.items || []).forEach(item => {
             const pid = productIdOfLine(item, knownIds);
-            const qty = Number(item.quantity) || 1;
-            if (pid) soldUnits[pid] = (soldUnits[pid] || 0) + qty;
-            else if (isEasypos(rec)) {
-                const name = String(item.name || item.product || '?').trim();
-                unmatched[name] = (unmatched[name] || 0) + qty;
-            }
+            if (!pid) return;
+            if (t > (lastSoldAt[pid] || 0)) lastSoldAt[pid] = t;
+            if (t >= sinceWindow) soldUnits[pid] = (soldUnits[pid] || 0) + (Number(item.quantity) || 1);
         });
     });
-    countLines(sales, saleTime, s => s.type === 'easypos');
-    countLines(m.orders, orderTime, () => false);
+    countLines(sales, saleTime);
+    countLines(m.orders, orderTime);
+    // Only recent unlinked lines are "needs you"; the Link screen shows them all.
+    const unmatched = unlinkedReceiptLines(m).filter(g => g.last >= sinceWindow).map(g => [g.name, g.units]);
 
     let stockValue = 0, unsoldValue = 0;
     const reorder = [], unsold = [], soldWithoutCost = [];
@@ -232,8 +318,8 @@ export function analyze(m, now = Date.now()) {
         now, today0, monthStart,
         todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
-        soldUnits, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
-        unmatched: Object.entries(unmatched).sort((a, b) => b[1] - a[1]),
+        soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
+        unmatched,
         productsSold: Object.keys(soldUnits).length,
         needsCount,
         customers: firstSeen.size, newCustomers30, customerNames: [...firstSeen.values()].map(v => v.name),

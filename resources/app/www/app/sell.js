@@ -1,0 +1,354 @@
+// Sell workspace: All sales and New sale (the till).
+//
+// The till writes the same record as the classic Store Sales screen - items {name, price, cost,
+// quantity, productId, image}, total, paymentMethod, notes, timestamp, type 'store', clientName -
+// and decrements stock with increment(-qty). The difference: the sale and its stock changes go in
+// one batch, so a sale can never be saved without its stock movement (or the other way round).
+import { bootWorkspace } from './workspace.js';
+import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDoc } from './firebase.js';
+import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
+import {
+    VAT, WALKIN, saleTime, orderTime, orderTotal, saleSource, saleInvoiceNumber, shortInvoice,
+    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts
+} from './data.js';
+
+const r2 = n => Math.round(n * 100) / 100;
+
+// ================================================================== all sales
+
+const PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['month', 'This month'], ['all', 'All time']];
+const SOURCES = ['EasyPOS', 'PDF', 'Till', 'Online', 'Import'];
+const salesState = { period: '30', source: 'all', q: null };
+
+function allRecords(model) {
+    const sales = model.sales.map(s => {
+        const cost = saleNetCost(s);
+        const net = netRevenue(s);
+        const inv = saleInvoiceNumber(s);
+        const src = saleSource(s);
+        return {
+            kind: 'sale', id: s._id, rec: s, t: saleTime(s), src, total: Number(s.total) || 0,
+            doc: inv ? `${s.type === 'easypos' ? 'Receipt' : 'Invoice'} ${shortInvoice(inv)}` : src === 'Till' ? 'Till sale' : src === 'Import' ? 'Imported sale' : 'Sale',
+            who: s.clientName || s.customerName || '', items: s.items || [],
+            margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn
+        };
+    });
+    const orders = model.orders.map(o => ({
+        kind: 'order', id: o._id, rec: o, t: orderTime(o), src: 'Online', total: orderTotal(o),
+        doc: 'Online order', who: o.clientName || o.customerName || '', items: o.items || [], margin: null, status: o.status
+    }));
+    return sales.concat(orders).filter(r => !isNaN(r.t)).sort((a, b) => b.t - a.t);
+}
+
+function inPeriod(t, period, now) {
+    if (period === 'all') return true;
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    if (period === 'today') return t >= start.getTime();
+    if (period === 'month') return t >= new Date(start.getFullYear(), start.getMonth(), 1).getTime();
+    return t >= now - Number(period) * 86400000;
+}
+
+function renderSales(ctx) {
+    if (salesState.q === null) salesState.q = ctx.params.get('q') || '';
+    if (salesState.q && !ctx._widened) { ctx._widened = true; salesState.period = 'all'; }   // opened from search: look everywhere
+    const records = allRecords(ctx.model);
+    ctx.setActions(`<a class="btn primary" href="#new">${icon('add')}New sale</a>`);
+    ctx.body.innerHTML = `
+        <div class="toolbar">
+            <label class="field-search">${icon('search')}<input id="s-q" type="search" placeholder="Invoice number, customer or product" value="${esc(salesState.q)}" aria-label="Search sales"></label>
+            <div class="seg" role="group" aria-label="Period" id="s-period">${PERIODS.map(([id, label]) => `<button type="button" data-p="${id}" aria-pressed="${id === salesState.period}">${label}</button>`).join('')}</div>
+        </div>
+        <div class="filters" id="s-src" role="group" aria-label="Source"></div>
+        <div class="summary" id="s-sum"></div>
+        <div class="table-wrap" style="max-height:calc(100vh - 340px)"><table class="dt"><thead><tr>
+            <th>When</th><th>Document</th><th>Customer</th><th>Items</th><th>Source</th><th class="n">Total</th><th class="n">Margin</th></tr></thead>
+            <tbody id="s-body"></tbody></table><div class="table-foot" id="s-foot"></div></div>`;
+
+    const draw = () => {
+        const now = Date.now();
+        const terms = fold(salesState.q).trim().split(/\s+/).filter(Boolean);
+        const base = records.filter(r => inPeriod(r.t, salesState.period, now)).filter(r => {
+            if (!terms.length) return true;
+            const hay = fold(`${r.doc} ${saleInvoiceNumber(r.rec)} ${r.who} ${r.items.map(i => i.name).join(' ')}`);
+            return terms.every(t => hay.includes(t));
+        });
+        ctx.body.querySelector('#s-src').innerHTML = [['all', 'All']].concat(SOURCES.map(s => [s, s])).map(([id, label]) => {
+            const n = id === 'all' ? base.length : base.filter(r => r.src === id).length;
+            return (id === 'all' || n) ? `<button class="filter" type="button" data-s="${id}" aria-pressed="${id === salesState.source}">${label}<span class="n">${int(n)}</span></button>` : '';
+        }).join('');
+        const list = base.filter(r => salesState.source === 'all' || r.src === salesState.source);
+        const revenue = list.reduce((a, r) => a + r.total, 0);
+        const costed = list.filter(r => r.margin !== null && r.kind === 'sale');
+        const costedNet = costed.reduce((a, r) => a + netRevenue(r.rec), 0);
+        const costedCost = costed.reduce((a, r) => a + saleNetCost(r.rec), 0);
+        ctx.setSub(`${plural(list.length, 'sale', 'sales')} · ${eur(revenue)}`);
+        ctx.body.querySelector('#s-sum').innerHTML = `<span>Revenue <b>${eur(revenue, 2)}</b></span>
+            <span>Gross margin <b>${costedNet ? Math.round(100 * (costedNet - costedCost) / costedNet) + '%' : '–'}</b></span>
+            <span>Profit <b>${eur(costedNet - costedCost)}</b> on ${pct(costed.length, list.filter(r => r.kind === 'sale').length)} of sales with a known cost</span>`;
+        const shown = list.slice(0, 400);
+        ctx.body.querySelector('#s-body').innerHTML = shown.map(r => {
+            const first = r.items[0];
+            const more = r.items.length > 1 ? ` +${r.items.length - 1}` : '';
+            return `<tr data-kind="${r.kind}" data-id="${esc(r.id)}" tabindex="0">
+                <td class="muted" style="white-space:nowrap">${esc(dateTime(r.t))}</td>
+                <td>${esc(r.doc)}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}</td>
+                <td>${r.who && !WALKIN.test(r.who) ? esc(r.who) : '<span class="muted">walk-in</span>'}</td>
+                <td class="muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${first ? esc(`${Number(first.quantity) || 1} × ${first.name || '?'}`) + more : '–'}</td>
+                <td><span class="chip">${esc(r.src)}</span></td>
+                <td class="n">${money2(r.total)}</td>
+                <td class="n">${r.margin === null ? '<span class="muted">–</span>' : Math.round(r.margin * 100) + '%'}</td></tr>`;
+        }).join('') || `<tr><td colspan="7" class="muted" style="padding:18px">No sales match.</td></tr>`;
+        ctx.body.querySelector('#s-foot').textContent = list.length > shown.length ? `Showing the latest ${shown.length} of ${list.length}. Narrow the period or search to see older ones.` : 'Totals include VAT. Margin is net of VAT, on sales whose cost is known.';
+    };
+    draw();
+    ctx.body.querySelector('#s-q').addEventListener('input', e => { salesState.q = e.target.value; draw(); });
+    ctx.body.querySelector('#s-period').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; salesState.period = b.dataset.p; ctx.body.querySelectorAll('#s-period button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); draw(); });
+    ctx.body.querySelector('#s-src').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) { salesState.source = b.dataset.s; draw(); } });
+    const open = e => { const tr = e.target.closest('tr[data-id]'); if (tr) saleDrawer(ctx, records.find(r => r.id === tr.dataset.id && r.kind === tr.dataset.kind)); };
+    ctx.body.querySelector('#s-body').addEventListener('click', open);
+    ctx.body.querySelector('#s-body').addEventListener('keydown', e => { if (e.key === 'Enter') open(e); });
+    if (salesState.q && !ctx._openedFromQuery) {       // opened from Ctrl K on one invoice: show it
+        ctx._openedFromQuery = true;
+        const hits = records.filter(r => fold(r.doc).includes(fold(salesState.q)));
+        if (hits.length === 1) saleDrawer(ctx, hits[0]);
+    }
+}
+
+function saleDrawer(ctx, r) {
+    if (!r) return;
+    if (r.kind === 'order') {
+        openDrawer({
+            title: esc(`Online order · ${r.who || '?'}`), sub: esc(`${dateTime(r.t)} · ${r.status || ''}`),
+            body: `<div class="kv"><div><small>Total</small><b>€${money2(r.total)}</b></div><div><small>Phone</small><b>${esc(r.rec.telephone || r.rec.phoneNumber || '–')}</b></div><div><small>Status</small><b>${esc(r.status || '–')}</b></div></div>
+                <section><h3>Items</h3><div class="lines">${r.items.map(i => `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(Number(i.quantity) || 1)} × €${money2(i.price)}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`).join('')}</div></section>
+                <section><h3>Delivery</h3><p class="empty">${esc(r.rec.address || r.rec.deliveryAddress || 'No address')}</p></section>`,
+            foot: `<a class="btn" href="online-orders.html">${icon('open_in_new')}Open in Online orders</a>`
+        });
+        return;
+    }
+    const s = r.rec;
+    const net = netRevenue(s), cost = saleNetCost(s);
+    const nipt = s.customerNipt || (s.easypos && s.easypos.customerNIPT) || '';
+    const { el, close } = openDrawer({
+        title: esc(r.doc), sub: esc(`${dateTime(r.t)} · ${r.src}${s.paymentMethod && s.paymentMethod !== 'unknown' ? ' · ' + s.paymentMethod : ''}`),
+        body: `
+            <div class="kv"><div><small>Total incl. VAT</small><b>€${money2(r.total)}</b></div>
+                <div><small>Net</small><b>€${money2(net)}</b></div>
+                <div><small>Margin</small><b>${cost === null ? 'unknown' : `€${money2(net - cost)} · ${Math.round(100 * (net - cost) / (net || 1))}%`}</b></div></div>
+            <section><h3>Customer</h3><p style="margin:0">${r.who && !WALKIN.test(r.who) ? esc(r.who) : 'Walk-in'}${nipt ? ` <span class="chip">NIPT ${esc(nipt)}</span>` : ''}</p>
+                ${s.customerAddress ? `<p class="empty" style="margin:4px 0 0">${esc(s.customerAddress)}</p>` : ''}</section>
+            <section><h3>Items</h3><div class="lines">${r.items.map(i => {
+                const c = lineNetCost(i); const q = Number(i.quantity) || 1;
+                return `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(q)} × €${money2(i.price)} · cost ${c === null ? '<span style="color:var(--warn)">unknown</span>' : i.isService ? 'service' : '€' + money2(c) + ' net'}${i.serialNumber ? ` · S/N ${esc(i.serialNumber)}` : ''}</span></div>
+                    <span class="n">€${money2((Number(i.price) || 0) * q)}</span></div>`;
+            }).join('')}</div></section>`,
+        foot: `<button class="btn" type="button" id="sd-warranty">${icon('verified')}Warranty card</button>
+               <button class="btn ghost" type="button" id="sd-delete" style="margin-left:auto;color:var(--bad)">${icon('delete')}Delete sale</button>`
+    });
+    el.querySelector('#sd-warranty').addEventListener('click', () => warrantyDialog(ctx, s));
+    el.querySelector('#sd-delete').addEventListener('click', async () => {
+        const knownIds = new Set(ctx.model.products.map(p => p._id));
+        const restock = r.items.map(i => ({ pid: productIdOfLine(i, knownIds), q: Number(i.quantity) || 1, name: i.name })).filter(x => x.pid);
+        const ok = await openModal({
+            title: `Delete ${r.doc}?`, confirmLabel: 'Delete sale', confirmClass: 'money',
+            body: `<p>${restock.length ? `Stock goes back up: ${esc(restock.map(x => `${x.name} +${x.q}`).join(', '))}.` : 'No stock changes: none of its lines are linked to a product.'}${s.type === 'easypos' ? ' This is an EasyPOS receipt: the fiscal receipt itself is not affected.' : ''} This can't be undone.</p>`
+        });
+        if (!ok) return;
+        const batch = writeBatch(db);
+        restock.forEach(x => batch.update(doc(db, 'products', x.pid), { stock: increment(x.q) }));
+        batch.delete(doc(db, 'storeSales', s._id));
+        try { await batch.commit(); toast(`${r.doc} deleted${restock.length ? ', stock restored' : ''}`); close(); await ctx.reload(); }
+        catch (e) { toast(`Couldn't delete: ${e.message}`, { bad: true }); }
+    });
+}
+
+// ================================================================== warranty card (same record as the classic till)
+
+async function warrantyDialog(ctx, sale, { customer = '' } = {}) {
+    const items = sale.items || [];
+    const ok = await openModal({
+        title: 'Warranty card', confirmLabel: 'Save and print',
+        body: `<div style="display:grid;gap:8px">${items.map((it, i) => `<label class="check"><input type="checkbox" data-wi="${i}" checked><span><b style="font-weight:500">${esc(it.name)}</b> × ${int(Number(it.quantity) || 1)}</span></label>`).join('')}</div>
+            <label class="fld">Customer<input id="w-customer" value="${esc(customer || (sale.clientName && !WALKIN.test(sale.clientName) ? sale.clientName : ''))}"></label>
+            <label class="fld">Serial numbers<input id="w-serial" placeholder="One per machine, separated by commas" value="${esc(items.map(i => i.serialNumber).filter(Boolean).join(', '))}"><span class="hint">In the same order as the ticked items.</span></label>`,
+        validate: m => !m.querySelectorAll('[data-wi]:checked').length ? 'Tick at least one item.' : !m.querySelector('#w-customer').value.trim() ? 'Enter the customer name.' : !m.querySelector('#w-serial').value.trim() ? 'Enter the serial number.' : ''
+    });
+    if (!ok) return;
+    const picked = [...ok.querySelectorAll('[data-wi]:checked')].map(c => Number(c.dataset.wi));
+    const customerName = ok.querySelector('#w-customer').value.trim();
+    const serialText = ok.querySelector('#w-serial').value.trim();
+    const serials = serialText.split(',').map(s => s.trim()).filter(Boolean);
+    const cardItems = picked.map((idx, n) => ({ name: items[idx].name, serialNumber: serials[n] || (serials.length === 1 ? serials[0] : '') }));
+    try {
+        await addDoc(collection(db, 'warrantyCards'), { saleId: sale._id || null, saleType: 'storeSale', customerName, items: cardItems, location: 'Danfos', createdAt: Timestamp.now() });
+        if (sale._id) {
+            const updated = items.map((it, i) => { const pos = picked.indexOf(i); return pos === -1 ? it : { ...it, serialNumber: cardItems[pos].serialNumber }; });
+            await updateDoc(doc(db, 'storeSales', sale._id), { items: updated });
+        }
+        toast('Warranty card saved');
+    } catch (e) { toast(`Couldn't save the warranty card: ${e.message}`, { bad: true }); return; }
+    const dateStr = new Date(saleTime(sale) || Date.now()).toLocaleDateString('en-GB');
+    window.open(`warranty-card.html?product=${encodeURIComponent(cardItems.map(c => c.name).join(', '))}&serial=${encodeURIComponent(serialText)}&buyer=${encodeURIComponent(customerName)}&date=${dateStr}&location=Danfos`, '_blank');
+    await ctx.reload();
+}
+
+// ================================================================== new sale (till)
+
+const till = { cart: [], payment: 'cash', customer: '', q: '', sel: 0, done: null };
+
+function renderTill(ctx) {
+    ctx.setSub('Keyboard: F2 search · ↑ ↓ choose · Enter add · F9 charge');
+    const products = ctx.model.products;
+    const customerNames = [...new Set(ctx.a.customerNames)].sort((a, b) => a.localeCompare(b));
+    ctx.body.innerHTML = `
+        <div class="pos">
+            <section class="panel" aria-label="Find products">
+                <label class="field-search">${icon('search')}<input id="t-q" type="search" placeholder="Type a product name or code" value="${esc(till.q)}" autocomplete="off" aria-controls="t-res"></label>
+                <div class="results" id="t-res" role="listbox"></div>
+            </section>
+            <section class="panel" aria-labelledby="cart-h">
+                <h2 class="panel-title" id="cart-h">Sale<button class="btn small ghost" type="button" id="t-clear">Clear</button></h2>
+                <div id="t-done"></div>
+                <div id="t-cart"></div>
+                <label class="fld" style="margin-top:12px">Customer (optional)<input id="t-cust" list="t-custlist" value="${esc(till.customer)}" placeholder="Walk-in"></label>
+                <datalist id="t-custlist">${customerNames.slice(0, 800).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+                    <span class="muted">Payment</span>
+                    <div class="seg" role="group" aria-label="Payment" id="t-pay">
+                        <button type="button" data-pay="cash" aria-pressed="${till.payment === 'cash'}">${icon('payments')}Cash</button>
+                        <button type="button" data-pay="card" aria-pressed="${till.payment === 'card'}">${icon('credit_card')}Card</button></div>
+                </div>
+                <div class="totals" id="t-totals"></div>
+                <button class="btn money" type="button" id="t-charge" style="width:100%;justify-content:center;margin-top:14px;padding:12px">Charge</button>
+                <p class="err" id="t-err" hidden></p>
+            </section>
+        </div>`;
+
+    const q = ctx.body.querySelector('#t-q');
+    let results = [];
+    const drawResults = () => {
+        results = till.q.trim() ? rankProducts(products, till.q, ctx.a.soldUnits, 12) : [];
+        till.sel = Math.min(till.sel, Math.max(results.length - 1, 0));
+        ctx.body.querySelector('#t-res').innerHTML = results.map((p, i) => {
+            const stock = Number(p.stock) || 0;
+            return `<div class="res" role="option" data-i="${i}" aria-selected="${i === till.sel}">
+                <div><b>${esc(p.name)}</b><span class="sub">${esc(p.code || '')}</span></div>
+                <span class="stk ${stock <= 0 ? 'zero' : ''}">${int(stock)} in stock</span><span class="pr">€${money2(p.price)}</span></div>`;
+        }).join('') || `<p class="empty" style="padding:8px 4px">${till.q.trim() ? 'No product matches.' : 'Start typing to find a product.'}</p>`;
+    };
+    const drawCart = () => {
+        const cart = ctx.body.querySelector('#t-cart');
+        cart.innerHTML = till.cart.length ? till.cart.map((l, i) => {
+            const p = products.find(x => x._id === l.productId); const stock = p ? Number(p.stock) || 0 : 0;
+            return `<div class="cart-line"><div><b>${esc(l.name)}</b><span class="sub">€${money2(l.price)} each${l.quantity > stock ? ` · <span style="color:var(--warn)">only ${int(stock)} in stock</span>` : ''}</span></div>
+                <span class="qty"><button type="button" data-q="${i}" data-d="-1" aria-label="One less">−</button><span>${int(l.quantity)}</span><button type="button" data-q="${i}" data-d="1" aria-label="One more">+</button></span>
+                <b class="num">€${money2(l.price * l.quantity)}</b></div>`;
+        }).join('') : '<p class="empty">No items yet. Find a product on the left and press Enter.</p>';
+        const total = till.cart.reduce((a, l) => a + l.price * l.quantity, 0);
+        const net = total / VAT;
+        const costKnown = till.cart.every(l => l.netCost > 0);
+        const cost = till.cart.reduce((a, l) => a + (l.netCost || 0) * l.quantity, 0);
+        ctx.body.querySelector('#t-totals').innerHTML = `
+            <div>Without VAT<b>€${money2(net)}</b></div><div>VAT 20%<b>€${money2(total - net)}</b></div>
+            <div>Margin<b style="color:${costKnown ? 'var(--ok)' : 'var(--warn)'}">${till.cart.length ? (costKnown ? `€${money2(net - cost)} · ${Math.round(100 * (net - cost) / (net || 1))}%` : 'cost missing on an item') : '–'}</b></div>
+            <div class="grand">Total<b>€${money2(total)}</b></div>`;
+        const charge = ctx.body.querySelector('#t-charge');
+        charge.textContent = till.cart.length ? `Charge €${money2(total)}` : 'Charge';
+        charge.disabled = !till.cart.length;
+    };
+    const add = p => {
+        if (!p) return;
+        const line = till.cart.find(l => l.productId === p._id);
+        if (line) line.quantity += 1;
+        else till.cart.push({ productId: p._id, name: p.name, price: Number(p.price) || 0, cost: Number(p.cost) || 0, netCost: productNetCost(p) || 0, image: p.image || null, quantity: 1 });
+        till.q = ''; q.value = ''; till.sel = 0; till.done = null;
+        ctx.body.querySelector('#t-done').innerHTML = '';
+        drawResults(); drawCart(); q.focus();
+    };
+    drawResults(); drawCart();
+    if (till.done) showDone(ctx, till.done);
+
+    q.addEventListener('input', () => { till.q = q.value; till.sel = 0; drawResults(); });
+    q.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); till.sel = Math.min(till.sel + 1, results.length - 1); drawResults(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); till.sel = Math.max(till.sel - 1, 0); drawResults(); }
+        else if (e.key === 'Enter') { e.preventDefault(); add(results[till.sel]); }
+    });
+    ctx.body.querySelector('#t-res').addEventListener('click', e => { const o = e.target.closest('[data-i]'); if (o) add(results[Number(o.dataset.i)]); });
+    ctx.body.querySelector('#t-cart').addEventListener('click', e => {
+        const b = e.target.closest('[data-q]'); if (!b) return;
+        const line = till.cart[Number(b.dataset.q)]; line.quantity += Number(b.dataset.d);
+        if (line.quantity <= 0) till.cart.splice(Number(b.dataset.q), 1);
+        drawCart();
+    });
+    ctx.body.querySelector('#t-clear').addEventListener('click', () => { till.cart = []; till.customer = ''; ctx.body.querySelector('#t-cust').value = ''; drawCart(); q.focus(); });
+    ctx.body.querySelector('#t-cust').addEventListener('input', e => { till.customer = e.target.value; });
+    ctx.body.querySelector('#t-pay').addEventListener('click', e => {
+        const b = e.target.closest('[data-pay]'); if (!b) return; till.payment = b.dataset.pay;
+        ctx.body.querySelectorAll('#t-pay button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    });
+    ctx.body.querySelector('#t-charge').addEventListener('click', () => charge(ctx));
+    if (!ctx._tillKeys) {
+        ctx._tillKeys = true;
+        document.addEventListener('keydown', e => {
+            if (ctx.tab !== 'new') return;
+            if (e.key === 'F2') { e.preventDefault(); ctx.body.querySelector('#t-q')?.focus(); }
+            if (e.key === 'F9') { e.preventDefault(); charge(ctx); }
+        });
+    }
+    q.focus();
+}
+
+async function charge(ctx) {
+    if (!till.cart.length || till.busy) return;
+    const products = ctx.model.products;
+    const short = till.cart.filter(l => { const p = products.find(x => x._id === l.productId); return !p || l.quantity > (Number(p.stock) || 0); });
+    if (short.length) {
+        const ok = await openModal({
+            title: 'Sell more than the system holds?', confirmLabel: 'Sell anyway', confirmClass: 'money',
+            body: `<p>The system shows less stock than you're selling: ${esc(short.map(l => { const p = products.find(x => x._id === l.productId); return `${l.name} (${int(p ? Number(p.stock) || 0 : 0)} in stock, selling ${int(l.quantity)})`; }).join(', '))}. If it's on the shelf, the stock figure is wrong. Selling will take it below zero, and it will show up as needing a count.</p>`
+        });
+        if (!ok) return;
+    }
+    const total = r2(till.cart.reduce((a, l) => a + l.price * l.quantity, 0));
+    const customer = till.customer.trim();
+    const saleData = {
+        items: till.cart.map(l => ({ name: l.name || 'Unknown Product', price: Number(l.price) || 0, cost: Number(l.cost) || 0, netCost: r2(l.netCost || 0), quantity: Number(l.quantity) || 1, productId: l.productId, image: l.image || null })),
+        total, paymentMethod: till.payment, notes: '', timestamp: Timestamp.now(), type: 'store'
+    };
+    if (customer) saleData.clientName = customer;
+    const btn = ctx.body.querySelector('#t-charge'); till.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
+    const saleRef = doc(collection(db, 'storeSales'));
+    const batch = writeBatch(db);
+    batch.set(saleRef, saleData);
+    till.cart.forEach(l => batch.update(doc(db, 'products', l.productId), { stock: increment(-l.quantity) }));
+    try {
+        await batch.commit();
+        till.done = { sale: { _id: saleRef.id, ...saleData }, total, customer };
+        till.cart = []; till.customer = '';
+        toast(`Sale saved · €${money2(total)}`);
+        await ctx.reload();
+    } catch (e) {
+        btn.disabled = false; btn.textContent = `Charge €${money2(total)}`;
+        const err = ctx.body.querySelector('#t-err'); err.textContent = `Couldn't save the sale: ${e.message}. Nothing was changed.`; err.hidden = false;
+    } finally { till.busy = false; }
+}
+
+function showDone(ctx, done) {
+    const box = ctx.body.querySelector('#t-done');
+    box.innerHTML = `<div class="all-clear" style="margin-bottom:10px">${icon('check_circle')}<div style="flex:1"><b>Sale saved · €${money2(done.total)}</b><br><span>${done.customer ? esc(done.customer) : 'Walk-in'} · stock updated</span></div>
+        <button class="btn small" type="button" id="t-wc">${icon('verified')}Warranty card</button></div>`;
+    box.querySelector('#t-wc').addEventListener('click', () => warrantyDialog(ctx, done.sale, { customer: done.customer }));
+}
+
+// ================================================================== boot
+
+bootWorkspace({
+    active: 'sell', title: 'Sell', defaultTab: 'sales',
+    tabs: [
+        { id: 'sales', label: 'All sales', icon: 'receipt_long', render: renderSales },
+        { id: 'new', label: 'New sale', icon: 'point_of_sale', render: renderTill },
+        { label: 'Import invoice (PDF)', icon: 'document_scanner', href: 'albanian-invoice-scanner.html' },
+        { label: 'Online orders', icon: 'shopping_bag', href: 'online-orders.html' }
+    ]
+});

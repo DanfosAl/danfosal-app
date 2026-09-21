@@ -8,48 +8,52 @@ import { saleTime, saleInvoiceNumber, shortInvoice, WALKIN, customerKey, orderTo
 
 export const NAV = [
     { id: 'today', label: 'Today', icon: 'sunny', href: 'index.html' },
-    { id: 'sell', label: 'Sell', icon: 'point_of_sale', href: 'store-sales.html', pages: [
-        ['New sale', 'store-sales.html', 'point_of_sale'],
-        ['Import invoice (PDF)', 'albanian-invoice-scanner.html', 'receipt_long'],
-        ['Online orders', 'online-orders.html', 'shopping_bag']] },
-    { id: 'stock', label: 'Stock', icon: 'inventory_2', href: 'products.html', pages: [
-        ['Catalogue', 'products.html', 'inventory_2'],
-        ['Order list', 'to_order.html', 'local_shipping'],
-        ['Receive delivery', 'smart-inventory-scanner.html', 'document_scanner'],
-        ['Yearly plan', 'smart-prediction.html', 'event_note']] },
+    { id: 'sell', label: 'Sell', icon: 'point_of_sale', href: 'sell.html', pages: [
+        ['All sales', 'sell.html#sales', 'receipt_long'],
+        ['New sale', 'sell.html#new', 'point_of_sale'],
+        ['Import invoice (PDF)', 'albanian-invoice-scanner.html', 'document_scanner', 'classic'],
+        ['Online orders', 'online-orders.html', 'shopping_bag', 'classic']] },
+    { id: 'stock', label: 'Stock', icon: 'inventory_2', href: 'stock.html', pages: [
+        ['Catalogue', 'stock.html#catalogue', 'inventory_2'],
+        ['Reorder', 'stock.html#reorder', 'local_shipping'],
+        ['Link receipt items', 'stock.html#link', 'link'],
+        ['Order list', 'to_order.html', 'list_alt', 'classic'],
+        ['Receive delivery', 'smart-inventory-scanner.html', 'move_to_inbox', 'classic'],
+        ['Yearly plan', 'smart-prediction.html', 'event_note', 'classic']] },
     { id: 'customers', label: 'Customers', icon: 'group', href: 'customer-portal.html', pages: [
-        ['Customers', 'customer-portal.html', 'group'],
-        ['Loyalty', 'loyalty-dashboard.html', 'loyalty']] },
+        ['Customers', 'customer-portal.html', 'group', 'classic'],
+        ['Loyalty', 'loyalty-dashboard.html', 'loyalty', 'classic']] },
     { id: 'service', label: 'Service', icon: 'build', href: 'service-tickets.html', pages: [
-        ['Repair tickets', 'service-tickets.html', 'build'],
-        ['Warranty cards', 'warranty-cards-list.html', 'verified']] },
+        ['Repair tickets', 'service-tickets.html', 'build', 'classic'],
+        ['Warranty cards', 'warranty-cards-list.html', 'verified', 'classic']] },
     { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'debts.html', pages: [
-        ['Debts', 'debts.html', 'account_balance_wallet'],
-        ['Expenses', 'expenses.html', 'payments']] },
+        ['Debts', 'debts.html', 'account_balance_wallet', 'classic'],
+        ['Expenses', 'expenses.html', 'payments', 'classic']] },
     { id: 'insights', label: 'Insights', icon: 'insights', href: 'analytics.html', pages: [
-        ['Analytics', 'analytics.html', 'monitoring'],
-        ['Advanced analytics', 'advanced-analytics.html', 'query_stats'],
-        ['Forecasts', 'business-intelligence.html', 'trending_up'],
-        ['Executive report', 'executive-report.html', 'description']] }
+        ['Analytics', 'analytics.html', 'monitoring', 'classic'],
+        ['Advanced analytics', 'advanced-analytics.html', 'query_stats', 'classic'],
+        ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic'],
+        ['Executive report', 'executive-report.html', 'description', 'classic']] }
 ];
 export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings', href: 'settings.html', pages: [
-    ['Settings', 'settings.html', 'settings'],
-    ['Fix stock', 'fix-stock.html', 'build_circle'],
-    ['Check duplicates', 'check-duplicates.html', 'content_copy'],
-    ['Check Firebase', 'check-firebase.html', 'cloud_done'],
-    ['OCR debug', 'debug-ocr-extraction.html', 'bug_report'],
-    ['Import sales history', 'import-sales-history.html', 'upload_file'],
-    ['Classic dashboard', 'classic-dashboard.html', 'dashboard']] };
+    ['Settings', 'settings.html', 'settings', 'classic'],
+    ['Fix stock', 'fix-stock.html', 'build_circle', 'classic'],
+    ['Check duplicates', 'check-duplicates.html', 'content_copy', 'classic'],
+    ['Check Firebase', 'check-firebase.html', 'cloud_done', 'classic'],
+    ['OCR debug', 'debug-ocr-extraction.html', 'bug_report', 'classic'],
+    ['Import sales history', 'import-sales-history.html', 'upload_file', 'classic'],
+    ['Classic dashboard', 'classic-dashboard.html', 'dashboard', 'classic']] };
 
 function navItem(item, active, counts) {
     const current = item.id === active ? ' aria-current="page"' : '';
     const count = counts[item.id];
     const badge = count ? `<span class="nav-count${count.hot ? ' hot' : ''}">${int(count.n)}</span>` : '';
+    const anyClassic = (item.pages || []).some(p => p[3] === 'classic');
     const flyout = item.pages ? `
         <div class="flyout" role="menu" aria-label="${esc(item.label)}">
             <h4>${esc(item.label)}</h4>
-            ${item.pages.map(([label, href, ic]) => `<a role="menuitem" href="${href}">${icon(ic)}${esc(label)}</a>`).join('')}
-            <p class="note">Opens the classic screen until ${esc(item.label)} is rebuilt.</p>
+            ${item.pages.map(([label, href, ic, kind]) => `<a role="menuitem" href="${href}">${icon(ic)}${esc(label)}${kind === 'classic' ? '<span class="tag">classic</span>' : ''}</a>`).join('')}
+            ${anyClassic ? '<p class="note">Classic screens keep working until they are rebuilt.</p>' : ''}
         </div>` : '';
     return `<div class="nav-item">
         <a class="nav-link" href="${item.href}"${current}>${icon(item.icon)}${esc(item.label)}${badge}</a>${flyout}
@@ -83,6 +87,15 @@ export function mountShell({ active = 'today', counts = {} } = {}) {
     return document.getElementById('content');
 }
 
+// Sidebar badges, the same on every screen.
+export function navCountsFor(a) {
+    const stock = a.reorder.length + a.needsCount.length + a.unmatched.length;
+    return {
+        stock: stock ? { n: stock, hot: a.reorder.length > 0 } : null,
+        service: a.openTickets.length ? { n: a.openTickets.length } : null
+    };
+}
+
 export function setNavCounts(active, counts) {
     const nav = document.getElementById('nav');
     if (nav) nav.innerHTML = NAV.map(i => navItem(i, active, counts)).join('');
@@ -105,6 +118,11 @@ const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 // Words people actually type for each screen, in English and Albanian - "reorder" should find the
 // Order list even though it isn't called that.
 const SYNONYMS = {
+    'sell.html#new': 'sell till pos cash register shitje arka new sale',
+    'sell.html#sales': 'sales receipts invoices history shitjet fatura',
+    'stock.html#catalogue': 'products stock inventory produkte magazina catalogue prices cost',
+    'stock.html#reorder': 'reorder order purchase buy porosit furnizim unsold dead stock',
+    'stock.html#link': 'link map receipt unmatched unlinked lidh',
     'store-sales.html': 'sell till pos cash register shitje arka',
     'albanian-invoice-scanner.html': 'pdf scan scanner fature e-invoice platforma',
     'online-orders.html': 'instagram porosi web',
@@ -140,7 +158,7 @@ export function setSearchData(model) {
         group: 'Products', label: p.name || '?', ic: 'inventory_2',
         sub: [p.code, `${int(Number(p.stock) || 0)} in stock`].filter(Boolean).join(' · '),
         end: Number(p.price) ? eur(p.price, 2) : '',
-        href: `products.html?q=${encodeURIComponent(p.name || '')}`,
+        href: `stock.html?q=${encodeURIComponent(p.name || '')}#catalogue`,
         text: fold(`${p.name} ${p.code || ''}`)
     }));
     const lastBuy = new Map();
@@ -167,7 +185,7 @@ export function setSearchData(model) {
             group: 'Invoices', label: `${s.type === 'easypos' ? 'Receipt' : 'Invoice'} ${shortInvoice(num)}`, ic: 'receipt_long',
             sub: `${named ? who : 'Walk-in'} · ${isNaN(saleTime(s)) ? '' : day(saleTime(s))}`,
             end: eur(Number(s.total) || 0, 2),
-            href: named ? `customer-portal.html?q=${encodeURIComponent(who)}` : 'store-sales.html',
+            href: `sell.html?q=${encodeURIComponent(shortInvoice(num))}#sales`,
             text: fold(`${num} ${shortInvoice(num)} ${who}`)
         };
     });

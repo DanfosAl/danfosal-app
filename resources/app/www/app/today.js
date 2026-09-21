@@ -24,7 +24,7 @@ function needsYou(a) {
         const names = a.reorder.slice(0, 3).map(r => r.product.name).join(', ');
         items.push({ sev: 'crit', title: `${plural(a.reorder.length, 'product runs', 'products run')} out before a restock could arrive`,
             why: `Based on the last ${SALES_WINDOW_DAYS} days of sales and a ${RESTOCK_DAYS / 7}-week restock: ${names}${a.reorder.length > 3 ? '…' : ''}.`,
-            action: ['Order list', 'to_order.html'] });
+            action: ['Reorder', 'stock.html#reorder'] });
     }
     const quietHours = a.lastEasypos ? (a.now - a.lastEasypos) / 3600000 : Infinity;
     if (quietHours >= 96) {
@@ -39,13 +39,13 @@ function needsYou(a) {
     if (a.soldWithoutCost.length) {
         items.push({ sev: 'warn', title: `${plural(a.soldWithoutCost.length, 'product you sold has', 'products you sold have')} no cost price`,
             why: `Profit on those sales can't be worked out until a cost is entered: ${a.soldWithoutCost.slice(0, 3).map(s => s.product.name).join(', ')}${a.soldWithoutCost.length > 3 ? '…' : ''}.`,
-            action: ['Catalogue', `products.html?q=${encodeURIComponent(a.soldWithoutCost[0].product.name || '')}`] });
+            action: ['Enter costs', 'stock.html?filter=nocost#catalogue'] });
     }
     if (a.unmatched.length) {
         const units = a.unmatched.reduce((s, [, q]) => s + q, 0);
         items.push({ sev: 'warn', title: `${plural(a.unmatched.length, 'receipt item isn’t', 'receipt items aren’t')} linked to a product`,
-            why: `${plural(units, 'unit', 'units')} sold in the last ${SALES_WINDOW_DAYS} days didn't reduce stock or count toward profit. Linking them comes with the new Stock screen.`,
-            more: a.unmatched.slice(0, 8).map(([name, q]) => `${name} ×${q}`) });
+            why: `${plural(units, 'unit', 'units')} sold in the last ${SALES_WINDOW_DAYS} days didn't reduce stock or count toward profit. Link each name once and future receipts match by themselves.`,
+            action: ['Link', 'stock.html#link'] });
     }
     if (a.openTickets.length) {
         const oldest = a.openTickets[0];
@@ -137,7 +137,7 @@ export function renderToday(el, a, { onGoalChange } = {}) {
         <div class="page-head">
             <div><h1>${greeting(a.now)}, Kushtrim</h1>
                 <p>${needs.length ? `${plural(needs.length, 'thing needs', 'things need')} you${urgent ? `, ${int(urgent)} soon` : ''}.` : 'All clear today.'}</p></div>
-            <a class="btn primary" href="store-sales.html">${icon('add')}New sale</a>
+            <a class="btn primary" href="sell.html#new">${icon('add')}New sale</a>
         </div>
         <div class="kpis">${renderKpis(a)}</div>
         <div class="cols">

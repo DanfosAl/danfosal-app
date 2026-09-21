@@ -983,6 +983,12 @@ class EasyPOSOCRProcessor {
         const targetSquashed = squash(itemName);
         if (!targetSquashed) return null;
 
+        // Tier 0: a receipt name the owner has linked to a product (Stock > Link receipt items
+        // stores it in product.receiptNames). It is the owner's own decision, so it beats any
+        // guess below - that is what makes "link once, matched from then on" true.
+        const linked = products.filter(p => Array.isArray(p.receiptNames) && p.receiptNames.some(n => squash(n) === targetSquashed));
+        if (linked.length === 1) return linked[0];
+
         // Tier 1: exact name match
         let candidates = products.filter(p => norm(p.name) === target);
         // Tier 2: exact match ignoring punctuation/spacing ("K'5 Basic *EU" vs "K 5 Basic EU")

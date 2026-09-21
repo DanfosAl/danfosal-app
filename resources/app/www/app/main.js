@@ -1,5 +1,5 @@
 // Entry point of the new app shell (index.html).
-import { mountShell, setPipelineStatus, setSearchData, setNavCounts } from './shell.js';
+import { mountShell, setPipelineStatus, setSearchData, setNavCounts, navCountsFor } from './shell.js';
 import { loadAll, analyze, saleTime } from './data.js';
 import { renderToday, renderLoading, renderError } from './today.js';
 import { db } from './firebase.js';
@@ -13,10 +13,7 @@ function paint() {
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
     setPipelineStatus(a.lastEasypos, a.now);
-    setNavCounts('today', {
-        stock: a.reorder.length + a.needsCount.length ? { n: a.reorder.length + a.needsCount.length, hot: a.reorder.length > 0 } : null,
-        service: a.openTickets.length ? { n: a.openTickets.length } : null
-    });
+    setNavCounts('today', navCountsFor(a));
 }
 
 async function refresh({ quiet = false } = {}) {

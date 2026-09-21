@@ -751,6 +751,39 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **25. REDESIGN PHASE 0 — MAKING THE NUMBERS TRUE** — ✅ **APPLIED & VERIFIED (September 21, 2026)**
+
+**Context.** The owner asked for a full redesign. The evidence-based proposal is published as the artifact *Danfosal, Rebuilt* (36 pages → 7 workspaces). It found that the app's biggest problem was untrustworthy data, not its looks, so the plan puts a data phase first. Owner's decisions: Instagram is still a channel, EasyPOS records every store sale, keep debts, desktop first, dark only, retire the five "no decision value" pages (Visual Analytics, Business Landscape, Smart Dashboard, AI Command Center, Notes & Tasks), and a Kärcher restock takes 6+ weeks.
+
+**What the dry run found** (read-only, then checked by hand before anything was written):
+- **Profit was invented.** 71 of 77 sales in the last 90 days carried no cost. EasyPOS receipts before 14 Sep and every scanned PDF invoice saved cost as 0, so Analytics showed profit equal to revenue.
+- **VAT bases were mixed.** A product's `cost` is `baseCost × 1.2`, with a median of exactly 1.200 across 71 products, and the 2025 import's line costs are also VAT-inclusive (median 1.200 across 1,129 lines). Invoice PDF prices are net, and receipt totals include VAT. Margin is therefore computed net-to-net.
+- **Two traps would have produced false margins.** First, one purchase batch stored a 12-unit line total (€900) as the unit cost of VCH 4 UV Clean (€75), which made July show −60%. Second, 35 sale lines (34 from the 2025 import) carry a product *code* belonging to a different product than their name; for example, "Qese per WD3" (€3 bags) was stamped with SC 3's code. The costing therefore trusts an exact name over a stored id or code, and uses a batch cost only when it is within 0.4–2.5× the product's own cost. SC 3's stock was **not** affected: the 14 Sep correction had skipped it (it would have gone to −18).
+- **2025 history is per product line, not per invoice.** 1,191 imported records form only 495 invoices, so the 2025 "sales per month" are inflated about 2.4×.
+- **Addresses:** 106 of the ~141 customer profiles had receipt lines glued onto the address by the OCR bridge (for example "…Korce, ALB, Qese per T11/1, 10 cope X 2.00 20.00"). Five PDF sales and five profiles had Danfos's own address as the customer's.
+- **Debts** are stored as sub-records: `debtors/{id}/invoices` holds 8 invoices across 6 debtors (about €7,988). The proposal's first draft had said "names only", which was wrong and has been corrected.
+- **Instagram:** chatbot "orders" carry no price, like the 21 Jul order with item `"00"` and €0. Orders leave the Online Orders page only through its Delete button, which asks for confirmation, or by deleting a whole customer. None has been saved since 21 July, and the owner was asked whether Instagram sales happened in Aug–Sep.
+
+**Applied with the owner's approval** (script `phase0-apply`, preview first):
+1. **415 sale lines in 254 sales costed** from the matched product. A cost that already existed was never overwritten. Each line stores `cost` (VAT-inclusive, the same convention as till sales), `netCost`, `costSource` and `costProductId`, and that last field now links older EasyPOS lines, which had made-up ids, to the real product.
+2. **106 addresses cleaned**, with all 106 before/after pairs reviewed and none left for manual review.
+3. **VCH 4 batch fixed:** cost 900 → 75, with `costWas: 900` kept on the batch.
+4. **Danfos's address cleared** from 5 sales and 5 profiles. The real addresses cannot be recovered.
+- 367 documents updated in total. Every original value is backed up in `docs/records/phase0-backup-2026-09-21.json` (local only), and the audit and re-run guard is `dataFixes/phase0-2026-09-21`; a second run was tested and refused.
+
+**Verified:** sales with no cost in the last 90 days fell from **71 (92%) to 2 (3%)**, covering €120 of revenue. Real gross margin is **38–53% every month and 49% over the last 90 days**, where the app had shown 100% or "healthy" with no basis. Spot checks: the VCH 4 receipts now cost €75 net; ADG's BD 50/50 costs €1,328.30 net against €2,750 (52%); Elena Toli's address ends at "…Lagja 1, Korce".
+
+**Code fixes so new data stays right:**
+- **Invoice scanner** (`manual-pdf-processor.js`) now saves each linked product's cost and `netCost`, and an unlinked line stays at 0 rather than being guessed. This was tested by running the real `saveToDatabase` against an in-memory fake Firestore: 4/4 checks passed.
+- **OCR bridge** now stops the address at the country code, any quantity/price line, or a section heading, and cuts anything after ", ALB". Tested on the real `extractCustomerInfo` with 4 receipt layouts, 4/4 passing. The watchdog loads the new code on its own.
+- **Dashboard** (`index.html`): the hardcoded `+0%`, `Avg wait: 14m`, `+12`, the decorative customer bars and the `JD` avatar are removed. They are replaced with real figures: the 30-day average day, how long the oldest unpaid order has waited, and customers as spelling-normalised named buyers across store sales and online orders (685, with 6 new in 30 days). Before, only online-order names were counted, which gave 237. "LOW STOCK 211" became **REORDER**: a product is flagged when it would run out within 42 days, counting only products with 2+ sold in 90 days (currently none). A new **UNSOLD 90 DAYS** ticker shows €75,135 of stock across 211 products that hasn't moved. The "Instagram Orders · Today" card really counted *all* open chatbot orders, so it now says "open". Products now carry `_docId` so sales can be linked to them.
+
+**Biggest business finding:** of the **€115,458 of stock at net cost, €75,108 (65%) has not sold a single unit in 90 days**. The largest amounts are BD 35/15C (8 units, €11,400), a Blancus 85 ride-on (€4,163) and Star SC5100B (€4,052). No product that sells regularly is about to run out.
+
+**Still open:** entering cost prices for the products that have none (the largest are STAR STREET SWEEPER, KM 85/50 R Bp Pack 2 SB, HD 9/25 G Classic and Star C43), and 7 lookalike customer names (mostly OCR reading "ç" as "g") for the owner to review in the future Customers workspace.
+
+---
+
 #### **24. DANFOSAL APP LOGO — REPLACES THE DEFAULT ELECTRON ICON** — ✅ **DONE (September 21, 2026)**
 
 **Before:** the app had no icon of its own. `package.json` pointed `win.icon` at `build/icon.ico`, but that file had never existed, so every build logged `default Electron icon is used — application icon is not set`. `main.js` pointed the window icon at the same missing file. That path could never have worked in an installed app anyway, because `build/` is not packaged.

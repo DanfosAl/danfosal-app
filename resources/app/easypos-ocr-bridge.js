@@ -210,14 +210,22 @@ class EasyPOSOCRProcessor {
                 // Extract Address (starts with "Adresa" or follows NIPT)
                 if (line.startsWith('Adresa') || (customerAddress === '' && i > customerSectionIndex + 2 && line.includes('Rruga'))) {
                     // Collect address lines until we hit an empty line or next section
+                    // The address is followed on the receipt by the country code and then the item
+                    // lines, and collecting a fixed five lines ran straight into them: 106 customer
+                    // profiles ended up with addresses like "...Korce, ALB, Qese per T11/1,
+                    // 10 cope X 2.00 20.00" (cleaned 21 Sep 2026). Stop at the country code, at any
+                    // quantity/price line, or at a section heading.
+                    const endOfAddress = /^(ALB|ALBANIA|SHQIP[EË]RI)\b|cop[eë]\s*x\s*\d|\d+[.,]\d{2}\s+\d+[.,]\d{2}\s*$|^(TOTAL|ARTIKU|EM[EË]RTIM|P[EË]RSHKRIM|SASIA|SH[EË]NIME)/i;
                     let addressLines = [];
                     for (let j = i; j < Math.min(i + 5, lines.length); j++) {
                         const addrLine = lines[j];
                         if (addrLine.startsWith('Adresa')) continue;
                         if (addrLine.length < 3 || addrLine.match(/^[A-Z]\s*\d/)) break; // Stop at item lines
+                        if (endOfAddress.test(addrLine.trim())) break;
                         addressLines.push(addrLine);
                     }
-                    customerAddress = addressLines.join(', ').trim();
+                    // Safety net for a country code OCR'd onto the same line as the address.
+                    customerAddress = addressLines.join(', ').replace(/,\s*ALB\b[\s\S]*$/i, '').trim();
                     break;
                 }
             }

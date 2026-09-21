@@ -769,13 +769,31 @@ class ManualPDFProcessor {
             const storeSalesRef = this.collection(this.db, 'storeSales');
             
             // Transform items to match store-sales format (name, price, cost, quantity, productId, image)
-            const transformedItems = invoiceData.items.map(item => ({
-                name: item.linkedProductName || item.itemName || item.name || 'Unknown Product',
-                price: Number(item.pricePerUnit || item.price || 0),
-                cost: Number(item.cost || 0), // Albanian invoices don't have cost, default to 0
-                quantity: Number(item.quantity || 1),
-                productId: item.productId || 'manual-item',
-                image: item.image || null
+            // Cost comes from the linked catalogue product. The invoice itself carries no cost, and
+            // saving 0 is what made every scanned invoice show profit equal to revenue. Stored the
+            // same way as till sales: cost VAT-inclusive, netCost excluding VAT.
+            const transformedItems = await Promise.all(invoiceData.items.map(async item => {
+                let cost = Number(item.cost || 0), netCost = null;
+                if (!(cost > 0) && item.productId && item.productId !== 'manual-item' && this.getDoc && this.doc) {
+                    try {
+                        const snap = await this.getDoc(this.doc(this.db, 'products', item.productId));
+                        const p = snap.exists() ? snap.data() : null;
+                        const net = p ? (Number(p.baseCost) > 0 ? Number(p.baseCost) : (Number(p.cost) > 0 ? Number(p.cost) / 1.2 : 0)) : 0;
+                        if (net > 0) { netCost = Math.round(net * 100) / 100; cost = Math.round(net * 1.2 * 100) / 100; }
+                    } catch (costError) {
+                        console.warn('Could not read cost for', item.productId, costError);
+                    }
+                }
+                const line = {
+                    name: item.linkedProductName || item.itemName || item.name || 'Unknown Product',
+                    price: Number(item.pricePerUnit || item.price || 0),
+                    cost: cost,
+                    quantity: Number(item.quantity || 1),
+                    productId: item.productId || 'manual-item',
+                    image: item.image || null
+                };
+                if (netCost !== null) line.netCost = netCost;
+                return line;
             }));
             
             const saleData = {

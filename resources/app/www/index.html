@@ -780,8 +780,8 @@
                     <span class="material-symbols-outlined">settings</span>
                 </button>
                 <button id="arrange-btn" class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/10" title="Arrange Cards">
-                    <div class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                        JD
+                    <div class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
+                        <span class="material-symbols-outlined text-xl">dashboard_customize</span>
                     </div>
                 </button>
             </div>
@@ -808,7 +808,7 @@
                     <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Total Revenue</h3>
                     <div class="flex items-baseline gap-3">
                         <p id="today-revenue" class="text-3xl font-bold text-white tracking-tight">€0.00</p>
-                        <span class="text-xs font-bold text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/10 shadow-neon-teal">+0%</span>
+                        <span id="today-vs-avg" class="text-xs font-medium text-gray-400"></span>
                     </div>
                 </div>
             </div>
@@ -825,7 +825,7 @@
                     <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Instagram Orders</h3>
                     <div class="flex items-baseline gap-2 mb-4">
                         <p id="instagram-orders" class="text-3xl font-bold text-white tracking-tight">0</p>
-                        <span class="text-xs text-gray-500 font-medium">Today</span>
+                        <span class="text-xs text-gray-500 font-medium">open</span>
                     </div>
                 </div>
             </div>
@@ -846,7 +846,7 @@
                     </div>
                     <div class="flex items-center gap-2 text-gray-500 text-xs font-medium">
                         <span class="material-symbols-outlined text-[16px]">schedule</span>
-                        <span>Avg wait: <span class="text-gray-300">14m</span></span>
+                        <span id="oldest-pending">No orders waiting</span>
                     </div>
                 </div>
             </div>
@@ -863,17 +863,9 @@
                     <h3 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1.5 opacity-80">Customers</h3>
                     <div class="flex items-baseline gap-3 mb-4">
                         <p id="total-customers" class="text-3xl font-bold text-white tracking-tight">0</p>
-                        <span class="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20 shadow-neon-teal">+12</span>
+                        <span class="text-xs text-gray-500 font-medium">named buyers</span>
                     </div>
-                    <div class="flex items-end gap-1.5 mt-auto h-6 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <div class="w-1.5 bg-blue-900 h-[30%] rounded-sm group-hover:bg-blue-800 transition-colors"></div>
-                        <div class="w-1.5 bg-blue-800 h-[50%] rounded-sm group-hover:bg-blue-700 transition-colors"></div>
-                        <div class="w-1.5 bg-blue-700 h-[40%] rounded-sm group-hover:bg-blue-600 transition-colors"></div>
-                        <div class="w-1.5 bg-blue-600 h-[70%] rounded-sm group-hover:bg-blue-500 transition-colors"></div>
-                        <div class="w-1.5 bg-blue-500 h-[60%] rounded-sm group-hover:bg-blue-400 transition-colors"></div>
-                        <div class="w-1.5 bg-blue-400 h-[90%] rounded-sm group-hover:bg-blue-300 transition-colors"></div>
-                        <div class="w-1.5 bg-cyan-400 h-[100%] rounded-sm shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse"></div>
-                    </div>
+                    <div class="text-gray-500 text-xs font-medium" id="customers-new-30d"></div>
                 </div>
             </div>
         </div>
@@ -1079,7 +1071,9 @@
             
             // Load products
             onSnapshot(productsRef, (snapshot) => {
-                window.allProducts = snapshot.docs.map(doc => doc.data());
+                // _docId lets sales link to their product (the reorder rule needs it); underscored so
+                // it can never collide with a field stored on the product itself.
+                window.allProducts = snapshot.docs.map(doc => ({ ...doc.data(), _docId: doc.id }));
                 updateTicker(); // Update ticker when products change
             });
             
@@ -1154,13 +1148,49 @@
                 
                 const instagramOrders = orders.filter(order => order.source === 'Instagram Chatbot' && order.status !== 'Paid' && order.status !== 'Returned').length;
                 const pendingOrders = orders.filter(order => order.status !== 'Paid' && order.status !== 'Returned').length;
-                const uniqueCustomers = new Set(orders.map(order => order.clientName)).size;
+                const toMs = t => (t && t.toMillis) ? t.toMillis() : (t && t.seconds) ? t.seconds * 1000 : (typeof t === 'string' || typeof t === 'number') ? new Date(t).getTime() : NaN;
+
+                // Today's revenue in context: the average day over the previous 30 days.
+                const since30 = todayTimestamp - 30 * 86400000;
+                const inLast30 = t => t >= since30 && t < todayTimestamp;
+                const revenue30 = orders.filter(o => inLast30(toMs(o.timestamp))).reduce((sum, o) => sum + (o.price || 0), 0)
+                    + window.allStoreSales.filter(s => inLast30(toMs(s.timestamp))).reduce((sum, s) => sum + (s.total || 0), 0);
+                const averageDay = revenue30 / 30;
+
+                // How long the oldest unpaid order has been waiting (replaces a hardcoded "14m").
+                const oldestPending = orders
+                    .filter(order => order.status !== 'Paid' && order.status !== 'Returned')
+                    .map(order => toMs(order.timestamp)).filter(t => !isNaN(t)).sort((a, b) => a - b)[0];
+
+                // One definition of "customer" everywhere: a named buyer from store sales or online
+                // orders, spelling-normalised, walk-ins excluded. Counting online-order names only
+                // is what made the dashboard say 237 while the Customers page said 693.
+                const WALKIN = /walk.?in|klient.*(pa|i )|klien(t)?\s+privat|anonim|^-+$|^\?+$|^n\/?a$/i;
+                const customerKey = n => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+                    .replace(/\b(sh\.?\s?p\.?\s?k\.?|shpk|sh\.?a\.?)\b/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+                const firstSeen = new Map();
+                const noteCustomer = (name, t) => {
+                    if (!name || WALKIN.test(name)) return;
+                    const key = customerKey(name); if (!key) return;
+                    const when = isNaN(t) ? Infinity : t;
+                    if (!firstSeen.has(key) || when < firstSeen.get(key)) firstSeen.set(key, when);
+                };
+                orders.forEach(o => noteCustomer(o.clientName || o.customerName, toMs(o.timestamp)));
+                window.allStoreSales.forEach(s => noteCustomer(s.clientName || s.customerName, toMs(s.timestamp)));
+                const uniqueCustomers = firstSeen.size;
+                const newCustomers30 = [...firstSeen.values()].filter(t => t >= since30).length;
 
                 // Update stats cards
                 document.getElementById('today-revenue').textContent = `€${todayRevenue.toFixed(2)}`;
                 document.getElementById('instagram-orders').textContent = instagramOrders;
                 document.getElementById('pending-orders').textContent = pendingOrders;
                 document.getElementById('total-customers').textContent = uniqueCustomers;
+                const vsAverage = document.getElementById('today-vs-avg');
+                if (vsAverage) vsAverage.textContent = averageDay > 0 ? `avg day €${Math.round(averageDay).toLocaleString('en-US')}` : '';
+                const oldestEl = document.getElementById('oldest-pending');
+                if (oldestEl) oldestEl.textContent = oldestPending ? `Oldest waiting ${Math.max(0, Math.floor((Date.now() - oldestPending) / 86400000))} days` : 'No orders waiting';
+                const newCustomersEl = document.getElementById('customers-new-30d');
+                if (newCustomersEl) newCustomersEl.textContent = `${newCustomers30} new in the last 30 days`;
             }
 
             // Initialize Push Notifications
@@ -1553,15 +1583,44 @@
                     </div>
                 `);
 
-                // 2. Low Stock Items
-                const lowStockItems = window.allProducts.filter(product => 
-                    (product.stock || 0) <= (product.minStock || 5)
-                );
-                if (lowStockItems.length > 0) {
+                // 2. Reorder, judged by how fast each product actually sells. The old rule ("5 or
+                // fewer") flagged 211 of 340 products - 1 or 2 units of a machine is normal stock
+                // for a dealer, so the alert meant nothing. Kärcher restocks take about 6 weeks:
+                // flag what would run out within 42 days, counting only products that sold at
+                // least 2 units in the last 90 days (one sale is not a trend).
+                const RESTOCK_DAYS = 42, WINDOW_DAYS = 90;
+                const sinceWindow = Date.now() - WINDOW_DAYS * 86400000;
+                const toMsT = t => (t && t.toMillis) ? t.toMillis() : (t && t.seconds) ? t.seconds * 1000 : (typeof t === 'string' || typeof t === 'number') ? new Date(t).getTime() : NaN;
+                const productIds = new Set(window.allProducts.map(p => p._docId));
+                const soldUnits = {};
+                const countSold = (list) => list.forEach(rec => {
+                    if (rec.isReturn || !(toMsT(rec.timestamp) >= sinceWindow)) return;
+                    (rec.items || []).forEach(it => {
+                        // costProductId links older EasyPOS lines (stored with made-up ids) to the
+                        // real product; it was added by the 21 Sep 2026 data fix.
+                        const pid = productIds.has(it.costProductId) ? it.costProductId : (productIds.has(it.productId) ? it.productId : null);
+                        if (pid) soldUnits[pid] = (soldUnits[pid] || 0) + (Number(it.quantity) || 1);
+                    });
+                });
+                countSold(window.allStoreSales);
+                countSold(window.allOnlineOrders);
+                const reorderItems = window.allProducts.filter(p => {
+                    const units = soldUnits[p._docId] || 0;
+                    return units >= 2 && (Number(p.stock) || 0) / (units / WINDOW_DAYS) < RESTOCK_DAYS;
+                });
+                const unsoldItems = window.allProducts.filter(p => (Number(p.stock) || 0) > 0 && !soldUnits[p._docId]);
+                const unsoldValue = unsoldItems.reduce((sum, p) => sum + (Number(p.stock) || 0) * (Number(p.baseCost) > 0 ? Number(p.baseCost) : (Number(p.cost) || 0) / 1.2), 0);
+                items.push(`
+                    <div class="ticker-item">
+                        <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">${reorderItems.length ? 'warning' : 'check_circle'}</span> REORDER</span>
+                        <span class="ticker-value">${reorderItems.length ? reorderItems.length + ' Items' : 'None needed'}</span>
+                    </div>
+                `);
+                if (unsoldItems.length > 0) {
                     items.push(`
                         <div class="ticker-item">
-                            <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">warning</span> LOW STOCK</span>
-                            <span class="ticker-value">${lowStockItems.length} Items</span>
+                            <span><span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: -2px;">inventory</span> UNSOLD 90 DAYS</span>
+                            <span class="ticker-value">€${Math.round(unsoldValue).toLocaleString('en-US')} · ${unsoldItems.length} Items</span>
                         </div>
                     `);
                 }

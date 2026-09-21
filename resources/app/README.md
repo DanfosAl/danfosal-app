@@ -10,6 +10,8 @@ architecture and history, see [GOLDEN_MANIFEST.md](../../GOLDEN_MANIFEST.md).
 |---|---|
 | `main.js`, `preload.js` | Electron entry point |
 | `www/` | The app UI (every page). It is **also published to Firebase Hosting**, so put nothing private in it. |
+| `www/index.html`, `www/app/` | **The new app** (redesign, Phase 1+): the shell (sidebar and Ctrl K search), the Today screen, the design system (`app.css`), the one Firebase setup (`firebase.js`) and the shared definitions of every number (`data.js`). New workspaces go here. |
+| `www/classic-dashboard.html` and the other `www/*.html` pages | The classic screens. The new sidebar opens them until each workspace is rebuilt. |
 | `easypos-ocr-bridge.js` | EasyPOS OCR bridge. The watchdog runs it from here, by absolute path, so **do not move it**. |
 | `start-bridge-hidden.vbs` | Hidden launcher the watchdog uses to start the bridge |
 | `firebase-admin-config.js` | Shared Admin SDK setup for the bridge and data tools; reads `serviceAccountKey.json` |

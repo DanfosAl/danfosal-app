@@ -160,13 +160,94 @@ export async function loadAll() {
         const invoices = await getDocs(collection(db, 'debtors', d.id, 'invoices'));
         invoices.forEach(i => debts.push({ _id: i.id, debtorId: d.id, debtor: d.data().name || '', ...i.data() }));
     }));
-    // Receipt names the owner marked as services (labour, no stock) in Stock > Link receipt items.
-    let receiptServices = [];
+    // Owner decisions kept in settings: receipt names that are services (Stock > Link receipt
+    // items), and lookalike customer names confirmed to be different people (Customers > Review).
+    let receiptServices = [], notSameCustomers = [];
     try {
-        const s = await getDoc(doc(db, 'settings', 'receiptNames'));
+        const [s, r] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview'))]);
         if (s.exists()) receiptServices = s.data().services || [];
-    } catch { /* first use: the document doesn't exist yet */ }
-    return { products, sales, orders, customers, tickets, warranties, debts, corrections, receiptServices, loadedAt: Date.now() };
+        if (r.exists()) notSameCustomers = r.data().notSame || [];
+    } catch { /* first use: the documents don't exist yet */ }
+    return { products, sales, orders, customers, tickets, warranties, debts, corrections, receiptServices, notSameCustomers, loadedAt: Date.now() };
+}
+
+// ------------------------------------------------------------------ customers
+
+// One entry per customer: every profile, plus every named buyer who has no profile yet, with a
+// profile's own spellings (name and aliases) and any profile merged into it all counting as one.
+// This is the single answer to "who is this customer" - the classic app had three.
+export function customerDirectory(m) {
+    const entries = new Map(), keyToId = new Map();
+    const make = (id, name, profile) => ({ id, name: String(name || '').trim(), profile: profile || null, keys: new Set(),
+        sales: [], orders: [], warranties: [], tickets: [], debts: [],
+        nipt: (profile && profile.nipt) || '', phone: (profile && profile.phone) || '', email: (profile && profile.email) || '', address: (profile && profile.address) || '' });
+    const claim = (key, id) => { if (key && !keyToId.has(key)) { keyToId.set(key, id); entries.get(id).keys.add(key); } };
+    const live = m.customers.filter(c => !c.mergedInto && c.name && !WALKIN.test(c.name));
+    live.forEach(p => { const e = make('p:' + p._id, p.name, p); entries.set(e.id, e); [p.name, ...(p.aliases || [])].forEach(n => claim(customerKey(n), e.id)); });
+    m.customers.filter(c => c.mergedInto && entries.has('p:' + c.mergedInto))
+        .forEach(c => [c.name, ...(c.aliases || [])].forEach(n => claim(customerKey(n), 'p:' + c.mergedInto)));
+    const entryFor = name => {
+        if (!name || WALKIN.test(name)) return null;
+        const key = customerKey(name); if (!key) return null;
+        if (!keyToId.has(key)) { const e = make('n:' + key, name, null); entries.set(e.id, e); claim(key, e.id); }
+        return entries.get(keyToId.get(key));
+    };
+    m.sales.forEach(s => {
+        const e = entryFor(s.clientName || s.customerName); if (!e) return;
+        e.sales.push(s);
+        const nipt = s.customerNipt || (s.easypos && s.easypos.customerNIPT);
+        if (nipt && !e.nipt) e.nipt = nipt;
+        if (!e.address && s.customerAddress) e.address = s.customerAddress;
+    });
+    m.orders.forEach(o => {
+        const e = entryFor(o.clientName || o.customerName); if (!e) return;
+        e.orders.push(o);
+        if (!e.phone) e.phone = o.telephone || o.phoneNumber || '';
+        if (!e.address) e.address = o.address || o.deliveryAddress || '';
+    });
+    m.warranties.forEach(w => { const e = entryFor(w.customerName); if (e) e.warranties.push(w); });
+    m.tickets.forEach(t => { const e = entryFor(t.customerName); if (e) { e.tickets.push(t); if (!e.phone) e.phone = t.customerPhone || ''; } });
+    m.debts.forEach(d => { const e = entryFor(d.debtor); if (e) e.debts.push(d); });
+    entries.forEach(e => {
+        const times = e.sales.map(saleTime).concat(e.orders.map(orderTime)).filter(t => !isNaN(t));
+        const bought = e.sales.filter(s => !s.isReturn);
+        e.revenue = bought.reduce((a, s) => a + (Number(s.total) || 0), 0) + e.orders.reduce((a, o) => a + orderTotal(o), 0);
+        e.count = bought.length + e.orders.length;
+        e.first = times.length ? Math.min(...times) : null;
+        e.last = times.length ? Math.max(...times) : null;
+        e.owed = e.debts.reduce((a, d) => a + Math.max(0, Number(d.remainingBalance) || 0), 0);
+        e.phoneDigits = String(e.phone || '').replace(/\D/g, '');
+    });
+    return [...entries.values()];
+}
+
+// Pairs of customers whose names differ by a letter or two - usually one person, spelled two ways
+// (OCR reads "ç" as "g": Koçi / Kogi). Only suggestions: the owner decides in Customers > Review.
+export function lookalikeCustomers(directory, notSame = []) {
+    const dismissed = new Set(notSame);
+    const list = directory.filter(e => [...e.keys][0] && [...e.keys][0].length >= 5);
+    const pairs = [];
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const a = [...list[i].keys][0], b = [...list[j].keys][0];
+        if (Math.abs(a.length - b.length) > 2) continue;
+        if ((a.match(/\d+/g) || []).join() !== (b.match(/\d+/g) || []).join()) continue;
+        const d = editDistance(a, b);
+        if (d === 0 || d > (Math.min(a.length, b.length) >= 10 ? 2 : 1)) continue;
+        const pairKey = [a, b].sort().join('|');
+        if (dismissed.has(pairKey)) continue;
+        // Two different phone numbers or NIPTs are evidence against; show it, and list those last.
+        const pa = list[i].phoneDigits.slice(-8), pb = list[j].phoneDigits.slice(-8);
+        const conflict = (pa && pb && pa !== pb) || (list[i].nipt && list[j].nipt && list[i].nipt !== list[j].nipt);
+        pairs.push({ a: list[i], b: list[j], distance: d, pairKey, conflict });
+    }
+    // Shared NIPT is certain evidence of one business under two names.
+    const byNipt = new Map();
+    directory.forEach(e => { const n = String(e.nipt || '').toUpperCase().replace(/\s/g, ''); if (n) { if (!byNipt.has(n)) byNipt.set(n, []); byNipt.get(n).push(e); } });
+    byNipt.forEach(group => { for (let i = 1; i < group.length; i++) {
+        const pairKey = [[...group[0].keys][0], [...group[i].keys][0]].sort().join('|');
+        if (!dismissed.has(pairKey) && !pairs.some(p => p.pairKey === pairKey)) pairs.push({ a: group[0], b: group[i], distance: 0, sameNipt: true, pairKey });
+    } });
+    return pairs.sort((x, y) => (y.sameNipt ? 1 : 0) - (x.sameNipt ? 1 : 0) || (x.conflict ? 1 : 0) - (y.conflict ? 1 : 0) || x.distance - y.distance);
 }
 
 // Every EasyPOS receipt line that isn't linked to a catalogue product, grouped by the name on the

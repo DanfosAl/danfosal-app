@@ -322,6 +322,10 @@ table.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .lines .line:last-child { border-bottom: 0; }
 .lines .line b { font-weight: 500; }
 .lines .line span { color: var(--muted); font-size: 12px; }
+.lines .line > div > span { display: block; margin-top: 1px; }
+.lines .line a { color: var(--ink); }
+.lines .line a:hover { color: var(--violet-2); }
+.lines .line b .ms { font-size: 16px; vertical-align: -3px; color: var(--muted); margin-right: 2px; }
 .lines .line .n { font-family: var(--mono); text-align: right; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 80; background: rgba(5, 6, 14, .6); display: flex; align-items: center; justify-content: center; padding: 16px; }

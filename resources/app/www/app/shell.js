@@ -20,12 +20,12 @@ export const NAV = [
         ['Order list', 'to_order.html', 'list_alt', 'classic'],
         ['Receive delivery', 'smart-inventory-scanner.html', 'move_to_inbox', 'classic'],
         ['Yearly plan', 'smart-prediction.html', 'event_note', 'classic']] },
-    { id: 'customers', label: 'Customers', icon: 'group', href: 'customer-portal.html', pages: [
-        ['Customers', 'customer-portal.html', 'group', 'classic'],
-        ['Loyalty', 'loyalty-dashboard.html', 'loyalty', 'classic']] },
-    { id: 'service', label: 'Service', icon: 'build', href: 'service-tickets.html', pages: [
-        ['Repair tickets', 'service-tickets.html', 'build', 'classic'],
-        ['Warranty cards', 'warranty-cards-list.html', 'verified', 'classic']] },
+    { id: 'customers', label: 'Customers', icon: 'group', href: 'customers.html', pages: [
+        ['Customers', 'customers.html#all', 'group'],
+        ['Review names', 'customers.html#review', 'merge']] },
+    { id: 'service', label: 'Service', icon: 'build', href: 'service.html', pages: [
+        ['Repairs', 'service.html#tickets', 'build'],
+        ['Warranty cards', 'service.html#warranties', 'verified']] },
     { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'debts.html', pages: [
         ['Debts', 'debts.html', 'account_balance_wallet', 'classic'],
         ['Expenses', 'expenses.html', 'payments', 'classic']] },
@@ -130,10 +130,10 @@ const SYNONYMS = {
     'to_order.html': 'reorder order purchase buy porosit furnizim',
     'smart-inventory-scanner.html': 'delivery supplier receive furnizues',
     'smart-prediction.html': 'forecast plan annual procurement',
-    'customer-portal.html': 'clients klient kliente',
-    'loyalty-dashboard.html': 'vip tiers segments',
-    'service-tickets.html': 'repair servis riparim ticket',
-    'warranty-cards-list.html': 'warranty garanci certificate',
+    'customers.html#all': 'clients klient kliente vip loyalty segments regulars',
+    'customers.html#review': 'duplicates merge lookalike spelling',
+    'service.html#tickets': 'repair servis riparim ticket',
+    'service.html#warranties': 'warranty garanci certificate',
     'debts.html': 'owed borxh debitor kredit',
     'expenses.html': 'shpenzime costs',
     'analytics.html': 'reports raporte charts',
@@ -174,7 +174,7 @@ export function setSearchData(model) {
         group: 'Customers', label: c.name, ic: 'person',
         sub: isNaN(c.t) ? 'No purchases yet' : `Last purchase ${day(c.t)}`,
         end: c.amount ? eur(c.amount) : '',
-        href: `customer-portal.html?q=${encodeURIComponent(c.name)}`,
+        href: `customers.html?q=${encodeURIComponent(c.name)}#all`,
         text: fold(c.name)
     }));
     const invoices = model.sales.filter(s => saleInvoiceNumber(s)).map(s => {

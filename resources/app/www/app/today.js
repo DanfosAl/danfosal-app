@@ -52,7 +52,7 @@ function needsYou(a) {
         const status = String(oldest.ticket.status || '').replace(/_/g, ' ');
         items.push({ sev: 'info', title: `${plural(a.openTickets.length, 'repair ticket', 'repair tickets')} open`,
             why: `Oldest is ${plural(oldest.ageDays, 'day', 'days')} old (${status}${oldest.ticket.promisedBy ? `, promised ${oldest.ticket.promisedBy}` : ', no promised date'}).`,
-            action: ['Open', 'service-tickets.html'] });
+            action: ['Open', 'service.html#tickets'] });
     }
     if (a.openOrders.length) {
         const oldest = a.openOrders[0];

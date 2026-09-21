@@ -5,7 +5,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
 import {
     getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc,
-    increment, arrayUnion, arrayRemove, Timestamp, writeBatch
+    increment, arrayUnion, arrayRemove, Timestamp, writeBatch, runTransaction
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
 export const firebaseConfig = {
@@ -21,7 +21,7 @@ export const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc, increment, arrayUnion, arrayRemove, Timestamp, writeBatch };
+export { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc, increment, arrayUnion, arrayRemove, Timestamp, writeBatch, runTransaction };
 
 // Resolves once signed in. Firestore rules require an authenticated user, so every read waits on this.
 export const ready = new Promise((resolve, reject) => {

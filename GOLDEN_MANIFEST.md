@@ -751,6 +751,33 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **28. REDESIGN PHASE 3 — CUSTOMERS AND SERVICE WORKSPACES** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
+
+**One answer to "who is this customer".** `customerDirectory()` in `data.js` lists every customer once: each profile, plus every named buyer with no profile yet. A profile's own name, its `aliases` and any profile merged into it all count as the same person. Walk-in placeholders are excluded (including two "Klien(t) Privat" *profiles*). The result: 685 customers who bought, €374,456 in total, matching Today's customer count definition.
+
+**Customers** (`customers.html`, `app/customers.js`):
+- **List** with segments that replace the classic Loyalty page: bought in 90 days (45), regulars with 3+ purchases (134), not back in 6 months (199), owes money (4), open repair (2), business/NIPT (45) and no phone number (444). Search covers name, alias, phone digits, NIPT and address; Ctrl K now opens customers here (`customers.html?q=…`), including by an old spelling.
+- **Profile panel:** spend, purchases and last purchase (or amount owed), a prompt for a missing phone/NIPT, an edit form, "What they own" (lines bought, with serials and a warranty chip) and one history of receipts, invoices, returns, online orders, warranties, repairs and debts, each linking to its screen. Saving writes the classic fields `{name, phone, email, address, status, image}` plus `nipt`; a buyer without a profile gets one on first save (`source: 'app'`). Renaming keeps the old spelling in `aliases`, so past sales stay attached. There is **no delete** here (the classic delete cascaded to the customer's sales and orders).
+- **Review names:** pairs whose normalised names are 1 letter apart (2 for long names), or share a NIPT. Pairs with two different phone numbers or NIPTs are flagged and listed last. **Same customer** records the other spelling as an alias on the kept profile (creating it if needed), fills its blank contact fields and marks the other profile `mergedInto` — nothing is deleted. **Different** stores the pair in `settings/customerReview.notSame`. 8 pairs are waiting for the owner.
+
+**Service** (`service.html`, `app/service.js`):
+- **Repairs:** the shared `serviceTickets` list with Garanci's status values, filters (open, not started, in service, waiting for parts, past promised date, closed), age and last timeline step. The panel edits status, technician, promised date and notes **in a transaction that follows Garanci's rule**: it re-reads the ticket, refuses if someone else changed the same fields, and appends Albanian timeline entries (`Statusi u ndryshua: …`, `U përditësua servisi: …`, `who: 'Servisi'`) to the *current* timeline. **Completing** sets `completedAt` and `warrantyCardId`, and adds `{ticketId, createdAt, date, description, serialNumber, productName}` to the machine's warranty card only once per ticket, or creates the card, as in Garanci. It also offers "Customer contacted" (`lastCustomerContactAt` + timeline) and copies Garanci's customer update message.
+- **New repair** uses the classic shape (`status: 'received'`, timeline `Kërkesa u regjistruar` by `Recepsioni`). Picking the customer fills in their phone and lists what they bought; choosing an item sets `linkedSaleId/linkedSaleType/linkedItemIndex`, which Garanci uses to find the warranty.
+- **Warranty cards:** all cards with certificate number, machine and serial, "covered until" and number of repairs; a click opens `warranty-card.html?id=` for printing. Noticed in passing: GAR-2026-0010 and GAR-2026-0011 are the same machine (invoice 59/2026, serial 144574), a certificate issued twice.
+
+The sidebar and Today now point to the new screens. Classic Customers and Repairs stay reachable as "classic" tabs until Phase 5. `firebase.js` exports `runTransaction`.
+
+**Verified** with disposable **ZZZ TEST** records, and each step was confirmed in Firestore:
+- Two lookalike profiles appeared as a pair and merged correctly (alias kept, `mergedInto` set, nothing deleted). The old spelling then opened the merged profile.
+- "Different" pairs are stored and not suggested again.
+- A new repair from the customer prefilled the phone. Saving it produced the right timeline.
+- A simulated colleague edit was **refused** by the conflict check.
+- Completing created the warranty card with one repair. Reopening and completing again did **not** duplicate it.
+
+Afterwards there were **0 ZZZ records** in customers, tickets or cards, and the review setting was back to empty. The installed build was checked over CDP: every screen rendered with live data and there were no uncaught errors.
+
+---
+
 #### **27. REDESIGN PHASE 2 — STOCK AND SELL WORKSPACES** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
 
 **Priorities came from the data.** The classic till records about one manual sale a month; nearly all sales arrive by themselves from EasyPOS, or through invoice PDFs. So Phase 2 put the most-used, highest-value screens first, and left the recently fixed PDF import and Online orders on their classic screens for now (marked "classic" in the tabs and the sidebar flyouts).

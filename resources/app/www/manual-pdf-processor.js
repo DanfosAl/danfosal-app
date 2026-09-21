@@ -163,6 +163,7 @@ class ManualPDFProcessor {
             date: '',
             customerName: '',
             customerAddress: '',
+            customerNipt: '',
             items: [],
             subtotal: 0,
             tax: 0,
@@ -215,8 +216,12 @@ class ManualPDFProcessor {
         const customerInfo = this.extractCustomerInfo(text, lines);
         invoiceData.customerName = customerInfo.name;
         invoiceData.customerAddress = customerInfo.address;
+        invoiceData.customerNipt = customerInfo.nipt || '';
         if (invoiceData.customerName) {
             invoiceData.extractedFields.customerName = true;
+        }
+        if (invoiceData.customerNipt) {
+            invoiceData.extractedFields.customerNipt = true;
         }
 
         // === EXTRACT ITEMS (with EUR normalization) ===
@@ -747,7 +752,7 @@ class ManualPDFProcessor {
             // === STEP 1: Find or Create Customer (Deduplication by name) ===
             let customerId = null;
             if (invoiceData.customerName && invoiceData.customerName !== 'Walk-in Customer') {
-                customerId = await this.findOrCreateCustomer(invoiceData.customerName, invoiceData.customerAddress);
+                customerId = await this.findOrCreateCustomer(invoiceData.customerName, invoiceData.customerAddress, invoiceData.customerNipt);
             }
 
             // === STEP 2: Check for Matching Online Order ===
@@ -776,6 +781,7 @@ class ManualPDFProcessor {
             const saleData = {
                 clientName: invoiceData.customerName || 'Walk-in Customer',
                 customerAddress: invoiceData.customerAddress || '',
+                customerNipt: invoiceData.customerNipt || '',
                 customerId: customerId,
                 items: transformedItems,
                 total: invoiceData.total,
@@ -839,32 +845,60 @@ class ManualPDFProcessor {
 
     // === SMART BRAIN: FIND OR CREATE CUSTOMER ===
     
-    async findOrCreateCustomer(customerName, customerAddress = '') {
+    async findOrCreateCustomer(customerName, customerAddress = '', customerNipt = '') {
         try {
             const customersRef = this.collection(this.db, 'customers');
             const normalizedName = customerName.toLowerCase().trim();
-            
+            const normalizedNipt = (customerNipt || '').toUpperCase().replace(/\s/g, '');
+
             // Search for existing customer
             const snapshot = await this.getDocs(customersRef);
-            
+
+            // The NIPT is a company's registered tax identifier, so it identifies a customer
+            // exactly - unlike the name comparison below, which is fuzzy and can merge two
+            // different businesses whose names contain one another. Try it first.
+            if (normalizedNipt) {
+                for (const doc of snapshot.docs) {
+                    const existingNipt = (doc.data().nipt || '').toUpperCase().replace(/\s/g, '');
+                    if (existingNipt && existingNipt === normalizedNipt) {
+                        console.log(`✓ Matched customer by NIPT ${normalizedNipt}: ${doc.data().name} (${doc.id})`);
+                        return doc.id;
+                    }
+                }
+            }
+
             for (const doc of snapshot.docs) {
                 const customer = doc.data();
                 const existingName = (customer.name || '').toLowerCase().trim();
-                
-                // Fuzzy match
-                if (existingName === normalizedName || 
-                    existingName.includes(normalizedName) || 
-                    normalizedName.includes(existingName)) {
+
+                // Fuzzy match (guarded: an empty name would otherwise match every customer)
+                if (normalizedName && existingName && (
+                    existingName === normalizedName ||
+                    existingName.includes(normalizedName) ||
+                    normalizedName.includes(existingName))) {
                     console.log(`✓ Found existing customer: ${customer.name} (${doc.id})`);
+
+                    // Backfill the NIPT on a profile that does not have one yet, so the next
+                    // invoice from this customer matches exactly instead of fuzzily.
+                    const existingNipt = (customer.nipt || '').trim();
+                    if (normalizedNipt && !existingNipt && this.updateDoc && this.doc) {
+                        try {
+                            await this.updateDoc(this.doc(this.db, 'customers', doc.id), { nipt: normalizedNipt });
+                            console.log(`  ↳ saved NIPT ${normalizedNipt} on this profile`);
+                        } catch (niptError) {
+                            console.warn('  ↳ could not save NIPT:', niptError);
+                        }
+                    }
                     return doc.id;
                 }
             }
-            
+
             // Create new customer
-            console.log(`→ Creating new customer: ${customerName}`);
+            console.log(`→ Creating new customer: ${customerName}${normalizedNipt ? ' (NIPT ' + normalizedNipt + ')' : ''}`);
             const newCustomerRef = await this.addDoc(customersRef, {
                 name: customerName,
                 address: customerAddress,
+                nipt: normalizedNipt,
                 email: '',
                 phone: '',
                 status: 'Active',

@@ -737,6 +737,16 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 **Verified end to end against the real invoice**, by driving the actual installed page (not a copy): pdf.js parsed `ADG.pdf`, and the shipped `albanian-invoice-scanner.html` plus `manual-pdf-processor.js` produced invoice `61/2026`, date `2026-09-21`, customer `ADG`, the buyer's address, subtotal `2750`, tax `550`, total `3300`, and one item `Karcher BD 50/50 C Bp Classic` (qty 1, €2750) matched to the correct catalogue product — all 12 checks against hand-read values. Matcher spot-checks: `Karcher SC 3`→`SC 3`, `Karcher Puzzi 8/1`→`Puzzi 8/1 *EU`, `NT 30/1 Tact TE L`→`NT 30/1 Tact TE L *EU`, while `Karcher WD3` and an invented name correctly refuse to match.
 
+**Follow-up, same day — the buyer's NIPT is now captured and used (September 21, 2026).** The buyer block extraction already read `NIPT: K33804402L`, but nothing downstream kept it. It now flows all the way through:
+- A **NIPT** field appears on the review form, filled from the invoice and editable like every other field.
+- It is stored as `customerNipt` on the `storeSales` record and as `nipt` on the customer profile.
+- **Customer identification prefers it.** A NIPT is the registered tax identifier, so it matches a customer exactly, unlike the existing name comparison, which treats one name containing another as a match and can merge two different businesses. When an invoice carries a NIPT, profiles are matched on it first; when a profile is matched by name and has no NIPT yet, the invoice's NIPT is written to it, so the next invoice matches exactly instead of fuzzily.
+- Also fixed in passing: the name comparison matched every customer when the name was empty, because `''.includes('')` is true. It now requires both names to be non-empty.
+
+**Verified** against the same invoice: the form shows `K33804402L`, and the record that would be saved carries `customerNipt: K33804402L` alongside the correct customer, totals and item.
+
+**Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
+
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
 
 ---

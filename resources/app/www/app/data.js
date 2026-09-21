@@ -137,6 +137,38 @@ export function suggestProducts(products, text, limit = 6) {
     }).filter(x => x && x.score >= 0.35).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
 }
 
+// Each line's share of the sale's net revenue. Line prices include VAT except on PDF invoices,
+// and discounts only show in the total, so the lines are scaled to add up to netRevenue(sale) -
+// the same figure Today and Sell use.
+export function lineNetRevenues(sale) {
+    const items = sale.items || [];
+    const pdf = (sale.source || '').startsWith('Manual PDF');
+    const raw = items.map(i => (Number(i.price) || 0) * (Number(i.quantity) || 1) / (pdf ? 1 : VAT));
+    const sum = raw.reduce((a, b) => a + b, 0);
+    const net = netRevenue(sale);
+    return sum > 0 ? raw.map(r => r * net / sum) : items.map(() => items.length ? net / items.length : 0);
+}
+
+// Product family from the name, for "where does the profit come from". Kärcher model prefixes
+// first, then the local names the receipts use (mop, karroce, gome, doreze...).
+const FAMILIES = [
+    ['Detergents', /^(k[aä]rcher\s+)?(rm|ca)\s?\d|\bca\s?\d+\s?c\b|rulopak|repox|detergj|shampo|liquid|bleach|blancus|descal|stain\s?fix|solucion|remov|\brust\b|kopug|pro\s?glass|wood cleaner|\b\d+([.,]\d+)?\s?l\b/i],
+    ['Pressure washers', /^(k[aä]rcher\s+)?(k\s?\d|k\s?(mini|compact)|hds?\s?\d|hds\b|g\s?\d{4})|presion/i],
+    ['Vacuums', /^(k[aä]rcher\s+)?(wd|nt|vc|vch|cv|ds|ad|vp|t)\s?\d|^(k[aä]rcher\s+)?(cvh|ad)\b/i],
+    ['Steam cleaners', /^(k[aä]rcher\s+)?(sc|sg|sgv|sv)\s?\d/i],
+    ['Floor cleaners & scrubbers', /^(k[aä]rcher\s+)?(fc|fcv|rcv|bd|bds|br|b|km|fp|pcl|s)\s?\d|^(k[aä]rcher\s+)?(efc|bds|pcl)\b|fcfloor/i],
+    ['Carpet & upholstery', /^(k[aä]rcher\s+)?(se\s?\d|puzzi)|carpet\s*&|upholst/i],
+    ['Window cleaning', /^(k[aä]rcher\s+)?(wv|wvp|kv)\s?\d|window|xham/i],
+    ['Janitorial supplies', /^(star|mop|mbajt|karroc|karoc|gom[aeë]|doreze|pad\b|qese|bisht|fsh[eë]s|cloth|sfung|kov[aë]|teha|shoe)|microfiber|lecka|\bsign\b/i],
+    ['Parts & accessories', /filter|nozzle|hose|brush|cartridge|o-ring|extension|jet|\bset\b|adapter|lance|kit\b|attachment|plastik|rubber|pjes|motor|wheel|spray|suction|tub[eë]?\b|pump|tool|replacement|lock|aksesor|papuce|kfi|glider|accessor|disk|qeleshe|gyp|trigger|dirt\s?blaster|^db\s?\d|^fr\s|^ps\s?\d|^tla\b/i]
+];
+export function productFamily(name, item) {
+    if (item && item.isService) return 'Services';
+    const n = String(name || '').trim();
+    const hit = FAMILIES.find(([, re]) => re.test(n));
+    return hit ? hit[0] : 'Other';
+}
+
 // Which catalogue product a sale line is. Older EasyPOS lines have made-up ids
 // ("easypos-mop-per-pastrim-80cm"); the Phase 0 fix linked them via costProductId.
 export function productIdOfLine(item, knownIds) {
@@ -168,7 +200,8 @@ export async function loadAll() {
         if (s.exists()) receiptServices = s.data().services || [];
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
-    return { products, sales, orders, customers, tickets, warranties, debts, corrections, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, receiptServices, notSameCustomers, loadedAt: Date.now() };
 }
 
 // ------------------------------------------------------------------ customers

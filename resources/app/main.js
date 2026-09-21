@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const https = require('https');
@@ -118,6 +118,22 @@ ipcMain.handle('generate-executive-report', async () => {
     console.error('❌ PDF generation failed:', error);
     throw error;
   }
+});
+
+// Save the current page as a PDF (Insights > Export PDF). The page lays itself out for print
+// with @media print, so what is saved is exactly what the owner sees, minus the navigation.
+ipcMain.handle('save-page-pdf', async (event, suggestedName) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Save as PDF',
+    defaultPath: path.join(app.getPath('documents'), String(suggestedName || 'Danfosal report').replace(/[\\/:*?"<>|]/g, '-') + '.pdf'),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+  if (canceled || !filePath) return { saved: false };
+  const pdf = await event.sender.printToPDF({ printBackground: true, landscape: true, pageSize: 'A4', margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } });
+  fs.writeFileSync(filePath, pdf);
+  shell.openPath(filePath);
+  return { saved: true, filePath };
 });
 
 // Fetch URL without CORS restrictions (for fiscal invoice pages)

@@ -751,6 +751,49 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **29. REDESIGN PHASE 4 — MONEY AND INSIGHTS** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
+
+**Money** (`money.html`, `app/money.js`) — "Owed to you" replaces the seven classic debt pages. It shows €5,648 still owed on 7 invoices from 4 customers; Alb Solution accounts for 77%.
+- **Layout:** each customer shows how much of their total is paid off. Their panel lists each invoice with its payments and a link to the matching sale.
+- **Actions:**
+  - record a payment (with a date, and a guard against paying more than is owed)
+  - mark an invoice paid in full
+  - remove a payment recorded by mistake
+  - record a new debt, with an optional deposit
+- **Data shape:** debts stay in the classic shape (`debtors/{id}`, `invoices/{id}` `{number, totalAmount, remainingBalance, items, payments[{amount, timestamp}]}`). New debts also get `createdAt`.
+- **Safe saving:** every payment change runs in a **transaction** that re-reads the invoice and recalculates `remainingBalance` from the payments themselves.
+- **Not rebuilt:** Expenses (5 records, the last in Dec 2025) and creditors (none ever recorded) stay classic.
+
+**Insights** (`insights.html`, `app/insights.js`) replaces Analytics, Advanced analytics and Executive report. The charts are hand-drawn SVG (no library, works offline). Every amount is **net of VAT**, and margin counts only sales whose cost is known. A period switch (90 days, 12 months, this year, last year, all time) drives:
+- **KPIs:** net revenue, gross profit, margin, average sale, costed share, and stock at cost. A "mixed recording" flag appears when the period spans different recording methods.
+- **Revenue and profit by month, with a coverage band.** The owner's data has three eras:
+  - Jan–Nov 2025: imported history, 120–200 sales a month
+  - Dec 2025–Jan 2026: till only, so incomplete
+  - from Feb 2026: EasyPOS and PDF invoices, 30–50 a month
+
+  The band stops the drop between 2025 and 2026 from reading as a collapse in sales. Bars split profit, cost, cost unknown (hatched) and online orders.
+- **Where the profit comes from:** a squarified treemap of product families (`productFamily()` in `data.js`, tuned on the real names until only one OCR-garbled line was left as "Other"). Area is revenue and colour is margin; clicking a family filters Best sellers.
+- **Best sellers:** products grouped by name, because some products have two catalogue records under the same name.
+- **Every day of the last year:** a calendar heatmap that also makes the till-only gap visible.
+- **When customers buy:** weekday × hour from EasyPOS receipts. The imported history has no time of day, so it is left out.
+- **How long your stock has been waiting:** stock value by time since last sold. €61k has never sold; the biggest items are listed.
+- **Supplier price changes:** from purchase batches, deduplicated by invoice (Puzzi 8/1 −11%, SG 4/2 +3%, …).
+- `lineNetRevenues()` spreads each sale's net revenue across its lines, so family and product totals add up to the same figures Today uses.
+
+**Export PDF:** a new `save-page-pdf` IPC (in `main.js`, exposed as `electronAPI.savePagePDF`) saves the page with `printToPDF` (A4 landscape, dark background kept) and opens it. `@media print` hides the navigation and adds a dated header. In a browser (Hosting), the button falls back to `window.print()`. Tested by rendering Insights in Electron with the same options: 4 pages, and the print layout was checked as an image.
+
+**Verified:**
+- A ZZZ TEST debt was taken through every step, each confirmed in Firestore:
+  1. created at €100 with a €20 deposit
+  2. a €30 payment recorded
+  3. an overpayment refused
+  4. the €30 payment removed
+  5. marked paid in full (balance 0, payments 20 + 80)
+- The test debt was then deleted, leaving 0 ZZZ records.
+- On the installed build, all seven workspaces rendered with no uncaught errors. The sidebar now links Money and Insights to the new screens.
+
+---
+
 #### **28. REDESIGN PHASE 3 — CUSTOMERS AND SERVICE WORKSPACES** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
 
 **One answer to "who is this customer".** `customerDirectory()` in `data.js` lists every customer once: each profile, plus every named buyer with no profile yet. A profile's own name, its `aliases` and any profile merged into it all count as the same person. Walk-in placeholders are excluded (including two "Klien(t) Privat" *profiles*). The result: 685 customers who bought, €374,456 in total, matching Today's customer count definition.

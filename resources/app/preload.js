@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: (updateInfo) => ipcRenderer.invoke('download-update', updateInfo),
-  fetchURL: (url) => ipcRenderer.invoke('fetch-url', url)
+  fetchURL: (url) => ipcRenderer.invoke('fetch-url', url),
+  savePagePDF: (name) => ipcRenderer.invoke('save-page-pdf', name)
 });
 
 // Receipt Watcher IPC Bridge

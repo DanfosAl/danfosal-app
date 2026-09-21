@@ -117,7 +117,7 @@ function historyOf(e) {
     e.tickets.forEach(t => rows.push({ t: toMs(t.createdAt), icon: 'build', amount: null, title: `Repair: ${t.productName || 'machine'} · ${String(t.status || '').replace(/_/g, ' ')}`,
         sub: t.issueDescription || '', href: `service.html?id=${encodeURIComponent(t._id)}#tickets` }));
     e.debts.forEach(d => rows.push({ t: toMs(d.date) || toMs(d.createdAt), icon: 'account_balance_wallet', amount: null,
-        title: `Debt ${d.invoiceNumber || ''} · ${eur(Number(d.totalAmount) || 0, 2)}`, sub: Number(d.remainingBalance) > 0 ? `€${money2(d.remainingBalance)} still owed` : 'Paid', href: 'debts.html' }));
+        title: `Debt ${d.number || ''} · ${eur(Number(d.totalAmount) || 0, 2)}`, sub: Number(d.remainingBalance) > 0 ? `€${money2(d.remainingBalance)} still owed` : 'Paid', href: 'money.html#owed' }));
     return rows.sort((a, b) => (b.t || 0) - (a.t || 0));
 }
 

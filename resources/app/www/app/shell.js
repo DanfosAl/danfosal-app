@@ -26,14 +26,13 @@ export const NAV = [
     { id: 'service', label: 'Service', icon: 'build', href: 'service.html', pages: [
         ['Repairs', 'service.html#tickets', 'build'],
         ['Warranty cards', 'service.html#warranties', 'verified']] },
-    { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'debts.html', pages: [
-        ['Debts', 'debts.html', 'account_balance_wallet', 'classic'],
+    { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'money.html', pages: [
+        ['Owed to you', 'money.html#owed', 'account_balance_wallet'],
         ['Expenses', 'expenses.html', 'payments', 'classic']] },
-    { id: 'insights', label: 'Insights', icon: 'insights', href: 'analytics.html', pages: [
-        ['Analytics', 'analytics.html', 'monitoring', 'classic'],
-        ['Advanced analytics', 'advanced-analytics.html', 'query_stats', 'classic'],
-        ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic'],
-        ['Executive report', 'executive-report.html', 'description', 'classic']] }
+    { id: 'insights', label: 'Insights', icon: 'insights', href: 'insights.html', pages: [
+        ['Overview', 'insights.html#overview', 'insights'],
+        ['Classic analytics', 'analytics.html', 'monitoring', 'classic'],
+        ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic']] }
 ];
 export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings', href: 'settings.html', pages: [
     ['Settings', 'settings.html', 'settings', 'classic'],
@@ -92,7 +91,8 @@ export function navCountsFor(a) {
     const stock = a.reorder.length + a.needsCount.length + a.unmatched.length;
     return {
         stock: stock ? { n: stock, hot: a.reorder.length > 0 } : null,
-        service: a.openTickets.length ? { n: a.openTickets.length } : null
+        service: a.openTickets.length ? { n: a.openTickets.length } : null,
+        money: a.owed.length ? { n: a.owed.length } : null
     };
 }
 
@@ -134,10 +134,10 @@ const SYNONYMS = {
     'customers.html#review': 'duplicates merge lookalike spelling',
     'service.html#tickets': 'repair servis riparim ticket',
     'service.html#warranties': 'warranty garanci certificate',
-    'debts.html': 'owed borxh debitor kredit',
+    'money.html#owed': 'owed debts borxh debitor kredit payment pagesa',
     'expenses.html': 'shpenzime costs',
+    'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers',
     'analytics.html': 'reports raporte charts',
-    'executive-report.html': 'pdf report export',
     'fix-stock.html': 'count inventory correction'
 };
 let index = NAV.flatMap(n => (n.pages || [[n.label, n.href, n.icon]]).map(([label, href, ic]) => ({ group: 'Go to', label, sub: n.pages ? n.label : '', href, ic, text: fold(`${label} ${n.label} ${SYNONYMS[href] || ''}`) })))

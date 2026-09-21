@@ -127,7 +127,7 @@ function renderKpis(a) {
             ${sparkline(a.dailySeries)}</div>
         <div class="kpi"><small>Gross margin · 30 days</small><span class="v">${a.margin30 === null ? '–' : Math.round(a.margin30 * 100) + '%'}</span>${marginNote}</div>
         <div class="kpi"><small>Owed to you</small><span class="v">${eur(a.owedTotal)}</span>
-            <span class="d">${plural(a.owed.length, 'unpaid invoice', 'unpaid invoices')} · <a href="debts.html" style="color:var(--violet-2)">Debts</a></span></div>`;
+            <span class="d">${plural(a.owed.length, 'unpaid invoice', 'unpaid invoices')} · <a href="money.html#owed" style="color:var(--violet-2)">Money</a></span></div>`;
 }
 
 export function renderToday(el, a, { onGoalChange } = {}) {

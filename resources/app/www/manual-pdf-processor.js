@@ -78,10 +78,9 @@ class ManualPDFProcessor {
     // === PROCESS TEXT FROM MULTI-PAGE OCR ===
     
     async extractAlbanianInvoiceFromText(combinedText, options = {}) {
-        if (!this.isInitialized) {
-            await this.initialize();
-        }
-        
+        // The text is already extracted, so no OCR worker is needed here. Spinning one up
+        // would only slow this down, and would fail the whole read if Tesseract could not
+        // load - even though a digital PDF never needs it.
         console.log('📄 Processing combined text from multiple pages...');
         return await this.processExtractedText(combinedText, options);
     }
@@ -284,47 +283,87 @@ class ManualPDFProcessor {
     extractCustomerInfo(text, lines) {
         const info = {
             name: '',
-            address: ''
+            address: '',
+            nipt: ''
         };
 
-        // Albanian invoice patterns for customer info
-        const namePatterns = [
-            /Klient[ië]?\s*:?\s*(.+)/i,
-            /Bleres\s*:?\s*(.+)/i,
-            /Emri\s+i\s+bleres[iëit]*\s*:?\s*(.+)/i,
-            /Emri\s*:?\s*(.+)/i,
-            /Client\s*:?\s*(.+)/i,
-            /Customer\s*:?\s*(.+)/i
-        ];
+        // A fiscal invoice carries TWO parties with identically named fields: the seller
+        // (us) under "Shitës" and the buyer under "BLERËSI / KLIENTI". Searching the whole
+        // document for "Emri:" or "Adresa:" finds the seller, because it is printed first -
+        // that is how Danfos's own address ended up saved as the customer's. So read the
+        // buyer block only, and never fall back to a match that could be the seller.
+        const buyerHeading = /BLER[ËE]S|KLIENT|BUYER|CUSTOMER/i;
+        const blockEnd = /^(Shit[ëe]s|INFORMACION|ARTIKUJT|TOTAL|SH[ËE]NIME|SHP[ËE]RNDARJA|P[ëe]r t[ëe] gjitha|=== PAGE)/i;
 
-        // Try to find customer name
-        for (const pattern of namePatterns) {
-            const match = text.match(pattern);
-            if (match && match[1]) {
-                info.name = match[1].trim();
-                // Clean up - take only the first line if multi-line
-                const firstLine = info.name.split(/\n|\\n/)[0].trim();
-                if (firstLine.length > 2 && firstLine.length < 100) {
-                    info.name = firstLine;
-                    break;
+        const buyerBlock = [];
+        const headingIndex = lines.findIndex(line => buyerHeading.test(line) && line.length < 60);
+        if (headingIndex >= 0) {
+            for (let i = headingIndex + 1; i < lines.length && buyerBlock.length < 14; i++) {
+                if (blockEnd.test(lines[i])) break;
+                buyerBlock.push(lines[i]);
+            }
+        }
+
+        const fieldFrom = (source, pattern) => {
+            for (const line of source) {
+                const match = line.match(pattern);
+                if (match && match[1] && match[1].trim()) return match[1].trim();
+            }
+            return '';
+        };
+
+        if (buyerBlock.length) {
+            // "Emri" is the registered name, "Emri tregtar" the trade name - prefer the former.
+            info.name = fieldFrom(buyerBlock, /^Emri\s*:\s*(.+)$/i) ||
+                        fieldFrom(buyerBlock, /^Emri\s+tregtar\s*:\s*(.+)$/i);
+            info.address = fieldFrom(buyerBlock, /^Adres[aë]\s*:\s*(.+)$/i);
+            info.nipt = fieldFrom(buyerBlock, /^NIPT\s*:\s*(.+)$/i);
+        }
+
+        // Fallbacks for layouts without that heading (photos, other templates). Patterns
+        // that name the buyer explicitly are safe; a bare "Emri:" is not, so it is only
+        // trusted when the document has a single one and cannot be the seller's.
+        if (!info.name) {
+            const buyerNamePatterns = [
+                /Klient[ië]?\s*:\s*(.+)/i,
+                /Bler[ëe]s[iu]?\s*:\s*(.+)/i,
+                /Emri\s+i\s+bler[ëe]s[iëit]*\s*:?\s*(.+)/i,
+                /Client\s*:\s*(.+)/i,
+                /Customer\s*:\s*(.+)/i
+            ];
+            for (const pattern of buyerNamePatterns) {
+                const match = searchText.match(pattern);
+                if (match && match[1]) {
+                    const firstLine = match[1].split(/\n/)[0].trim();
+                    if (firstLine.length > 2 && firstLine.length < 100) { info.name = firstLine; break; }
+                }
+            }
+            if (!info.name && (text.match(/^Emri\s*:/gim) || []).length === 1) {
+                const match = text.match(/^Emri\s*:\s*(.+)$/im);
+                if (match && match[1].trim().length > 2) info.name = match[1].trim();
+            }
+        }
+
+        if (!info.address) {
+            const addressPatterns = [
+                /Adres[aë]\s*:?\s*(.+?)(?:\n|Nipt|NIPT|Tel|Email|$)/is,
+                /Address\s*:?\s*(.+?)(?:\n|Tel|Email|$)/is
+            ];
+            // Only safe when unambiguous - otherwise this grabs the seller's address.
+            if ((text.match(/^Adres[aë]\s*:/gim) || []).length === 1) {
+                for (const pattern of addressPatterns) {
+                    const match = searchText.match(pattern);
+                    if (match && match[1]) {
+                        info.address = match[1].trim().replace(/\s+/g, ' ');
+                        break;
+                    }
                 }
             }
         }
 
-        // Albanian address patterns
-        const addressPatterns = [
-            /Adres[aë]\s*:?\s*(.+?)(?:\n|Nipt|NIPT|Tel|Email|$)/is,
-            /Rruga\s+(.+?)(?:\n|Nipt|NIPT|Tel|$)/is,
-            /Address\s*:?\s*(.+?)(?:\n|Tel|Email|$)/is
-        ];
-
-        for (const pattern of addressPatterns) {
-            const match = text.match(pattern);
-            if (match && match[1]) {
-                info.address = match[1].trim().replace(/\s+/g, ' ');
-                break;
-            }
-        }
+        // Strip a label the OCR path sometimes drags into the value ("Emri: ADG").
+        info.name = info.name.replace(/^(Emri|Klienti|Bler[ëe]si|Name)\s*:\s*/i, '').trim();
+        info.address = info.address.replace(/^(Adresa|Address)\s*:\s*/i, '').replace(/^[~\-–—\s]+/, '').trim();
 
         return info;
     }
@@ -446,33 +485,40 @@ class ManualPDFProcessor {
             if (inItemsSection) {
                 const lowerLine = line.toLowerCase();
                 
-                // Stop at totals section
-                if (/total\s+n[eë]\s+all|shuma\s+totale|informacioni\s+i\s+pages|shperndarja\s+e\s+tvsh/i.test(line)) {
-                    console.log('🛑 Stopping at totals section:', line);
+                // Stop at the totals, the VAT-distribution table, or the per-item appendix.
+                // The appendix ("Specifikimi i hollësishëm i artikullit të faturës") reprints
+                // every row, so reading past it counts each item a second time. The accented
+                // "SHPËRNDARJA" must be matched too - the old spelling never fired.
+                if (/total\s+n[eë]\s+all|shuma\s+totale|informacioni\s+i\s+pages|shp[ëe]rndarja\s+e\s+tvsh|specifikimi\s+i\s+holl[ëe]sish[ëe]m/i.test(line)) {
+                    console.log('🛑 Stopping at section:', line);
                     break;
                 }
-                
+
                 // Skip header repetitions
                 if (tableHeaderKeywords.some(keyword => lowerLine.includes(keyword))) {
                     continue;
                 }
-                
+
                 // Pattern: Product name line (has letters and usually ends with "S-VAT")
                 // Example: "HD 9/20-4 Classic 116 666,67 0,00 S-VAT"
-                if (/[a-zA-Z]{3,}/.test(line) && /s-vat|tvsh/i.test(line)) {
-                    // Save previous item if exists
-                    if (pendingItem && pendingItem.quantity && pendingItem.netValue) {
-                        items.push(pendingItem);
-                        console.log('✅ Item saved:', pendingItem.itemName);
-                    }
-                    
+                // A VAT-summary row ("S-VAT 20 2 750,00 550,00") also mentions VAT but is not
+                // a product, so it must not open a new item.
+                if (/[a-zA-Z]{3,}/.test(line) && /s-vat|tvsh/i.test(line) && !/^s-vat\b/i.test(line)) {
                     // Extract product name and net value from this line
                     // Format: "Product Name NetValue Discount S-VAT"
                     const productMatch = line.match(/^(.+?)\s+(\d{1,3}(?:\s\d{3})*,\d{2})/);
                     if (productMatch) {
+                        // Only bank the previous item once a new one actually starts. Doing it
+                        // before this check saved the same item again for every VAT-ish line
+                        // that failed to parse as a product.
+                        if (pendingItem && pendingItem.quantity && pendingItem.netValue) {
+                            items.push(pendingItem);
+                            console.log('✅ Item saved:', pendingItem.itemName);
+                        }
+
                         const productName = productMatch[1].trim();
                         const netValue = this.parsePrice(productMatch[2].replace(/\s/g, ''));
-                        
+
                         pendingItem = {
                             itemNumber: null,
                             itemName: productName,
@@ -482,7 +528,7 @@ class ManualPDFProcessor {
                             pricePerUnit: null,
                             lineTotal: null
                         };
-                        
+
                         console.log(`📦 New item: ${productName}, Net=${netValue}`);
                     }
                     continue;
@@ -564,6 +610,19 @@ class ManualPDFProcessor {
 
         console.log('💰 Extracting totals...');
 
+        // A dual-currency fiscal invoice prints the same three labels twice: once under
+        // "TOTAL NË EUR" and again under "TOTAL NË LEK". A document-wide search returns
+        // whichever block is printed first, so mixing currencies is only a matter of page
+        // layout. When both exist, narrow the search to the EUR block.
+        let searchText = text;
+        if (currencyInfo.hasDualCurrency) {
+            const eurBlock = text.match(/TOTAL\s+N[ËE]\s+EUR[\s\S]*?(?=TOTAL\s+N[ËE]\s+(?!EUR)[A-ZËÇ]+|SH[ËE]NIME|INFORMACIONI\s+I\s+PAGES|=== PAGE|$)/i);
+            if (eurBlock && /\d/.test(eurBlock[0])) {
+                searchText = eurBlock[0];
+                console.log('💶 Restricting totals to the "TOTAL NË EUR" block');
+            }
+        }
+
         // Albanian total patterns - MORE FLEXIBLE
         const totalPatterns = [
             // Primary Albanian patterns with space-separated thousands
@@ -587,7 +646,7 @@ class ManualPDFProcessor {
         if (currencyInfo.hasDualCurrency) {
             console.log('💶 Looking for EUR total in dual currency invoice');
             for (const pattern of totalPatterns) {
-                const match = text.match(pattern);
+                const match = searchText.match(pattern);
                 if (match && match[1]) {
                     if (/EUR|€/i.test(match[0])) {
                         totals.total = this.parsePrice(match[1].replace(/\s/g, ''));
@@ -599,7 +658,7 @@ class ManualPDFProcessor {
         } else {
             // Single currency - extract and convert if needed
             for (const pattern of totalPatterns) {
-                const match = text.match(pattern);
+                const match = searchText.match(pattern);
                 if (match && match[1]) {
                     let total = this.parsePrice(match[1].replace(/\s/g, ''));
                     
@@ -646,11 +705,33 @@ class ManualPDFProcessor {
             }
         }
 
-        // Calculate subtotal
-        if (totals.total > 0 && totals.tax > 0) {
-            totals.subtotal = Math.round((totals.total - totals.tax) * 100) / 100;
-        } else if (totals.total > 0) {
-            totals.subtotal = totals.total;
+        // Subtotal: prefer the printed "Shuma totale pa TVSH" over total - tax, so the
+        // saved figure matches the invoice exactly rather than depending on both other
+        // reads being right.
+        const subtotalPatterns = [
+            /Shuma\s+totale?\s+pa\s+TVSH\s*:?\s*(\d{1,3}(?:\s\d{3})*,\d{2})\s*(?:EUR|€|ALL|LEK)/i,
+            /Shuma\s+totale?\s+pa\s+TVSH\s*:?\s*(\d+[,.]\d{1,2})\s*(?:EUR|€|ALL|LEK)/i,
+            /Subtotal\s*:?\s*€?\s*(\d+[,.]\d{1,2})/i
+        ];
+        for (const pattern of subtotalPatterns) {
+            const match = searchText.match(pattern);
+            if (match && match[1]) {
+                let subtotal = this.parsePrice(match[1].replace(/\s/g, ''));
+                if (!currencyInfo.hasDualCurrency && currencyInfo.currency === 'ALL' && conversionRate) {
+                    subtotal = subtotal / conversionRate;
+                }
+                totals.subtotal = Math.round(subtotal * 100) / 100;
+                console.log('✅ Subtotal found:', totals.subtotal);
+                break;
+            }
+        }
+
+        if (!totals.subtotal) {
+            if (totals.total > 0 && totals.tax > 0) {
+                totals.subtotal = Math.round((totals.total - totals.tax) * 100) / 100;
+            } else if (totals.total > 0) {
+                totals.subtotal = totals.total;
+            }
         }
 
         console.log('💰 Final totals:', totals);

@@ -443,7 +443,41 @@
             }
         }
 
-        // Process multi-page PDF (OCR each page separately, combine text)
+        // Rebuild visual lines from a PDF text layer.
+        //
+        // pdf.js returns text in content-stream order, which interleaves the columns of a
+        // table and separates a label from its value. Every item carries its position, so
+        // group items that share a baseline (y) and order them left to right (x). That
+        // turns the fiscal invoice back into the lines a human sees, e.g.
+        // "Shuma totale me TVSH: 3 300,00 EUR", which is what the extractors match on.
+        function textItemsToLines(items) {
+            const rows = [];
+            for (const item of items) {
+                const str = item.str || '';
+                if (!str.trim()) continue;
+                const x = item.transform[4];
+                const y = item.transform[5];
+                // 2pt tolerance: the same printed line can vary slightly between fonts.
+                let row = rows.find(r => Math.abs(r.y - y) <= 2);
+                if (!row) { row = { y: y, cells: [] }; rows.push(row); }
+                row.cells.push({ x: x, str: str, width: item.width || 0 });
+            }
+            rows.sort((a, b) => b.y - a.y);   // PDF y grows upward, so top line is the largest
+            return rows.map(row => {
+                row.cells.sort((a, b) => a.x - b.x);
+                let line = '';
+                let prevEnd = null;
+                for (const cell of row.cells) {
+                    // Only insert a gap for a real column break; a tiny gap is the same word.
+                    if (prevEnd !== null && cell.x - prevEnd > 3) line += ' ';
+                    line += cell.str;
+                    prevEnd = cell.x + cell.width;
+                }
+                return line.replace(/\s+/g, ' ').trim();
+            }).filter(line => line.length > 0).join('\n');
+        }
+
+        // Process multi-page PDF (read each page's text layer, fall back to OCR, combine text)
         async function processInvoiceMultiPage(conversionRate = null) {
             try {
                 if (!window.pdfData) {
@@ -451,40 +485,62 @@
                     return await processInvoice(conversionRate);
                 }
 
+                // Builds the processor and loads the product list used for matching later,
+                // so it is needed whether or not any page falls back to OCR.
                 await initProcessor();
-                
+
                 const { pdf, scale } = window.pdfData;
                 const numPages = pdf.numPages;
-                
-                showProcessing(`Scanning page 1/${numPages} with OCR...`);
-                
-                // Process each page with OCR and collect all text
+
+                showProcessing(`Reading page 1/${numPages}...`);
+
+                // Read each page and collect all text
                 let combinedText = '';
-                
+                let ocrPages = 0;
+
                 for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-                    showProcessing(`Scanning page ${pageNum}/${numPages} with OCR...`);
-                    
+                    showProcessing(`Reading page ${pageNum}/${numPages}...`);
+
                     const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale });
-                    
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport
-                    }).promise;
-                    
-                    const pageImageData = canvas.toDataURL('image/png');
-                    
-                    // Run OCR on this page
-                    const ocrResult = await Tesseract.recognize(pageImageData, 'eng');
-                    combinedText += '\n\n=== PAGE ' + pageNum + ' ===\n\n' + ocrResult.data.text;
-                    
-                    console.log(`✅ Page ${pageNum} OCR complete`);
+
+                    // A digitally issued invoice (Platforma Qendrore e Faturave sends these)
+                    // already contains exact text. OCR-ing a picture of it only invents
+                    // errors, so read the text layer first and keep OCR for scans/photos.
+                    let pageText = '';
+                    try {
+                        const textContent = await page.getTextContent();
+                        pageText = textItemsToLines(textContent.items);
+                    } catch (textError) {
+                        console.warn(`Text layer unreadable on page ${pageNum}:`, textError);
+                    }
+
+                    if (pageText.replace(/\s/g, '').length >= 40) {
+                        console.log(`✅ Page ${pageNum} read from text layer (exact)`);
+                    } else {
+                        // Scanned/image-only page: render it and OCR as before.
+                        ocrPages++;
+                        showProcessing(`Scanning page ${pageNum}/${numPages} with OCR...`);
+
+                        const viewport = page.getViewport({ scale });
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+
+                        const ocrResult = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng');
+                        pageText = ocrResult.data.text;
+                        console.log(`✅ Page ${pageNum} OCR complete (no text layer)`);
+                    }
+
+                    combinedText += '\n\n=== PAGE ' + pageNum + ' ===\n\n' + pageText;
                 }
+
+                console.log(`📄 ${numPages} page(s) read; ${ocrPages} needed OCR`);
                 
                 console.log('📄 Combined text from all pages:', combinedText.substring(0, 500) + '...');
                 
@@ -527,7 +583,7 @@
                     if (extractedData.normalizedToEUR) {
                         currencyP.textContent = `✅ Converted from ${extractedData.originalCurrency} to EUR (Rate: ${extractedData.conversionRate})`;
                     } else if (extractedData.hasDualCurrency) {
-                        currencyP.textContent = `💶 Dual currency invoice - EUR values extracted (${extractedData.originalCurrency} values ignored)`;
+                        currencyP.textContent = `💶 Dual currency invoice - using the EUR totals (the LEK totals are ignored)`;
                     }
                     
                     currencyDiv.classList.remove('hidden');
@@ -657,7 +713,7 @@
                     if (extractedData.normalizedToEUR) {
                         currencyP.textContent = `✅ Converted from ${extractedData.originalCurrency} to EUR (Rate: ${extractedData.conversionRate})`;
                     } else if (extractedData.hasDualCurrency) {
-                        currencyP.textContent = `💶 Dual currency invoice - EUR values extracted (${extractedData.originalCurrency} values ignored)`;
+                        currencyP.textContent = `💶 Dual currency invoice - using the EUR totals (the LEK totals are ignored)`;
                     }
                     
                     currencyDiv.classList.remove('hidden');
@@ -777,51 +833,82 @@
         }
 
         // Find best product match using fuzzy matching (same algorithm as Store Invoice Scanner)
+        // Model numbers are the identity of a Kärcher machine: BD 50/50 C and BD 50/70 R are
+        // different products at different prices. Two names may only match if the numbers in
+        // them agree, otherwise the wrong product gets its stock deducted.
+        function modelNumbers(name) {
+            return (name.match(/\d+(?:[\/\-.,]\d+)*/g) || []).join(' ');
+        }
+
+        // Receipts and the catalogue disagree about the producer prefix ("Karcher SC 3" vs
+        // "SC 3"), so compare without it.
+        function stripProducer(name) {
+            return name.replace(/^(k[aä]rcher|karcher|kaercher)\s+/i, '').trim();
+        }
+
         function findBestProductMatch(searchName) {
             if (!searchName || allProducts.length === 0) return null;
-            
+
             const searchLower = searchName.toLowerCase().trim();
+            const searchBare = stripProducer(searchLower);
+            const searchModel = modelNumbers(searchBare);
             let bestMatch = null;
             let bestScore = 0;
-            
+
             allProducts.forEach(product => {
                 const productName = (product.name || '').toLowerCase().trim();
+                if (!productName) return;
+                const productBare = stripProducer(productName);
+
+                // Guard first: a disagreeing model number disqualifies the candidate outright.
+                // Without this, "Karcher BD 50/50 C Bp Classic" scored higher against
+                // "BD 50/70 R Bp Classic" (because "karcher" contains the product word "r"
+                // and "c" appears in "classic") than against the correct product.
+                const productModel = modelNumbers(productBare);
+                if (searchModel && productModel && searchModel !== productModel) return;
+
                 let score = 0;
-                
-                if (productName === searchLower) score = 100;
-                else if (productName.startsWith(searchLower)) score = 90;
-                else if (searchLower.startsWith(productName)) score = 85;
-                else if (productName.includes(searchLower)) score = 70;
-                else if (searchLower.includes(productName)) score = 65;
+
+                if (productBare === searchBare) score = 100;
+                else if (productBare.startsWith(searchBare)) score = 90;
+                else if (searchBare.startsWith(productBare)) score = 85;
+                // Trailing extras usually mean the same product ("SC 3" -> "SC 3 EasyFix *EU"),
+                // but a LEADING extra word usually means an accessory for it: "WD3" appears
+                // inside "Filter WD3" and "Qese per WD3", which are not the machine. Score
+                // that below the auto-select threshold so the user picks deliberately.
+                else if (productBare.includes(searchBare)) score = 45;
+                else if (searchBare.includes(productBare)) score = 70;
                 else {
-                    // Word-by-word matching
-                    const searchWords = searchLower.split(/\s+/);
-                    const productWords = productName.split(/\s+/);
-                    const matchingWords = searchWords.filter(w => 
-                        productWords.some(pw => pw.includes(w) || w.includes(pw))
-                    );
-                    if (matchingWords.length > 0) {
-                        // Boost score if words are found (was capped at 50, now 85)
-                        score = (matchingWords.length / searchWords.length) * 85;
-                        
-                        // Small penalty for unmatched words in product to prefer shorter exact matches
-                        const lengthPenalty = (productWords.length - matchingWords.length) * 2;
-                        score -= Math.min(lengthPenalty, 10);
+                    // Word-by-word matching. Only whole words of 2+ characters count: letting
+                    // single letters match substrings made almost anything look similar.
+                    const searchWords = searchBare.split(/\s+/).filter(w => w.length >= 2);
+                    const productWords = productBare.split(/\s+/).filter(w => w.length >= 2);
+                    if (searchWords.length && productWords.length) {
+                        const matchingWords = searchWords.filter(w =>
+                            productWords.some(pw => pw === w || (w.length >= 4 && pw.includes(w)) || (pw.length >= 4 && w.includes(pw)))
+                        );
+                        if (matchingWords.length > 0) {
+                            score = (matchingWords.length / searchWords.length) * 85;
+
+                            // Small penalty for unmatched words in product to prefer shorter exact matches
+                            const lengthPenalty = (productWords.length - matchingWords.length) * 2;
+                            score -= Math.min(lengthPenalty, 10);
+                        }
                     }
                 }
-                
+
                 if (score > bestScore) {
                     bestScore = score;
                     bestMatch = product;
                 }
             });
-            
+
             // Return match if score >= 50% (lowered from 60 to allow better partial matching)
             if (bestScore >= 50) {
                 console.log(`✅ Best match for "${searchName}": ${bestMatch.name} (score: ${bestScore}%)`);
                 return bestMatch;
             }
-            
+
             console.log(`⚠️ No good match for "${searchName}" (best score: ${bestScore}%)`);
             return null;
         }

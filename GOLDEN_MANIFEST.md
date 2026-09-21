@@ -751,6 +751,19 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **24. DANFOSAL APP LOGO — REPLACES THE DEFAULT ELECTRON ICON** — ✅ **DONE (September 21, 2026)**
+
+**Before:** the app had no icon of its own. `package.json` pointed `win.icon` at `build/icon.ico`, but that file had never existed, so every build logged `default Electron icon is used — application icon is not set`. `main.js` pointed the window icon at the same missing file. That path could never have worked in an installed app anyway, because `build/` is not packaged.
+
+**Design (owner chose concept A of three):** a violet-to-indigo **monogram D** with three rising sales bars in its counter, the tallest in the app's orange accent. It sits on the same rounded dark tile, outline and halo as the Danfos Garanci shield logo, so the two apps read as a pair on the taskbar, but it uses Danfosal's own palette taken from `index.html` (`#8b5cf6`, `#6366f1`, `#f97316` on slate). Kärcher yellow was avoided on purpose so the app never looks like it's using the supplier's branding. The concepts were compared at 16, 32 and 48 px, since that is where an icon actually lives.
+
+**Files and how it is produced** (mirrors `WarrantyApp/build/make-icon.cjs`):
+- Source: `www/assets/danfosal-logo.svg`. Run `node build/make-icon.cjs` whenever it changes.
+- That script writes `www/assets/danfosal-logo.png` (512 px), which is the window/taskbar icon. `main.js` now loads it from `www/`, which ships in the installer.
+- It also writes `build/icon.ico`, holding 7 sizes (16, 24, 32, 48, 64, 128, 256) each rendered from the vector rather than scaled from one bitmap. electron-builder embeds that file as the program, shortcut, installer and uninstaller icon (`installerIcon`/`uninstallerIcon` added to the `nsis` block).
+
+---
+
 #### **19. DANFOS GARANCI 1.1.0 — DARK/3D WORKSPACE, CUSTOM LOGO & SERVICE FEATURES** — ✅ **IMPLEMENTED, VERIFIED & REINSTALLED (September 13, 2026)**
 
 **Scope and source of truth.** The owner approved the interactive concept, requested additional 3D effects, then authorized implementation and reinstallation, including a new logo replacing Electron's. The production source is `E:\DanfosalApp\WarrantyApp\`; the installed product is **Danfos Garanci 1.1.0**, separate from **Danfosal App 1.4.1**. The main app, protected OCR/Instagram integrations, and hosted print template were not changed by this release. Both apps still use the same `danfosal-app` Firebase project and anonymous authentication.

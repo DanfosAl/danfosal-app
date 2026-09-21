@@ -81,6 +81,8 @@
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "Danfosal App",
+            "installerIcon": "build/icon.ico",
+            "uninstallerIcon": "build/icon.ico",
             "differentialPackage": false,
             "include": "build/installer.nsh"
         },

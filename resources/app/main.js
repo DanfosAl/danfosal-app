@@ -30,7 +30,9 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, 'build/icon.ico')
+    // build/ is not packaged, so the old build/icon.ico path never existed in the installed
+    // app; the PNG ships inside www/ (regenerate with node build/make-icon.cjs).
+    icon: path.join(__dirname, 'www/assets/danfosal-logo.png')
   });
 
   mainWindow.loadFile('www/index.html');

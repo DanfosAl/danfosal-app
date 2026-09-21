@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Danfosal App">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1f2444"/><stop offset="1" stop-color="#0b1020"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#8b5cf6" stop-opacity=".38"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c4b5fd"/><stop offset=".5" stop-color="#8b5cf6"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fdba74"/><stop offset="1" stop-color="#f97316"/></linearGradient>
+    <clipPath id="bounds"><rect x="8" y="8" width="496" height="496" rx="108"/></clipPath>
+  </defs>
+  <!-- Same rounded tile as the Danfos Garanci logo, so the two apps read as a pair. -->
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#tile)"/>
+  <rect x="10" y="10" width="492" height="492" rx="106" fill="none" stroke="#ffffff" stroke-opacity=".15" stroke-width="3"/>
+  <g clip-path="url(#bounds)">
+    <circle cx="200" cy="170" r="215" fill="url(#halo)"/>
+    <!-- Monogram D (evenodd cuts out the counter) with its drop shadow -->
+    <path d="M140 110H260A146 146 0 0 1 260 402H140Z M196 166H256A90 90 0 0 1 256 346H196Z" fill-rule="evenodd" fill="#050814" opacity=".5" transform="translate(0 10)"/>
+    <path d="M140 110H260A146 146 0 0 1 260 402H140Z M196 166H256A90 90 0 0 1 256 346H196Z" fill-rule="evenodd" fill="url(#violet)"/>
+    <!-- Rising sales bars inside the D; the tallest carries the app's orange accent -->
+    <rect x="214" y="280" width="28" height="42" rx="7" fill="#e0e7ff"/>
+    <rect x="252" y="250" width="28" height="72" rx="7" fill="#e0e7ff"/>
+    <rect x="290" y="212" width="28" height="110" rx="7" fill="url(#orange)"/>
+  </g>
+</svg>

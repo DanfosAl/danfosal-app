@@ -8,20 +8,10 @@
     <link rel="stylesheet" href="css/tailwind-default.css">
     <link rel="stylesheet" href="glassmorphism.css">
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
-            authDomain: "danfosal-app.firebaseapp.com",
-            projectId: "danfosal-app",
-            storageBucket: "danfosal-app.firebasestorage.app",
-            messagingSenderId: "133549285091",
-            appId: "1:133549285091:web:a2b8f5f5869d43e0f40e30"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        // The shared setup signs in first; the database rules refuse anonymous-less reads,
+        // which is why this page used to fail with "Missing or insufficient permissions".
+        import { db, ready, collection, getDocs, doc, updateDoc } from './app/firebase.js';
+        await ready;
 
         window.fixStock = async () => {
             const productsRef = collection(db, 'products');

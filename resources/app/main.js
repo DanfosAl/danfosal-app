@@ -96,30 +96,6 @@ ipcMain.handle('check-for-updates', async () => {
   return updateInfo;
 });
 
-// Generate Executive Report PDF
-ipcMain.handle('generate-executive-report', async () => {
-  console.log('📄 Generating executive PDF report...');
-  
-  try {
-    const PDFExportService = require('./export-pdf');
-    const service = new PDFExportService();
-    
-    // Generate PDF with default options
-    const result = await service.generatePDF();
-    
-    console.log('✅ PDF generated successfully:', result.outputPath);
-    
-    return {
-      success: true,
-      outputPath: result.outputPath,
-      filename: result.filename
-    };
-  } catch (error) {
-    console.error('❌ PDF generation failed:', error);
-    throw error;
-  }
-});
-
 // Save the current page as a PDF (Insights > Export PDF). The page lays itself out for print
 // with @media print, so what is saved is exactly what the owner sees, minus the navigation.
 ipcMain.handle('save-page-pdf', async (event, suggestedName) => {

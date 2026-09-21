@@ -270,7 +270,6 @@ bootWorkspace({
     active: 'customers', title: 'Customers', defaultTab: 'all',
     tabs: [
         { id: 'all', label: 'Customers', icon: 'group', render: renderList },
-        { id: 'review', label: 'Review names', icon: 'merge', render: renderReview, count: (a, m) => reviewOf(m).length },
-        { label: 'Classic customers', icon: 'group', href: 'customer-portal.html' }
+        { id: 'review', label: 'Review names', icon: 'merge', render: renderReview, count: (a, m) => reviewOf(m).length }
     ]
 });

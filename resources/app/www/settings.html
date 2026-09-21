@@ -205,8 +205,8 @@
                     </label>
                 </div>
 
-                <a href="advanced-analytics.html" class="glass-btn block text-center bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
-                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">bar_chart</span> View Advanced Analytics Dashboard
+                <a href="insights.html" class="glass-btn block text-center bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
+                    <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">bar_chart</span> Open Insights
                 </a>
             </div>
         </div>
@@ -307,22 +307,9 @@
 
     <script src="advanced-features.js"></script>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
-            authDomain: "danfosal-app.firebaseapp.com",
-            projectId: "danfosal-app",
-            storageBucket: "danfosal-app.firebasestorage.app",
-            messagingSenderId: "990940018522",
-            appId: "1:990940018522:web:c78d98e8f1b928e924f5c6"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        // This page stores its settings locally and never reads the database. It used to start a second
+        // Firebase app (with a stale config) after global-search.js had started one, which threw
+        // "duplicate-app" and stopped the rest of this script.
 
         // Load saved settings on page load
         window.addEventListener('DOMContentLoaded', () => {

@@ -193,7 +193,6 @@ bootWorkspace({
     active: 'money', title: 'Money', defaultTab: 'owed',
     tabs: [
         { id: 'owed', label: 'Owed to you', icon: 'account_balance_wallet', render: renderOwed, count: a => a.owed.length },
-        { label: 'Expenses', icon: 'payments', href: 'expenses.html' },
-        { label: 'Classic debts', icon: 'account_balance_wallet', href: 'debts.html' }
+        { label: 'Expenses', icon: 'payments', href: 'expenses.html' }
     ]
 });

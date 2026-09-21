@@ -430,7 +430,6 @@ bootWorkspace({
     active: 'insights', title: 'Insights', defaultTab: 'overview',
     tabs: [
         { id: 'overview', label: 'Overview', icon: 'insights', render: renderInsights },
-        { label: 'Classic analytics', icon: 'monitoring', href: 'analytics.html' },
         { label: 'Forecasts', icon: 'trending_up', href: 'business-intelligence.html' }
     ]
 });

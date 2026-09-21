@@ -14,11 +14,10 @@ architecture and history, see [GOLDEN_MANIFEST.md](../../GOLDEN_MANIFEST.md).
 | `www/stock.html`, `www/sell.html` | Rebuilt workspaces (Phase 2): Stock (catalogue, reorder, link receipt items) and Sell (all sales, the till). Each is a thin page; the logic is in `app/stock.js` / `app/sell.js` on top of `app/workspace.js`. |
 | `www/customers.html`, `www/service.html` | Rebuilt workspaces (Phase 3): Customers (list with segments, profiles, merging lookalike names) and Service (repairs with Garanci's safe-save rule, warranty cards). Logic in `app/customers.js` / `app/service.js`. |
 | `www/money.html`, `www/insights.html` | Rebuilt workspaces (Phase 4): Money (debts and payments) and Insights (charts with recording coverage marked, Export PDF via the `save-page-pdf` IPC). Logic in `app/money.js` / `app/insights.js`. |
-| `www/classic-dashboard.html` and the other `www/*.html` pages | The classic screens. The new sidebar opens them until each workspace is rebuilt. |
+| The other `www/*.html` pages | Classic screens not rebuilt yet: invoice import, online orders, order list, receive delivery, yearly plan, forecasts, expenses, creditors, settings and the admin tools. `warranty-card.html` is the print page Garanci and Service open. The 20 pages the new workspaces replaced were retired in Phase 5 (quarantined, and redirected on Hosting in `firebase.json`). |
 | `easypos-ocr-bridge.js` | EasyPOS OCR bridge. The watchdog runs it from here, by absolute path, so **do not move it**. |
 | `start-bridge-hidden.vbs` | Hidden launcher the watchdog uses to start the bridge |
 | `firebase-admin-config.js` | Shared Admin SDK setup for the bridge and data tools; reads `serviceAccountKey.json` |
-| `export-pdf.js`, `analytics-engine.js` | Executive PDF report (`main.js` requires these) |
 | `scripts/data/` | Firestore command-line tools. Run them through npm (see below). |
 | `scripts/deploy/`, `scripts/android/`, `scripts/maintenance/` | Release, Android and backup scripts. Each one sets its own working directory. |
 | `functions/` | The Cloud Function `instagramWebhook`. It is **live in production**. |
@@ -39,7 +38,7 @@ npm install                 # first time, or after a dependency change
 npm start                   # run the app from source
 npm run dist                # build dist/Danfosal App Setup <version>.exe
 npm run inspect-data        # also: audit-customers, merge-duplicates, verify-invoice,
-                            #       view-customer, loyalty-dashboard, export-report
+                            #       view-customer, loyalty-dashboard
 firebase deploy --only hosting
 ```
 

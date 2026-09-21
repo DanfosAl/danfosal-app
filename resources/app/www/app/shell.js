@@ -31,7 +31,6 @@ export const NAV = [
         ['Expenses', 'expenses.html', 'payments', 'classic']] },
     { id: 'insights', label: 'Insights', icon: 'insights', href: 'insights.html', pages: [
         ['Overview', 'insights.html#overview', 'insights'],
-        ['Classic analytics', 'analytics.html', 'monitoring', 'classic'],
         ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic']] }
 ];
 export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings', href: 'settings.html', pages: [
@@ -40,8 +39,7 @@ export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings
     ['Check duplicates', 'check-duplicates.html', 'content_copy', 'classic'],
     ['Check Firebase', 'check-firebase.html', 'cloud_done', 'classic'],
     ['OCR debug', 'debug-ocr-extraction.html', 'bug_report', 'classic'],
-    ['Import sales history', 'import-sales-history.html', 'upload_file', 'classic'],
-    ['Classic dashboard', 'classic-dashboard.html', 'dashboard', 'classic']] };
+    ['Import sales history', 'import-sales-history.html', 'upload_file', 'classic']] };
 
 function navItem(item, active, counts) {
     const current = item.id === active ? ' aria-current="page"' : '';
@@ -123,10 +121,8 @@ const SYNONYMS = {
     'stock.html#catalogue': 'products stock inventory produkte magazina catalogue prices cost',
     'stock.html#reorder': 'reorder order purchase buy porosit furnizim unsold dead stock',
     'stock.html#link': 'link map receipt unmatched unlinked lidh',
-    'store-sales.html': 'sell till pos cash register shitje arka',
     'albanian-invoice-scanner.html': 'pdf scan scanner fature e-invoice platforma',
     'online-orders.html': 'instagram porosi web',
-    'products.html': 'products stock inventory produkte magazina',
     'to_order.html': 'reorder order purchase buy porosit furnizim',
     'smart-inventory-scanner.html': 'delivery supplier receive furnizues',
     'smart-prediction.html': 'forecast plan annual procurement',
@@ -137,7 +133,6 @@ const SYNONYMS = {
     'money.html#owed': 'owed debts borxh debitor kredit payment pagesa',
     'expenses.html': 'shpenzime costs',
     'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers',
-    'analytics.html': 'reports raporte charts',
     'fix-stock.html': 'count inventory correction'
 };
 let index = NAV.flatMap(n => (n.pages || [[n.label, n.href, n.icon]]).map(([label, href, ic]) => ({ group: 'Go to', label, sub: n.pages ? n.label : '', href, ic, text: fold(`${label} ${n.label} ${SYNONYMS[href] || ''}`) })))

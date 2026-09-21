@@ -751,6 +751,53 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **30. REDESIGN PHASE 5 — RETIRING WHAT THE NEW WORKSPACES REPLACED** — ✅ **DONE & VERIFIED (September 21, 2026)**
+
+**Method.** A reference graph of every file in `www/` (which page loads or links to which) was built, plus every reference from outside it (main process, bridge, Garanci, functions). Starting from the pages that stay, anything no kept page can reach was retired. Nothing was deleted: **47 files (1.5 MB) moved to `E:\DanfosalApp_QUARANTINE_2026-09-21\resources\app\`**, with the original paths kept, so any file can be moved back. Git history keeps them too.
+
+**Retired (20 pages):**
+
+| Replaced by | Pages |
+|---|---|
+| Today | `classic-dashboard` |
+| Sell | `store-sales` |
+| Stock | `products` |
+| Customers | `customer-portal`, `loyalty-dashboard` |
+| Service | `service-tickets`, `warranty-cards-list` |
+| Money | `debts`, `debtors_list`, `debtor_detail_page`, `invoices_list` |
+| Insights | `analytics`, `advanced-analytics`, `executive-report`, `visual-analytics`, `business-landscape`, `smart-dashboard`, `ai-dashboard` |
+| Albanian invoice scanner | `invoice-scanner` |
+| Nothing (owner doesn't use it) | `notes` |
+
+The same move took:
+- 14 scripts that no page loads (AI agent/chatbot, anomaly detection, old fiscal/OCR scanners, one-off fix scripts)
+- the 5 Tailwind builds and 6 Tailwind configs that only those pages used
+- `export-pdf.js` and `analytics-engine.js`: the executive-report PDF path, whose `generate-executive-report` IPC nothing called any more. Its npm scripts and the `puppeteer` dependency were removed too; Insights' Export PDF replaces it.
+
+**Kept on purpose:**
+- Classic screens that haven't been rebuilt: invoice import, online orders, order list, receive delivery, yearly plan, forecasts (`business-intelligence`), expenses, settings and the admin tools.
+- **Creditors** (`creditors_list`, `creditor_detail`): Receive delivery records supplier invoices there, and Money doesn't cover "you owe" yet.
+- `warranty-card.html`, the print page that Garanci and Service open.
+
+**Links repointed** to the new screens:
+- Online Orders' own sidebar (5 links)
+- the "back" buttons in the invoice scanner, Receive delivery, the warranty card and Creditors
+- Settings' analytics button
+- the classic pages' shared search (`global-search.js`): its page list, plus its product, customer and debtor results
+- the new app's "classic" fallback tabs and Settings' "Classic dashboard" entry, removed
+- **Danfos Garanci**: after issuing a certificate it opened the hosted `customer-portal.html`; it now opens `customers.html` (Garanci rebuilt and reinstalled, and `package-check` passes)
+
+**Firebase Hosting redirects** (`firebase.json`): all 20 retired addresses 301-redirect to their replacement, so bookmarks and older Garanci installs land on the new screen instead of a 404.
+
+**Existing bugs found by the check and fixed:**
+- **Settings** started a second Firebase app with a stale config after the shared search had started one. That threw `duplicate-app` and stopped the page's script. The page never uses the database, so the setup was removed.
+- **Fix stock** read the database without signing in (`Missing or insufficient permissions`). It now uses the shared `app/firebase.js` and waits for sign-in.
+- Order list and Import sales history linked a `main.css` that has never existed.
+
+**Verified** on the installed build: every one of the 23 remaining pages was opened, with **no missing files and no uncaught errors**. All seven workspaces still render with live data.
+
+---
+
 #### **29. REDESIGN PHASE 4 — MONEY AND INSIGHTS** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
 
 **Money** (`money.html`, `app/money.js`) — "Owed to you" replaces the seven classic debt pages. It shows €5,648 still owed on 7 invoices from 4 customers; Alb Solution accounts for 77%.

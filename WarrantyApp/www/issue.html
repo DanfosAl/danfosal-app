@@ -444,7 +444,7 @@ function renderIssuedPanel(cardId, customerName, certItems, purchaseLabel) {
         id: cardId
     });
     const printUrl = `https://danfosal-app.web.app/warranty-card.html?${printParams.toString()}`;
-    const profileUrl = `https://danfosal-app.web.app/customer-portal.html?q=${encodeURIComponent(customerName)}`;
+    const profileUrl = `https://danfosal-app.web.app/customers.html?q=${encodeURIComponent(customerName)}#all`;
     const panel = document.getElementById('issued-panel');
     panel.style.display = 'block';
     panel.className = 'gn-banner-issued';

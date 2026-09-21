@@ -6,12 +6,7 @@ const path = require('path');
 
 const builds = [
   { config: 'default.config.js', input: 'input.css', out: 'tailwind-default.css' },
-  { config: 'index.config.js', input: 'index-input.css', out: 'tailwind-index.css' },
-  { config: 'customer-portal.config.js', input: 'input.css', out: 'tailwind-customer-portal.css' },
-  { config: 'products.config.js', input: 'input.css', out: 'tailwind-products.css' },
-  { config: 'analytics.config.js', input: 'input.css', out: 'tailwind-analytics.css' },
   { config: 'online-orders.config.js', input: 'input.css', out: 'tailwind-online-orders.css' },
-  { config: 'store-sales.config.js', input: 'input.css', out: 'tailwind-store-sales.css' },
 ];
 
 const cwd = __dirname;

@@ -289,7 +289,6 @@ bootWorkspace({
     active: 'service', title: 'Service', defaultTab: 'tickets',
     tabs: [
         { id: 'tickets', label: 'Repairs', icon: 'build', render: renderTickets, count: a => a.openTickets.length },
-        { id: 'warranties', label: 'Warranty cards', icon: 'verified', render: renderWarranties },
-        { label: 'Classic repairs', icon: 'build', href: 'service-tickets.html' }
+        { id: 'warranties', label: 'Warranty cards', icon: 'verified', render: renderWarranties }
     ]
 });

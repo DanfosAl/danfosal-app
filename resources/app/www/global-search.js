@@ -20,34 +20,25 @@ const db = getFirestore(app);
 
 // Static page index — every real, user-facing destination in the app.
 const PAGES = [
-    { name: 'Dashboard', file: 'index.html', icon: 'home' },
-    { name: 'Store Sales (POS)', file: 'store-sales.html', icon: 'point_of_sale' },
+    { name: 'Today', file: 'index.html', icon: 'home' },
+    { name: 'Sell: all sales', file: 'sell.html#sales', icon: 'receipt_long' },
+    { name: 'Sell: new sale (till)', file: 'sell.html#new', icon: 'point_of_sale' },
     { name: 'Online Orders', file: 'online-orders.html', icon: 'shopping_cart' },
-    { name: 'Products / Inventory', file: 'products.html', icon: 'inventory_2' },
-    { name: 'Customers', file: 'customer-portal.html', icon: 'people' },
-    { name: 'Warranty Cards', file: 'warranty-cards-list.html', icon: 'shield' },
-    { name: 'Service & Repair Tickets', file: 'service-tickets.html', icon: 'build' },
+    { name: 'Stock: catalogue', file: 'stock.html#catalogue', icon: 'inventory_2' },
+    { name: 'Stock: reorder', file: 'stock.html#reorder', icon: 'local_shipping' },
+    { name: 'Customers', file: 'customers.html', icon: 'people' },
+    { name: 'Service: repairs', file: 'service.html#tickets', icon: 'build' },
+    { name: 'Service: warranty cards', file: 'service.html#warranties', icon: 'shield' },
+    { name: 'Money: owed to you', file: 'money.html#owed', icon: 'balance' },
+    { name: 'Insights', file: 'insights.html', icon: 'insights' },
     { name: 'To Order / Procurement', file: 'to_order.html', icon: 'playlist_add_check' },
     { name: 'Annual Prediction', file: 'smart-prediction.html', icon: 'insights' },
-    { name: 'Notes & Tasks', file: 'notes.html', icon: 'edit_note' },
     { name: 'Settings', file: 'settings.html', icon: 'settings' },
-    { name: 'Analytics (Map)', file: 'analytics.html', icon: 'map' },
-    { name: 'Advanced Analytics', file: 'advanced-analytics.html', icon: 'ssid_chart' },
-    { name: 'Business Intelligence', file: 'business-intelligence.html', icon: 'psychology' },
-    { name: 'Business Landscape', file: 'business-landscape.html', icon: 'map' },
-    { name: 'Visual Analytics', file: 'visual-analytics.html', icon: 'visibility' },
-    { name: 'Smart Dashboard', file: 'smart-dashboard.html', icon: 'bar_chart' },
-    { name: 'AI Dashboard', file: 'ai-dashboard.html', icon: 'smart_toy' },
-    { name: 'Customer Loyalty', file: 'loyalty-dashboard.html', icon: 'loyalty' },
+    { name: 'Forecasts', file: 'business-intelligence.html', icon: 'psychology' },
     { name: 'Expenses & Profit', file: 'expenses.html', icon: 'payments' },
-    { name: 'Finance (Debts Overview)', file: 'debts.html', icon: 'balance' },
-    { name: 'Debtors', file: 'debtors_list.html', icon: 'balance' },
     { name: 'Creditors', file: 'creditors_list.html', icon: 'balance' },
-    { name: 'Invoices', file: 'invoices_list.html', icon: 'description' },
     { name: 'Import Sales History', file: 'import-sales-history.html', icon: 'upload_file' },
-    { name: 'Executive Report', file: 'executive-report.html', icon: 'bar_chart' },
     { name: 'Albanian Invoice Scanner', file: 'albanian-invoice-scanner.html', icon: 'document_scanner' },
-    { name: 'Invoice Scanner', file: 'invoice-scanner.html', icon: 'document_scanner' },
     { name: 'Smart Inventory Scanner', file: 'smart-inventory-scanner.html', icon: 'document_scanner' },
 ];
 
@@ -97,7 +88,7 @@ function search(term) {
         if (name.includes(t) || code.includes(t)) {
             results.push({
                 type: 'product', label: p.name || 'Unnamed product', sub: `Product${p.code ? ' · ' + p.code : ''}`, icon: 'inventory_2',
-                action: () => go(`products.html?q=${encodeURIComponent(p.name || '')}`)
+                action: () => go(`stock.html?q=${encodeURIComponent(p.name || '')}#catalogue`)
             });
         }
     });
@@ -106,7 +97,7 @@ function search(term) {
         if ((c.name || '').toLowerCase().includes(t)) {
             results.push({
                 type: 'customer', label: c.name, sub: 'Customer', icon: 'person',
-                action: () => go(`customer-portal.html?q=${encodeURIComponent(c.name)}`)
+                action: () => go(`customers.html?q=${encodeURIComponent(c.name)}#all`)
             });
         }
     });
@@ -115,7 +106,7 @@ function search(term) {
         if ((d.customerName || d.name || '').toLowerCase().includes(t)) {
             results.push({
                 type: 'debtor', label: d.customerName || d.name, sub: 'Debtor', icon: 'balance',
-                action: () => go(`debtor_detail_page.html?id=${d.id}`)
+                action: () => go('money.html#owed')
             });
         }
     });

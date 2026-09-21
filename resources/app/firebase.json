@@ -57,6 +57,108 @@
           }
         ]
       }
+    ],
+    "redirects": [
+      {
+        "source": "/classic-dashboard.html",
+        "destination": "/index.html",
+        "type": 301
+      },
+      {
+        "source": "/notes.html",
+        "destination": "/index.html",
+        "type": 301
+      },
+      {
+        "source": "/store-sales.html",
+        "destination": "/sell.html",
+        "type": 301
+      },
+      {
+        "source": "/products.html",
+        "destination": "/stock.html",
+        "type": 301
+      },
+      {
+        "source": "/customer-portal.html",
+        "destination": "/customers.html",
+        "type": 301
+      },
+      {
+        "source": "/loyalty-dashboard.html",
+        "destination": "/customers.html",
+        "type": 301
+      },
+      {
+        "source": "/service-tickets.html",
+        "destination": "/service.html",
+        "type": 301
+      },
+      {
+        "source": "/warranty-cards-list.html",
+        "destination": "/service.html#warranties",
+        "type": 301
+      },
+      {
+        "source": "/debts.html",
+        "destination": "/money.html",
+        "type": 301
+      },
+      {
+        "source": "/debtors_list.html",
+        "destination": "/money.html",
+        "type": 301
+      },
+      {
+        "source": "/debtor_detail_page.html",
+        "destination": "/money.html",
+        "type": 301
+      },
+      {
+        "source": "/invoices_list.html",
+        "destination": "/money.html",
+        "type": 301
+      },
+      {
+        "source": "/analytics.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/advanced-analytics.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/executive-report.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/visual-analytics.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/business-landscape.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/smart-dashboard.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/ai-dashboard.html",
+        "destination": "/insights.html",
+        "type": 301
+      },
+      {
+        "source": "/invoice-scanner.html",
+        "destination": "/albanian-invoice-scanner.html",
+        "type": 301
+      }
     ]
   }
 }

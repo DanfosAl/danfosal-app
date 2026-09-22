@@ -245,6 +245,7 @@ a { color: inherit; }
 .field-search:focus-within { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139, 92, 246, .16); }
 .field-search input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--ink); font: inherit; min-width: 0; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters[hidden] { display: none; }   /* the class's display:flex would otherwise beat the hidden attribute */
 .filter {
   border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px;
   padding: 5px 11px; font-size: 12.5px; cursor: pointer; white-space: nowrap;

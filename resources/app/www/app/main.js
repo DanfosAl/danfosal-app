@@ -1,6 +1,7 @@
 // Entry point of the new app shell (index.html).
 import { mountShell, setPipelineStatus, setSearchData, setNavCounts, navCountsFor } from './shell.js';
 import { loadAll, analyze, saleTime } from './data.js';
+import { planAttention } from './planmodel.js';
 import { renderToday, renderLoading, renderError } from './today.js';
 import { db } from './firebase.js';
 
@@ -10,6 +11,7 @@ let loading = false;
 
 function paint() {
     const a = analyze(model);
+    a.plan = planAttention(model, a.now);   // products off this year's purchase plan
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
     setPipelineStatus(a.lastEasypos, a.now);

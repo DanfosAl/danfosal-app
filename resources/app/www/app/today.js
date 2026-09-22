@@ -54,6 +54,14 @@ function needsYou(a) {
             why: `Oldest is ${plural(oldest.ageDays, 'day', 'days')} old (${status}${oldest.ticket.promisedBy ? `, promised ${oldest.ticket.promisedBy}` : ', no promised date'}).`,
             action: ['Open', 'service.html#tickets'] });
     }
+    if (a.plan && a.plan.attention.length) {
+        const att = a.plan.attention, faster = att.filter(r => r.status === 'faster'), slower = att.filter(r => r.status === 'slower'), short = att.filter(r => ['out', 'low'].includes(r.status));
+        const top = att.slice().sort((x, y) => Math.abs(y.diff * y.unitCost) - Math.abs(x.diff * x.unitCost))[0];
+        items.push({ sev: short.length ? 'crit' : 'warn', title: `${plural(att.length, 'product is', 'products are')} off your ${a.plan.plan.year} purchase plan`,
+            why: [short.length ? `${short.length} short of stock` : '', faster.length ? `${faster.length} selling faster (order more)` : '', slower.length ? `${slower.length} selling slower (order less)` : ''].filter(Boolean).join(', ')
+                + (top ? `. Biggest: ${top.name}, ${top.pace === null ? 'no sales yet' : Math.round(top.pace * 100) + '% of plan'}.` : '.'),
+            action: ['Review plan', 'stock.html#plan'] });
+    }
     if (a.openOrders.length) {
         const oldest = a.openOrders[0];
         const who = oldest.order.clientName || oldest.order.customerName || 'unnamed';
@@ -61,7 +69,9 @@ function needsYou(a) {
             why: `Oldest: ${who}, ${plural(oldest.ageDays, 'day', 'days')} waiting.`,
             action: ['Online orders', 'sell.html#online'] });
     }
-    return items;
+    // Most urgent first: an item added late (like the purchase plan) mustn't sink below FYIs.
+    const rank = { crit: 0, warn: 1, info: 2 };
+    return items.sort((x, y) => rank[x.sev] - rank[y.sev]);
 }
 
 function renderNeeds(items) {

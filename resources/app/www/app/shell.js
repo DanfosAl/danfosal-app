@@ -19,7 +19,7 @@ export const NAV = [
         ['Link receipt items', 'stock.html#link', 'link'],
         ['Order list', 'stock.html#orders', 'list_alt'],
         ['Receive delivery', 'stock.html#receive', 'move_to_inbox'],
-        ['Yearly plan', 'smart-prediction.html', 'event_note', 'classic']] },
+        ['Yearly plan', 'stock.html#plan', 'event_note']] },
     { id: 'customers', label: 'Customers', icon: 'group', href: 'customers.html', pages: [
         ['Customers', 'customers.html#all', 'group'],
         ['Review names', 'customers.html#review', 'merge']] },
@@ -126,7 +126,7 @@ const SYNONYMS = {
     'sell.html#online': 'instagram porosi web online orders chatbot delivery',
     'stock.html#orders': 'order list porosi furnizim purchase to order',
     'stock.html#receive': 'delivery supplier receive furnizues invoice fature karcher malli',
-    'smart-prediction.html': 'forecast plan annual procurement',
+    'stock.html#plan': 'forecast plan annual yearly procurement parashikim plani vjetor',
     'customers.html#all': 'clients klient kliente vip loyalty segments regulars',
     'customers.html#review': 'duplicates merge lookalike spelling',
     'service.html#tickets': 'repair servis riparim ticket',

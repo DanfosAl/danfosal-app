@@ -187,6 +187,8 @@ export async function loadAll() {
         all('serviceTickets'), all('warrantyCards'), getDocs(collection(db, 'debtors')), all('stockCorrections'),
         all('expenses'), getDocs(collection(db, 'creditors'))
     ]);
+    // Yearly purchase plans and the order list: small collections, needed for plan tracking.
+    const [predictions, orderLines] = await Promise.all([all('predictions'), all('toOrder')]);
     // What you owe suppliers: creditors/{id} with invoices/{id} and payments/{id} beneath it.
     const creditors = await Promise.all(creditorDocs.docs.map(async c => {
         const [inv, pay] = await Promise.all([getDocs(collection(db, 'creditors', c.id, 'invoices')), getDocs(collection(db, 'creditors', c.id, 'payments'))]);
@@ -207,7 +209,7 @@ export async function loadAll() {
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, receiptServices, notSameCustomers, loadedAt: Date.now() };
 }
 
 // ------------------------------------------------------------------ customers

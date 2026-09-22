@@ -6,6 +6,7 @@
 import { bootWorkspace } from './workspace.js';
 import { renderOrderList } from './orderlist.js';
 import { renderReceive } from './receive.js';
+import { renderPlan } from './plan.js';
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -371,6 +372,7 @@ bootWorkspace({
         { id: 'reorder', label: 'Reorder', icon: 'local_shipping', render: ctx => { renderReorder(ctx); }, count: a => a.reorder.length },
         { id: 'link', label: 'Link receipt items', icon: 'link', render: renderLink, count: (a, m) => unlinkedReceiptLines(m).length },
         { id: 'orders', label: 'Order list', icon: 'list_alt', render: ctx => { renderOrderList(ctx); } },
-        { id: 'receive', label: 'Receive delivery', icon: 'move_to_inbox', render: renderReceive }
+        { id: 'receive', label: 'Receive delivery', icon: 'move_to_inbox', render: renderReceive },
+        { id: 'plan', label: 'Yearly plan', icon: 'event_note', render: renderPlan }
     ]
 });

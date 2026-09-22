@@ -59,7 +59,8 @@ function prepare(m) {
     });
     orders.forEach(o => { const x = byMk.get(monthKey(o.t)); if (x) x.online += o.net; });
     months.forEach(x => {
-        x.coverage = x.src.Import ? 'import' : (x.src.EasyPOS || x.src.PDF) ? 'live' : 'gap';
+        // Most of the month's sales decide: Dec 2025 has 1 imported sale among 24 till sales.
+        x.coverage = (x.src.EasyPOS || x.src.PDF) ? 'live' : (x.src.Import || 0) * 2 >= x.count ? 'import' : 'gap';
         x.total = x.costedNet + x.uncosted + x.online;
         x.profit = x.costedNet - x.cost;
     });

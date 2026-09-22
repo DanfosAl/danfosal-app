@@ -751,6 +751,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **32. COST PRICES CORRECTED FROM THE KÄRCHER INVOICES** — ✅ **APPLIED & VERIFIED (September 22, 2026)**
+
+**What the owner confirmed:**
+- 2026 sales volume really is about a third of 2025, so plans should start from 2026's own months.
+- The stored costs were wrong.
+
+**Source.** All 70 Kärcher invoices (`C:\Users\User\Downloads\7573*.pdf`, Dec 2024–May 2026) were read with `parseKarcher()`, giving 180 priced lines. Each product took the latest invoice price for its material code, net and after any line discount; the 3% prepayment discount was *not* applied. Where a later delivery (booked after that invoice) was within 10% of the invoice price, that newer price was kept instead.
+
+**Products** (`dataFixes/costs-from-invoices-2026-09-22` holds every before/after value):
+- 81 of the 105 products that match an invoice changed: 7 missing costs filled and 74 corrected.
+- Most stored costs were about 0.85 of the invoice price. For example:
+  - BD 50/50: €1,328.30 → €1,563.59
+  - SGV 8/5: €1,840.42 → €2,168.00
+  - HD 9/25 G Classic: none → €993.97
+- Three special cases:
+  - Folding column: €21.90 → €7.30 (the old scanner had saved the line total).
+  - Pad per 35/15 and O-Ring SC: invoiced as sets of 5 and sold singly, so the cost is ÷5 (€7.97, €0.60).
+- `baseCost` and `cost` (×1.2) are set, with `costSource` and `costCheckedAt`. The re-read matched all 81 exactly.
+
+**Past sales** (`dataFixes/sale-costs-from-invoices-2026-09-22`):
+- 338 lines on 324 sales of those products got the corrected `netCost`/`cost`. Each line keeps `costBefore`/`netCostBefore`, so it can be reverted.
+- **Last 12 months:** gross profit went from €45,861 to €43,545, and margin from 42% to 40%. The 30-day margin is now 48%.
+- **Stock value at cost:** €118,481.
+
+---
+
 #### **31. EVERY REMAINING CLASSIC PAGE REBUILT OR RETIRED — AND THE BUGS FOUND DOING IT** — ✅ **DONE & VERIFIED (September 22, 2026)**
 
 The owner asked for every page still on the old design to be rebuilt the same way. The owner's decisions:

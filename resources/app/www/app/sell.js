@@ -1,10 +1,13 @@
-// Sell workspace: All sales and New sale (the till).
+// Sell workspace: All sales, New sale (the till), Online orders and Import invoice.
 //
 // The till writes the same record as the classic Store Sales screen - items {name, price, cost,
 // quantity, productId, image}, total, paymentMethod, notes, timestamp, type 'store', clientName -
 // and decrements stock with increment(-qty). The difference: the sale and its stock changes go in
 // one batch, so a sale can never be saved without its stock movement (or the other way round).
 import { bootWorkspace } from './workspace.js';
+import { warrantyDialog } from './warranty.js';
+import { renderOnline, orderDetail } from './online.js';
+import { renderImport } from './importpdf.js';
 import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDoc } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -117,13 +120,7 @@ function renderSales(ctx) {
 function saleDrawer(ctx, r) {
     if (!r) return;
     if (r.kind === 'order') {
-        openDrawer({
-            title: esc(`Online order · ${r.who || '?'}`), sub: esc(`${dateTime(r.t)} · ${r.status || ''}`),
-            body: `<div class="kv"><div><small>Total</small><b>€${money2(r.total)}</b></div><div><small>Phone</small><b>${esc(r.rec.telephone || r.rec.phoneNumber || '–')}</b></div><div><small>Status</small><b>${esc(r.status || '–')}</b></div></div>
-                <section><h3>Items</h3><div class="lines">${r.items.map(i => `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(Number(i.quantity) || 1)} × €${money2(i.price)}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`).join('')}</div></section>
-                <section><h3>Delivery</h3><p class="empty">${esc(r.rec.address || r.rec.deliveryAddress || 'No address')}</p></section>`,
-            foot: `<a class="btn" href="online-orders.html">${icon('open_in_new')}Open in Online orders</a>`
-        });
+        orderDetail(ctx, r.rec);
         return;
     }
     const s = r.rec;
@@ -160,36 +157,6 @@ function saleDrawer(ctx, r) {
         try { await batch.commit(); toast(`${r.doc} deleted${restock.length ? ', stock restored' : ''}`); close(); await ctx.reload(); }
         catch (e) { toast(`Couldn't delete: ${e.message}`, { bad: true }); }
     });
-}
-
-// ================================================================== warranty card (same record as the classic till)
-
-async function warrantyDialog(ctx, sale, { customer = '' } = {}) {
-    const items = sale.items || [];
-    const ok = await openModal({
-        title: 'Warranty card', confirmLabel: 'Save and print',
-        body: `<div style="display:grid;gap:8px">${items.map((it, i) => `<label class="check"><input type="checkbox" data-wi="${i}" checked><span><b style="font-weight:500">${esc(it.name)}</b> × ${int(Number(it.quantity) || 1)}</span></label>`).join('')}</div>
-            <label class="fld">Customer<input id="w-customer" value="${esc(customer || (sale.clientName && !WALKIN.test(sale.clientName) ? sale.clientName : ''))}"></label>
-            <label class="fld">Serial numbers<input id="w-serial" placeholder="One per machine, separated by commas" value="${esc(items.map(i => i.serialNumber).filter(Boolean).join(', '))}"><span class="hint">In the same order as the ticked items.</span></label>`,
-        validate: m => !m.querySelectorAll('[data-wi]:checked').length ? 'Tick at least one item.' : !m.querySelector('#w-customer').value.trim() ? 'Enter the customer name.' : !m.querySelector('#w-serial').value.trim() ? 'Enter the serial number.' : ''
-    });
-    if (!ok) return;
-    const picked = [...ok.querySelectorAll('[data-wi]:checked')].map(c => Number(c.dataset.wi));
-    const customerName = ok.querySelector('#w-customer').value.trim();
-    const serialText = ok.querySelector('#w-serial').value.trim();
-    const serials = serialText.split(',').map(s => s.trim()).filter(Boolean);
-    const cardItems = picked.map((idx, n) => ({ name: items[idx].name, serialNumber: serials[n] || (serials.length === 1 ? serials[0] : '') }));
-    try {
-        await addDoc(collection(db, 'warrantyCards'), { saleId: sale._id || null, saleType: 'storeSale', customerName, items: cardItems, location: 'Danfos', createdAt: Timestamp.now() });
-        if (sale._id) {
-            const updated = items.map((it, i) => { const pos = picked.indexOf(i); return pos === -1 ? it : { ...it, serialNumber: cardItems[pos].serialNumber }; });
-            await updateDoc(doc(db, 'storeSales', sale._id), { items: updated });
-        }
-        toast('Warranty card saved');
-    } catch (e) { toast(`Couldn't save the warranty card: ${e.message}`, { bad: true }); return; }
-    const dateStr = new Date(saleTime(sale) || Date.now()).toLocaleDateString('en-GB');
-    window.open(`warranty-card.html?product=${encodeURIComponent(cardItems.map(c => c.name).join(', '))}&serial=${encodeURIComponent(serialText)}&buyer=${encodeURIComponent(customerName)}&date=${dateStr}&location=Danfos`, '_blank');
-    await ctx.reload();
 }
 
 // ================================================================== new sale (till)
@@ -348,7 +315,7 @@ bootWorkspace({
     tabs: [
         { id: 'sales', label: 'All sales', icon: 'receipt_long', render: renderSales },
         { id: 'new', label: 'New sale', icon: 'point_of_sale', render: renderTill },
-        { label: 'Import invoice (PDF)', icon: 'document_scanner', href: 'albanian-invoice-scanner.html' },
-        { label: 'Online orders', icon: 'shopping_bag', href: 'online-orders.html' }
+        { id: 'online', label: 'Online orders', icon: 'shopping_bag', render: renderOnline, count: a => a.openOrders.length },
+        { id: 'import', label: 'Import invoice', icon: 'document_scanner', render: renderImport }
     ]
 });

@@ -11,8 +11,8 @@ export const NAV = [
     { id: 'sell', label: 'Sell', icon: 'point_of_sale', href: 'sell.html', pages: [
         ['All sales', 'sell.html#sales', 'receipt_long'],
         ['New sale', 'sell.html#new', 'point_of_sale'],
-        ['Import invoice (PDF)', 'albanian-invoice-scanner.html', 'document_scanner', 'classic'],
-        ['Online orders', 'online-orders.html', 'shopping_bag', 'classic']] },
+        ['Online orders', 'sell.html#online', 'shopping_bag'],
+        ['Import invoice (PDF)', 'sell.html#import', 'document_scanner']] },
     { id: 'stock', label: 'Stock', icon: 'inventory_2', href: 'stock.html', pages: [
         ['Catalogue', 'stock.html#catalogue', 'inventory_2'],
         ['Reorder', 'stock.html#reorder', 'local_shipping'],
@@ -122,8 +122,8 @@ const SYNONYMS = {
     'stock.html#catalogue': 'products stock inventory produkte magazina catalogue prices cost',
     'stock.html#reorder': 'reorder order purchase buy porosit furnizim unsold dead stock',
     'stock.html#link': 'link map receipt unmatched unlinked lidh',
-    'albanian-invoice-scanner.html': 'pdf scan scanner fature e-invoice platforma',
-    'online-orders.html': 'instagram porosi web',
+    'sell.html#import': 'pdf scan scanner fature e-invoice platforma import invoice',
+    'sell.html#online': 'instagram porosi web online orders chatbot delivery',
     'stock.html#orders': 'order list porosi furnizim purchase to order',
     'stock.html#receive': 'delivery supplier receive furnizues invoice fature karcher malli',
     'smart-prediction.html': 'forecast plan annual procurement',

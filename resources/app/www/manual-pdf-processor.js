@@ -1022,7 +1022,15 @@ class ManualPDFProcessor {
                 const quantity = item.quantity || 0;
                 
                 if (!itemName || quantity <= 0) continue;
-                
+
+                // The owner said "don't take this from stock" (a service, or not a catalogue item).
+                // Before this check the loose name match below still deducted stock from whatever
+                // product scored highest.
+                if (item.noStock) {
+                    console.log(`⏭️ Not from stock (owner's choice): ${cleanItemName}`);
+                    continue;
+                }
+
                 // PRIORITY 1: Use productId if available (from autocomplete selection)
                 if (item.productId) {
                     try {
@@ -1328,6 +1336,10 @@ class ManualPDFProcessor {
 }
 
 // Export for use in other modules
+// A top-level class isn't a window property; the Sell > Import invoice screen loads this file
+// on demand and looks the class up there.
+if (typeof window !== 'undefined') window.ManualPDFProcessor = ManualPDFProcessor;
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ManualPDFProcessor;
 }

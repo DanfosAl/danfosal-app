@@ -59,7 +59,7 @@ function needsYou(a) {
         const who = oldest.order.clientName || oldest.order.customerName || 'unnamed';
         items.push({ sev: 'info', title: `${plural(a.openOrders.length, 'online order', 'online orders')} not marked paid`,
             why: `Oldest: ${who}, ${plural(oldest.ageDays, 'day', 'days')} waiting.`,
-            action: ['Online orders', 'online-orders.html'] });
+            action: ['Online orders', 'sell.html#online'] });
     }
     return items;
 }

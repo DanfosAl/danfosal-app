@@ -12,7 +12,7 @@ export const SALES_WINDOW_DAYS = 90;     // "how fast does it sell" looks back t
 export const MIN_UNITS_FOR_TREND = 2;    // one sale in 90 days is not a trend
 export const DAY = 86400000;
 const CLOSED_TICKET = new Set(['completed', 'cancelled', 'rejected', 'delivered', 'closed']);
-const CLOSED_ORDER = new Set(['Paid', 'Returned']);
+const CLOSED_ORDER = new Set(['Paid', 'Returned', 'Cancelled']);
 
 // ------------------------------------------------------------------ time and names
 

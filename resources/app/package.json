@@ -5,7 +5,6 @@
     "main": "main.js",
     "scripts": {
         "start": "electron .",
-        "build:css": "node tailwind-configs/build-all.js",
         "bridge": "node easypos-ocr-bridge.js",
         "test-smart-brain": "node scripts/data/test-smart-brain.js",
         "migrate-customers": "node scripts/data/migrate-customers.js",
@@ -25,13 +24,9 @@
     "license": "ISC",
     "devDependencies": {
         "@capacitor/cli": "^6.2.1",
-        "@tailwindcss/container-queries": "^0.1.1",
-        "@tailwindcss/forms": "^0.5.11",
-        "@tailwindcss/typography": "^0.5.20",
         "electron": "^37.2.5",
         "electron-builder": "^24.13.3",
-        "electron-packager": "^17.1.2",
-        "tailwindcss": "^3.4.19"
+        "electron-packager": "^17.1.2"
     },
     "dependencies": {
         "@capacitor/android": "^6.1.2",
@@ -101,12 +96,9 @@
             "preload.js",
             "package.json",
             "node_modules/**/*",
-            "!node_modules/tailwindcss/**",
-            "!node_modules/@tailwindcss/**",
             "!node_modules/@capacitor/android/**",
             "!node_modules/@capacitor/*/android/**",
-            "!node_modules/@capacitor/*/ios/**",
-            "!tailwind-configs/**"
+            "!node_modules/@capacitor/*/ios/**"
         ]
     }
 }

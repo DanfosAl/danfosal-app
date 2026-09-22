@@ -751,6 +751,80 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **31. EVERY REMAINING CLASSIC PAGE REBUILT OR RETIRED — AND THE BUGS FOUND DOING IT** — ✅ **DONE & VERIFIED (September 22, 2026)**
+
+The owner asked for every page still on the old design to be rebuilt the same way. The owner's decisions:
+- **Expenses:** rebuild in Money.
+- **"You owe" (creditors):** rebuild in Money.
+- **Forecasts / Yearly plan:** *"I use them at the end of the year… make it dynamic: if I sell more than planned, the forecast should notify me to increase or decrease the order."*
+
+The app now has **9 pages**, down from 43 before Phase 5: Today, Sell, Stock, Customers, Service, Money, Insights, Settings, plus the warranty print page. Five batches, each tested on live data with ZZZ TEST records (0 left afterwards) and committed separately:
+
+**1. Money** (`4dc0d9a`)
+- **Expenses:** month view by category, and net profit after expenses, shown only for months that have expenses recorded (otherwise such a month looks like pure profit). One click copies last month's recurring costs. Finding: December 2025, the only month with expenses (€3,460), came out at −€857 net.
+- **You owe:** supplier invoices with due dates and overdue flags, payments in a transaction, and undo. Classic shapes kept. `addSupplierInvoice()` lives in `payables.js`, because importing a workspace module boots it.
+- **Next 30 days:** replaces Forecasts' cash-flow chart, which invented payment dates. It uses only sales at the 90-day pace, supplier invoices with due dates, the latest month's expenses and planned deliveries. Customer debts are listed without dates rather than guessed.
+- **Display:** negative amounts now read "−€857".
+
+**2. Stock** (`6c1eab4`)
+- **Order list:**
+  - Per-supplier view, with "Karcher" and "Kärcher" grouped together.
+  - Receiving a line raises stock in the same batch.
+  - Lines can be edited and removed.
+  - "Copy order" produces text to paste into an email.
+  - Lines waiting 60+ days are flagged: all **24 lines (€7,550) have waited since Nov–Dec 2025**.
+- **Receive delivery:**
+  - **Kärcher invoices are read exactly from the PDF text layer.** All **70 Kärcher invoices in the owner's Downloads (Dec 2024–May 2026) parse to the cent**: 177 lines, including ZSA/M units and €0 warranty replacements.
+  - Other suppliers fall back to the classic reader, with OCR.
+  - Lines match by Kärcher material code; each shows the cost change and the stock after.
+  - One batch books stock, cost, the purchase record and the order-list lines. The 3% prepayment discount is optional. "Pay later" goes to You owe.
+  - **Two duplicate guards:** the classic OCR booked invoice 7573108773 three times on one product, and stored a misread number ("11265/U1/0003", from the header's "11267/U1 / 0003") with the line total as unit cost (Folding column €21.90 instead of €7.30).
+  - The invoice audit found 7 products with no cost whose cost the invoices do show, and **74 products stored ~15% below the invoiced cost** (e.g. BD 50/50 €1,328 vs €1,564). Left for the owner to decide (rebate or old price list).
+
+**3. Sell** (`ddd50d1`)
+- **Online orders:**
+  - **Fixed a stock bug:** creating an order never lowered stock, but cancelling one raised it. New orders now take stock in the same batch (`stockDeducted`), and only those give it back. Older orders get "Take from stock".
+  - Verified with a ZZZ product: stock went 5→3→5→3→2→5 through create, cancel, reopen, edit and delete.
+  - Cancelled orders no longer count as open on Today.
+  - No online order has been recorded for 63 days.
+- **Import invoice:**
+  - The new screen wraps `ManualPDFProcessor`.
+  - **Fixed:** "Manual item (no stock deduction)" still deducted stock through a loose name fallback. Lines marked `noStock` are now skipped; verified with BD 50/50 staying at 14.
+  - Refuses an invoice number that is already a sale, and recognises the customer by NIPT.
+  - `window.ManualPDFProcessor` is now exported, so the class can be loaded on demand.
+- **Warranty dialog:** moved to `warranty.js`; it now works for online orders too.
+
+**4. Yearly plan** (`f1d9882`, `planmodel.js` + `plan.js`)
+- **Why the classic logic was unreliable:**
+  - It summed last year and this year per month (double-counting).
+  - It matched sales by exact name only and costed at VAT-inclusive prices.
+  - It ignored the order list and the restock time.
+  - It compared planned *purchases* with actual *sales*.
+- **The new plan** (`predictions/{year}-plan`, v2) stores planned sales per product and month: the same month a year earlier (two years back if that month was till-only), plus growth. It also stores the deliveries needed, netted against stock, the order list and a half-month buffer.
+- **Tracking through the year:** planned vs actual to date, the pace, and what the rest of the year needs at that pace. Products that are selling faster or slower, or running short, are flagged in the plan **and on Today** ("28 products are off your 2026 purchase plan").
+- **Finding: 2026 unit sales are 34% of the same months in 2025.** Either sales fell or the imported 2025 history counts differently. This needs the owner's answer.
+- **Month coverage** is now decided by majority, so one imported sale no longer makes Dec 2025 "imported". Today's list is sorted by urgency. The test plan was deleted; the owner makes the real one.
+
+**5. Settings, tools, retirement**
+- **Settings, rebuilt:**
+  - **General:** daily goal, sale pop-ups and sound, update check, and the services / not-same lists.
+  - **Data health:** replaces Check Firebase, Check duplicates and Fix stock.
+  - **Tools:** "read a file's text" (replaces OCR debug) and a JSON backup.
+  - Dropped settings that did nothing on the desktop: themes, reading mode, pull-to-refresh, long press, WhatsApp auto-send.
+- **Data health findings:**
+  - **5 receipt numbers are shared by different real sales.** The bridge's OCR misread the numbers (different days, amounts and items). The check first told the owner to delete the "copy", which would have lost a sale; it now separates real duplicates (same number, same amount, within a day: none) from misreads (no action).
+  - 15 online orders *may* be entered twice (worded as a check, not a deletion).
+  - The catalogue has **no duplicate products**, contrary to an earlier note in this log (some sale lines carry the exact name without a product link).
+- **Quarantined** to `E:\DanfosalApp_QUARANTINE_2026-09-22` (31 files, 0.8 MB, including the old `settings.html`):
+  - pages: import invoice, online orders, order list, receive delivery, yearly plan, Forecasts, expenses, the two creditor pages, fix stock, the two check pages, OCR debug, import sales history
+  - `global-search.js` and the scripts only they loaded
+  - the whole Tailwind setup (configs, compiled CSS, npm packages)
+- **Hosting redirects** now cover 34 old addresses. Installer: 520 → 470 MB.
+
+**Verified:** the installed build was opened on **all 24 tabs**, with no missing files and no uncaught errors.
+
+---
+
 #### **30. REDESIGN PHASE 5 — RETIRING WHAT THE NEW WORKSPACES REPLACED** — ✅ **DONE & VERIFIED (September 21, 2026)**
 
 **Method.** A reference graph of every file in `www/` (which page loads or links to which) was built, plus every reference from outside it (main process, bridge, Garanci, functions). Starting from the pages that stay, anything no kept page can reach was retired. Nothing was deleted: **47 files (1.5 MB) moved to `E:\DanfosalApp_QUARANTINE_2026-09-21\resources\app\`**, with the original paths kept, so any file can be moved back. Git history keeps them too.

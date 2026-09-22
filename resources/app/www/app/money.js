@@ -480,6 +480,59 @@ async function supplierInvoiceDialog(ctx, c) {
     } catch (x) { toast(`Couldn't save: ${x.message}`, { bad: true }); }
 }
 
+// ================================================================== next 30 days
+
+// What the next 30 days probably look like, from things with real dates or a stated basis.
+// (Replaces the classic Forecasts cash-flow chart, which gave every debt without a due date an
+// invented payment date "in 7 days".)
+function renderOutlook(ctx) {
+    const m = ctx.model, now = ctx.a.now, end = now + 30 * DAY;
+    // In: sales at the pace of the last 90 days (what customers actually pay, VAT included).
+    const since = now - 90 * DAY;
+    const sold90 = m.sales.filter(s => !s.isReturn && saleTime(s) >= since).reduce((a, s) => a + (Number(s.total) || 0), 0)
+        + m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && toMs(o.timestamp || o.orderDate) >= since).reduce((a, o) => a + (Number(o.total) || Number(o.price) || 0), 0);
+    const salesIn = sold90 / 3;
+    const owedToYou = m.debts.reduce((a, d) => a + Math.max(0, balanceOf(d)), 0);
+    // Out: supplier invoices by due date.
+    const sup = m.creditors.flatMap(c => c.invoices.filter(i => cBal(i) > 0.005).map(i => ({ c, i, due: dueOf(i) })));
+    const dueSoon = sup.filter(x => !isNaN(x.due) && x.due < end), noDue = sup.filter(x => isNaN(x.due));
+    // Out: running costs, estimated from the latest month that has expenses recorded.
+    const months = [...new Set(m.expenses.map(e => monthStartOf(expTime(e))).filter(t => !isNaN(t)))].sort((a, b) => b - a);
+    const lastMonth = months[0];
+    const running = lastMonth ? m.expenses.filter(e => monthStartOf(expTime(e)) === lastMonth).reduce((a, e) => a + (Number(e.amount) || 0), 0) : 0;
+    // Out: deliveries the yearly plan puts in this month and next (net cost; VAT on imports is extra).
+    const plan = (m.predictions || []).find(p => p.version === 2 && Number(p.year) === new Date(now).getFullYear());
+    const mo = new Date(now).getMonth();
+    const planned = plan ? plan.products.reduce((a, r) => a + ((r.orders[mo] || 0) + (mo < 11 ? r.orders[mo + 1] || 0 : 0)) * (Number(r.unitCost) || 0), 0) / 2 : 0;
+    const outKnown = dueSoon.reduce((a, x) => a + cBal(x.i), 0);
+    const net = salesIn - outKnown - running - planned;
+
+    ctx.setSub(`Until ${day(end)}: a rough guide, built only from dated invoices and stated estimates`);
+    ctx.setActions('');
+    const row = (label, how, value, sign, href) => `<div class="line"><div><b>${href ? `<a href="${href}" style="text-decoration:none">${esc(label)}</a>` : esc(label)}</b><span>${how}</span></div><span class="n" style="color:${sign > 0 ? 'var(--ok)' : sign < 0 ? 'var(--bad)' : 'var(--muted)'}">${sign > 0 ? '+' : sign < 0 ? '−' : ''}${eur(Math.abs(value))}</span></div>`;
+    ctx.body.innerHTML = `
+        <div class="cols">
+            <section class="panel">
+                <h2 class="panel-title">Next 30 days<span style="color:${net >= 0 ? 'var(--ok)' : 'var(--bad)'}">${net >= 0 ? '+' : '−'}${eur(Math.abs(net))}</span></h2>
+                <div class="lines">
+                    ${row('Sales', `if the next 30 days sell like the last 90 (${eur(sold90)} in 90 days, VAT included)`, salesIn, 1, 'insights.html')}
+                    ${row('Supplier invoices due', dueSoon.length ? `${plural(dueSoon.length, 'invoice', 'invoices')} due by ${esc(day(end))}${dueSoon.some(x => x.due < now) ? ', some already overdue' : ''}` : 'none with a due date in this period', outKnown, outKnown ? -1 : 0, 'money.html#owe')}
+                    ${row('Running costs', lastMonth ? `estimated from ${esc(new Date(lastMonth).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }))}, the latest month with expenses recorded` : 'no expenses recorded yet', running, running ? -1 : 0, 'money.html#expenses')}
+                    ${row('Planned deliveries', plan ? `half of what the ${plan.year} plan puts in ${esc(new Date(now).toLocaleDateString('en-GB', { month: 'long' }))} and next month, at net cost` : 'no plan for this year', planned, planned ? -1 : 0, 'stock.html#plan')}
+                </div>
+                <p class="chart-note" style="margin-top:10px">Not a bank balance: it only shows what the app knows. Customer debts have no due dates, so they are listed separately rather than guessed.</p>
+            </section>
+            <section class="panel" style="display:grid;gap:12px">
+                <h2 class="panel-title" style="margin:0">Without a date</h2>
+                <div class="lines">
+                    ${row('Owed to you', 'could come in any time; debts have no due dates', owedToYou, owedToYou ? 1 : 0, 'money.html#owed')}
+                    ${row('Supplier invoices without a due date', noDue.length ? `${plural(noDue.length, 'invoice', 'invoices')}: add a due date to place them in time` : 'none', noDue.reduce((a, x) => a + cBal(x.i), 0), noDue.length ? -1 : 0, 'money.html#owe')}
+                </div>
+                ${dueSoon.length ? `<div><h3 style="margin:6px 0">Due by ${esc(day(end))}</h3><div class="lines">${dueSoon.sort((a, b) => a.due - b.due).map(x => `<div class="line"><div><b>${esc(x.c.name)} · ${esc(x.i.invoiceNumber || '')}</b><span>${x.due < now ? '<span style="color:var(--bad)">overdue since ' + esc(day(x.due)) + '</span>' : 'due ' + esc(day(x.due))}</span></div><span class="n">€${money2(cBal(x.i))}</span></div>`).join('')}</div></div>` : ''}
+            </section>
+        </div>`;
+}
+
 // ================================================================== boot
 
 bootWorkspace({
@@ -487,6 +540,7 @@ bootWorkspace({
     tabs: [
         { id: 'owed', label: 'Owed to you', icon: 'account_balance_wallet', render: renderOwed, count: a => a.owed.length },
         { id: 'owe', label: 'You owe', icon: 'local_shipping', render: renderYouOwe, count: (a, m) => openSupplierInvoices(m) },
-        { id: 'expenses', label: 'Expenses', icon: 'payments', render: renderExpenses }
+        { id: 'expenses', label: 'Expenses', icon: 'payments', render: renderExpenses },
+        { id: 'outlook', label: 'Next 30 days', icon: 'date_range', render: renderOutlook }
     ]
 });

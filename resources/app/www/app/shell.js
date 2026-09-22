@@ -29,18 +29,15 @@ export const NAV = [
     { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'money.html', pages: [
         ['Owed to you', 'money.html#owed', 'account_balance_wallet'],
         ['You owe', 'money.html#owe', 'local_shipping'],
-        ['Expenses', 'money.html#expenses', 'payments']] },
+        ['Expenses', 'money.html#expenses', 'payments'],
+        ['Next 30 days', 'money.html#outlook', 'date_range']] },
     { id: 'insights', label: 'Insights', icon: 'insights', href: 'insights.html', pages: [
-        ['Overview', 'insights.html#overview', 'insights'],
-        ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic']] }
+        ['Overview', 'insights.html#overview', 'insights']] }
 ];
 export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings', href: 'settings.html', pages: [
-    ['Settings', 'settings.html', 'settings', 'classic'],
-    ['Fix stock', 'fix-stock.html', 'build_circle', 'classic'],
-    ['Check duplicates', 'check-duplicates.html', 'content_copy', 'classic'],
-    ['Check Firebase', 'check-firebase.html', 'cloud_done', 'classic'],
-    ['OCR debug', 'debug-ocr-extraction.html', 'bug_report', 'classic'],
-    ['Import sales history', 'import-sales-history.html', 'upload_file', 'classic']] };
+    ['General', 'settings.html#general', 'tune'],
+    ['Data health', 'settings.html#health', 'health_and_safety'],
+    ['Tools', 'settings.html#tools', 'construction']] };
 
 function navItem(item, active, counts) {
     const current = item.id === active ? ' aria-current="page"' : '';
@@ -131,11 +128,13 @@ const SYNONYMS = {
     'customers.html#review': 'duplicates merge lookalike spelling',
     'service.html#tickets': 'repair servis riparim ticket',
     'service.html#warranties': 'warranty garanci certificate',
+    'settings.html#health': 'data health check duplicates firebase connection negative stock count fix',
+    'settings.html#tools': 'ocr debug text backup export json tools',
     'money.html#owed': 'owed debts borxh debitor kredit payment pagesa',
     'money.html#expenses': 'expenses shpenzime costs rent qira salaries paga net profit',
+    'money.html#outlook': 'cash flow forecast next 30 days outlook upcoming payments',
     'money.html#owe': 'creditors suppliers furnizues detyrime you owe pay supplier invoice',
     'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers',
-    'fix-stock.html': 'count inventory correction'
 };
 let index = NAV.flatMap(n => (n.pages || [[n.label, n.href, n.icon]]).map(([label, href, ic]) => ({ group: 'Go to', label, sub: n.pages ? n.label : '', href, ic, text: fold(`${label} ${n.label} ${SYNONYMS[href] || ''}`) })))
     .concat(SETTINGS_NAV.pages.map(([label, href, ic]) => ({ group: 'Go to', label, sub: 'Settings', href, ic, text: fold(`${label} settings ${SYNONYMS[href] || ''}`) })));

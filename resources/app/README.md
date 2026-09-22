@@ -11,10 +11,10 @@ architecture and history, see [GOLDEN_MANIFEST.md](../../GOLDEN_MANIFEST.md).
 | `main.js`, `preload.js` | Electron entry point |
 | `www/` | The app UI (every page). It is **also published to Firebase Hosting**, so put nothing private in it. |
 | `www/index.html`, `www/app/` | **The new app** (redesign, Phase 1+): the shell (sidebar and Ctrl K search), the Today screen, the design system (`app.css`), the one Firebase setup (`firebase.js`) and the shared definitions of every number (`data.js`). New workspaces go here. |
-| `www/stock.html`, `www/sell.html` | Rebuilt workspaces (Phase 2): Stock (catalogue, reorder, link receipt items) and Sell (all sales, the till). Each is a thin page; the logic is in `app/stock.js` / `app/sell.js` on top of `app/workspace.js`. |
+| `www/stock.html`, `www/sell.html` | Stock (catalogue, reorder, link receipt items, order list, receive delivery, yearly plan) and Sell (all sales, the till, online orders, import invoice). Thin pages; logic in `app/stock.js` (+ `orderlist.js`, `receive.js`, `plan.js`, `planmodel.js`) and `app/sell.js` (+ `online.js`, `importpdf.js`, `warranty.js`), on top of `app/workspace.js`. `manual-pdf-processor.js` and `smart-inventory-scanner.js` are the invoice readers they load. |
 | `www/customers.html`, `www/service.html` | Rebuilt workspaces (Phase 3): Customers (list with segments, profiles, merging lookalike names) and Service (repairs with Garanci's safe-save rule, warranty cards). Logic in `app/customers.js` / `app/service.js`. |
-| `www/money.html`, `www/insights.html` | Rebuilt workspaces (Phase 4): Money (debts and payments) and Insights (charts with recording coverage marked, Export PDF via the `save-page-pdf` IPC). Logic in `app/money.js` / `app/insights.js`. |
-| The other `www/*.html` pages | Classic screens not rebuilt yet: invoice import, online orders, order list, receive delivery, yearly plan, forecasts, expenses, creditors, settings and the admin tools. `warranty-card.html` is the print page Garanci and Service open. The 20 pages the new workspaces replaced were retired in Phase 5 (quarantined, and redirected on Hosting in `firebase.json`). |
+| `www/money.html`, `www/insights.html` | Money (owed to you, you owe, expenses, next 30 days) and Insights (charts with recording coverage marked, Export PDF via the `save-page-pdf` IPC). Logic in `app/money.js` (+ `app/payables.js`) / `app/insights.js`. |
+| `www/settings.html`, `www/warranty-card.html` | Settings (preferences, data health, tools; `app/settings.js`), and the printed warranty certificate that Garanci and Service open. Every classic page has been rebuilt or retired (Phase 5 and the 22 Sep 2026 pass): retired pages are in the quarantine folders and redirected on Hosting (`firebase.json`). |
 | `easypos-ocr-bridge.js` | EasyPOS OCR bridge. The watchdog runs it from here, by absolute path, so **do not move it**. |
 | `start-bridge-hidden.vbs` | Hidden launcher the watchdog uses to start the bridge |
 | `firebase-admin-config.js` | Shared Admin SDK setup for the bridge and data tools; reads `serviceAccountKey.json` |
@@ -24,7 +24,6 @@ architecture and history, see [GOLDEN_MANIFEST.md](../../GOLDEN_MANIFEST.md).
 | `android/`, `capacitor.config.ts`, `ionic.config.json` | Capacitor Android project |
 | `build/installer.nsh` | NSIS hook that closes a running copy before installing |
 | `www/assets/danfosal-logo.svg` | App logo source. After changing it, run `node build/make-icon.cjs` to regenerate `build/icon.ico` and the window PNG. |
-| `tailwind-configs/` | Tailwind sources, compiled into `www/css/` by `npm run build:css` |
 | `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json` | Firebase project configuration |
 | `app-version.json`, `update-manifest.json` | Update manifests (Android OTA and desktop) |
 

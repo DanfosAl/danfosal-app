@@ -430,7 +430,6 @@ window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer
 bootWorkspace({
     active: 'insights', title: 'Insights', defaultTab: 'overview',
     tabs: [
-        { id: 'overview', label: 'Overview', icon: 'insights', render: renderInsights },
-        { label: 'Forecasts', icon: 'trending_up', href: 'business-intelligence.html' }
+        { id: 'overview', label: 'Overview', icon: 'insights', render: renderInsights }
     ]
 });

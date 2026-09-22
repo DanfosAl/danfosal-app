@@ -156,7 +156,77 @@
       },
       {
         "source": "/invoice-scanner.html",
-        "destination": "/albanian-invoice-scanner.html",
+        "destination": "/sell.html#import",
+        "type": 301
+      },
+      {
+        "source": "/albanian-invoice-scanner.html",
+        "destination": "/sell.html#import",
+        "type": 301
+      },
+      {
+        "source": "/online-orders.html",
+        "destination": "/sell.html#online",
+        "type": 301
+      },
+      {
+        "source": "/to_order.html",
+        "destination": "/stock.html#orders",
+        "type": 301
+      },
+      {
+        "source": "/smart-inventory-scanner.html",
+        "destination": "/stock.html#receive",
+        "type": 301
+      },
+      {
+        "source": "/smart-prediction.html",
+        "destination": "/stock.html#plan",
+        "type": 301
+      },
+      {
+        "source": "/business-intelligence.html",
+        "destination": "/stock.html#plan",
+        "type": 301
+      },
+      {
+        "source": "/expenses.html",
+        "destination": "/money.html#expenses",
+        "type": 301
+      },
+      {
+        "source": "/creditors_list.html",
+        "destination": "/money.html#owe",
+        "type": 301
+      },
+      {
+        "source": "/creditor_detail.html",
+        "destination": "/money.html#owe",
+        "type": 301
+      },
+      {
+        "source": "/check-duplicates.html",
+        "destination": "/settings.html#health",
+        "type": 301
+      },
+      {
+        "source": "/check-firebase.html",
+        "destination": "/settings.html#health",
+        "type": 301
+      },
+      {
+        "source": "/fix-stock.html",
+        "destination": "/settings.html#health",
+        "type": 301
+      },
+      {
+        "source": "/debug-ocr-extraction.html",
+        "destination": "/settings.html#tools",
+        "type": 301
+      },
+      {
+        "source": "/import-sales-history.html",
+        "destination": "/settings.html#tools",
         "type": 301
       }
     ]

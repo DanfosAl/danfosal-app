@@ -111,7 +111,7 @@ function historyOf(e) {
             href: inv ? `sell.html?q=${encodeURIComponent(inv)}#sales` : '' });
     });
     e.orders.forEach(o => rows.push({ t: orderTime(o), icon: 'shopping_bag', amount: orderTotal(o), title: `Online order · ${o.status || 'open'}`,
-        sub: (o.items || []).map(i => i.name || i.productName || '?').join(', ') || o.productName || '', href: 'online-orders.html' }));
+        sub: (o.items || []).map(i => i.name || i.productName || '?').join(', ') || o.productName || '', href: 'sell.html#online' }));
     e.warranties.forEach(w => rows.push({ t: toMs(w.createdAt), icon: 'verified', amount: null, title: `Warranty ${w.certNo || 'card'} issued`,
         sub: (w.items || []).map(i => `${i.name}${i.serialNumber ? ' · S/N ' + i.serialNumber : ''}`).join(', '), href: `warranty-card.html?id=${encodeURIComponent(w._id)}`, external: true }));
     e.tickets.forEach(t => rows.push({ t: toMs(t.createdAt), icon: 'build', amount: null, title: `Repair: ${t.productName || 'machine'} · ${String(t.status || '').replace(/_/g, ' ')}`,

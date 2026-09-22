@@ -34,7 +34,7 @@ function needsYou(a) {
     if (a.needsCount.length) {
         items.push({ sev: 'warn', title: `${plural(a.needsCount.length, 'product needs', 'products need')} a physical count`,
             why: `More were sold than the system ever held, so the stock figure is wrong: ${a.needsCount.slice(0, 3).map(n => n.name).join(', ')}${a.needsCount.length > 3 ? '…' : ''}.`,
-            action: ['Fix stock', 'fix-stock.html'] });
+            action: ['Count them', 'stock.html?filter=count#catalogue'] });
     }
     if (a.soldWithoutCost.length) {
         items.push({ sev: 'warn', title: `${plural(a.soldWithoutCost.length, 'product you sold has', 'products you sold have')} no cost price`,

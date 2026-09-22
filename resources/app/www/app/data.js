@@ -182,10 +182,16 @@ export function productIdOfLine(item, knownIds) {
 export async function loadAll() {
     await ready;
     const all = name => getDocs(collection(db, name)).then(snap => snap.docs.map(d => ({ _id: d.id, ...d.data() })));
-    const [products, sales, orders, customers, tickets, warranties, debtorDocs, corrections] = await Promise.all([
+    const [products, sales, orders, customers, tickets, warranties, debtorDocs, corrections, expenses, creditorDocs] = await Promise.all([
         all('products'), all('storeSales'), all('onlineOrders'), all('customers'),
-        all('serviceTickets'), all('warrantyCards'), getDocs(collection(db, 'debtors')), all('stockCorrections')
+        all('serviceTickets'), all('warrantyCards'), getDocs(collection(db, 'debtors')), all('stockCorrections'),
+        all('expenses'), getDocs(collection(db, 'creditors'))
     ]);
+    // What you owe suppliers: creditors/{id} with invoices/{id} and payments/{id} beneath it.
+    const creditors = await Promise.all(creditorDocs.docs.map(async c => {
+        const [inv, pay] = await Promise.all([getDocs(collection(db, 'creditors', c.id, 'invoices')), getDocs(collection(db, 'creditors', c.id, 'payments'))]);
+        return { _id: c.id, ...c.data(), invoices: inv.docs.map(i => ({ _id: i.id, ...i.data() })), payments: pay.docs.map(x => ({ _id: x.id, ...x.data() })) };
+    }));
     // Debts live one level down: debtors/{id}/invoices, each with its own remainingBalance.
     const debts = [];
     await Promise.all(debtorDocs.docs.map(async d => {
@@ -201,7 +207,7 @@ export async function loadAll() {
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, receiptServices, notSameCustomers, loadedAt: Date.now() };
 }
 
 // ------------------------------------------------------------------ customers

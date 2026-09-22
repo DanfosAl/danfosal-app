@@ -28,7 +28,8 @@ export const NAV = [
         ['Warranty cards', 'service.html#warranties', 'verified']] },
     { id: 'money', label: 'Money', icon: 'account_balance_wallet', href: 'money.html', pages: [
         ['Owed to you', 'money.html#owed', 'account_balance_wallet'],
-        ['Expenses', 'expenses.html', 'payments', 'classic']] },
+        ['You owe', 'money.html#owe', 'local_shipping'],
+        ['Expenses', 'money.html#expenses', 'payments']] },
     { id: 'insights', label: 'Insights', icon: 'insights', href: 'insights.html', pages: [
         ['Overview', 'insights.html#overview', 'insights'],
         ['Forecasts', 'business-intelligence.html', 'trending_up', 'classic']] }
@@ -131,7 +132,8 @@ const SYNONYMS = {
     'service.html#tickets': 'repair servis riparim ticket',
     'service.html#warranties': 'warranty garanci certificate',
     'money.html#owed': 'owed debts borxh debitor kredit payment pagesa',
-    'expenses.html': 'shpenzime costs',
+    'money.html#expenses': 'expenses shpenzime costs rent qira salaries paga net profit',
+    'money.html#owe': 'creditors suppliers furnizues detyrime you owe pay supplier invoice',
     'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers',
     'fix-stock.html': 'count inventory correction'
 };

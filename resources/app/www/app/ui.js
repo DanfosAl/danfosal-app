@@ -5,7 +5,11 @@ const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'
 // Names and addresses come from OCR'd receipts, so every value is escaped before it reaches innerHTML.
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
 
-export const eur = (n, decimals = 0) => '€' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+// Negative amounts read "−€857", not "€-857".
+export const eur = (n, decimals = 0) => {
+    const v = Number(n || 0), text = Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return (v < 0 && text.replace(/[0.,]/g, '') ? '−' : '') + '€' + text;
+};
 export const int = n => Number(n || 0).toLocaleString('en-US');
 export const pct = (part, whole) => whole > 0 ? Math.round(100 * part / whole) + '%' : '–';
 export const icon = (name, extra = '') => `<span class="ms ${extra}" aria-hidden="true">${name}</span>`;

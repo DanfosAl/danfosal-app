@@ -9,6 +9,7 @@ import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, deleteDoc, runTransaction, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import { toMs, customerKey, saleInvoiceNumber, shortInvoice, saleTime, netRevenue, saleNetCost, DAY } from './data.js';
+import { addSupplierInvoice } from './payables.js';
 
 const r2 = n => Math.round(n * 100) / 100;
 const paidOf = inv => (inv.payments || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
@@ -455,17 +456,6 @@ async function supplierPayment(ctx, c, inv, amount, dateStr, close) {
         });
         toast(`€${money2(amount)} paid to ${c.name} recorded`); close(); await ctx.reload(); supplierDrawer(ctx, c._id);
     } catch (x) { toast(`Couldn't save: ${x.message}`, { bad: true }); }
-}
-
-// Record a supplier invoice to pay later. Stock > Receive delivery uses this too.
-export async function addSupplierInvoice({ supplier, invoiceNumber, totalAmount, date, dueDate, creditors }) {
-    const existing = creditors.find(x => customerKey(x.name) === customerKey(supplier));
-    const creditorId = existing ? existing._id : (await addDoc(collection(db, 'creditors'), { name: supplier })).id;
-    await addDoc(collection(db, 'creditors', creditorId, 'invoices'), {
-        invoiceNumber, totalAmount: r2(totalAmount), date: date || ymd(Date.now()), timestamp: Date.now(),
-        remainingBalance: r2(totalAmount), paid: false, ...(dueDate ? { dueDate } : {})
-    });
-    return creditorId;
 }
 
 async function supplierInvoiceDialog(ctx, c) {

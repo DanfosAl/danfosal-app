@@ -371,6 +371,16 @@ table.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .seg button { border: 0; background: transparent; padding: 7px 14px; cursor: pointer; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
 .seg button[aria-pressed="true"] { background: var(--violet-bg); color: var(--ink); }
 
+/* ---------------------------------------------------------------- file drop zone (Receive delivery, invoice import) */
+.dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 34px 20px;
+  border: 1.5px dashed var(--line-strong); border-radius: var(--radius-lg); background: var(--panel); cursor: pointer; color: var(--muted); }
+.dropzone .ms { font-size: 34px; color: var(--violet-2); }
+.dropzone b { color: var(--ink); font-weight: 500; font-size: 15px; }
+.dropzone span { max-width: 560px; font-size: 12.5px; line-height: 1.5; }
+.dropzone:hover, .dropzone.over, .dropzone:focus-visible { border-color: var(--violet); background: var(--violet-bg); outline: 0; }
+.dropzone.busy { opacity: .6; pointer-events: none; }
+select.inp { appearance: auto; }
+
 /* ---------------------------------------------------------------- insights charts */
 .kpis-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .kpis-6 .kpi .v { font-size: 23px; }

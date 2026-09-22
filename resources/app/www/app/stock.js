@@ -1,9 +1,11 @@
-// Stock workspace: Catalogue, Reorder, Link receipt items.
+// Stock workspace: Catalogue, Reorder, Link receipt items, Order list, Receive delivery.
 //
 // Writes use exactly the shapes the classic screens use, so the bridge, Danfos Garanci and the
 // classic pages keep reading them: products {name, code, producer, price, baseCost, cost = baseCost
 // x 1.2, stock}, order-list rows {name, quantity, supplier, quantityReceived, smartSuggestion, ...}.
 import { bootWorkspace } from './workspace.js';
+import { renderOrderList } from './orderlist.js';
+import { renderReceive } from './receive.js';
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -200,7 +202,7 @@ async function renderReorder(ctx) {
         .map(([id, units]) => { const p = ctx.model.products.find(x => x._id === id); if (!p) return null; const stock = Number(p.stock) || 0; return { p, units, stock, daysLeft: stock / (units / SALES_WINDOW_DAYS) }; })
         .filter(Boolean).sort((x, y) => x.daysLeft - y.daysLeft);
     ctx.setSub(`Based on the last ${SALES_WINDOW_DAYS} days of sales and a ${RESTOCK_DAYS / 7}-week restock`);
-    ctx.setActions(`<a class="btn" href="to_order.html">${icon('list_alt')}Open order list</a>`);
+    ctx.setActions(`<a class="btn" href="#orders">${icon('list_alt')}Open order list</a>`);
     ctx.body.innerHTML = `<div class="skeleton" style="height:200px"></div>`;
     let onList = new Set();
     try { onList = new Set((await getDocs(collection(db, 'toOrder'))).docs.map(d => d.data()).filter(o => (Number(o.quantityReceived) || 0) < (Number(o.quantity) || 0)).map(o => fold(o.name))); }
@@ -368,7 +370,7 @@ bootWorkspace({
         { id: 'catalogue', label: 'Catalogue', icon: 'inventory_2', render: renderCatalogue },
         { id: 'reorder', label: 'Reorder', icon: 'local_shipping', render: ctx => { renderReorder(ctx); }, count: a => a.reorder.length },
         { id: 'link', label: 'Link receipt items', icon: 'link', render: renderLink, count: (a, m) => unlinkedReceiptLines(m).length },
-        { label: 'Order list', icon: 'list_alt', href: 'to_order.html' },
-        { label: 'Receive delivery', icon: 'move_to_inbox', href: 'smart-inventory-scanner.html' }
+        { id: 'orders', label: 'Order list', icon: 'list_alt', render: ctx => { renderOrderList(ctx); } },
+        { id: 'receive', label: 'Receive delivery', icon: 'move_to_inbox', render: renderReceive }
     ]
 });

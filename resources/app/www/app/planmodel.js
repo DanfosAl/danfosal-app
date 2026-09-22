@@ -71,28 +71,79 @@ export function netOrders(demand, opening, startMonth = 0) {
     return { orders, safety };
 }
 
-export function buildPlan(m, { year, growth, supplier, waitingByProduct = new Map(), now = Date.now() }) {
+// The years the app has sales for, newest first, with how complete each one was.
+export function salesYears(m) {
+    const { units, kind } = unitsByMonth(m);
+    const years = new Set();
+    units.forEach(u => u.forEach((_, mk) => years.add(Math.floor(mk / 12))));
+    return [...years].sort((a, b) => b - a).map(year => {
+        const months = [...Array(12)].map((_, i) => kind(year * 12 + i));
+        return { year, recorded: months.filter(k => k !== 'none').length, partial: months.map((k, i) => (k === 'gap' ? i : -1)).filter(i => i >= 0), months };
+    });
+}
+
+// Which months of which chosen years stand in for each month of the plan year. With several years
+// the months are averaged (Jan 2025 = 3 and Jan 2026 = 4 average to 3.5, and +10% growth makes 4).
+// Months that were only partly recorded (till-only) are left out when another chosen year has that
+// month properly recorded, so a gap doesn't drag the plan down.
+export function basisFromYears(m, years, { ignorePartial = true } = {}) {
+    const { kind } = unitsByMonth(m);
+    const chosen = [...years].sort((a, b) => a - b);
+    return MONTHS.map((_, i) => {
+        const good = chosen.filter(y => ['import', 'live'].includes(kind(y * 12 + i)));
+        const use = (ignorePartial && good.length) ? good : chosen.filter(y => kind(y * 12 + i) !== 'none');
+        const list = use.length ? use : chosen;
+        return { years: list, label: list.map(y => `${MONTHS[i]} ${y}`).join(' + ') || '–',
+            kind: list.every(y => ['import', 'live'].includes(kind(y * 12 + i))) ? 'ok' : list.some(y => kind(y * 12 + i) !== 'none') ? 'partial' : 'none' };
+    });
+}
+
+// Build (or rebuild) plan rows. `years` are the benchmark years to average; with none, the same
+// month a year earlier is used. `productIds` limits it to chosen products, so one plan can be
+// rebuilt product by product.
+export function buildPlan(m, { year, growth, supplier, years = [], productIds = null, ignorePartial = true, waitingByProduct = new Map(), now = Date.now() }) {
     const { units } = unitsByMonth(m);
-    const basis = basisMonths(m, year);
+    const useYears = years && years.length ? [...years].sort((a, b) => a - b) : null;
+    const basis = useYears ? basisFromYears(m, useYears, { ignorePartial }) : basisMonths(m, year);
+    const only = productIds ? new Set(productIds) : null;
     const thisYear = new Date(now).getFullYear();
     const start = year === thisYear ? new Date(now).getMonth() : 0;   // can't order in the past
     const rows = [];
     m.products.forEach(p => {
-        if (supplier && supplier !== 'All' && String(p.producer || '').toLowerCase() !== supplier.toLowerCase()) return;
+        if (only && !only.has(p._id)) return;
+        if (!only && supplier && supplier !== 'All' && String(p.producer || '').toLowerCase() !== supplier.toLowerCase()) return;
         const u = units.get(p._id);
-        const base = basis.map(b => (b.mk !== null && u ? u.get(b.mk) || 0 : 0));
-        if (!base.some(x => x > 0)) return;
+        const basisUnits = basis.map((b, i) => (useYears ? b.years.map(y => (u ? u.get(y * 12 + i) || 0 : 0)) : [b.mk !== null && u ? u.get(b.mk) || 0 : 0]));
+        const base = basis.map((b, i) => {
+            if (!u) return 0;
+            if (!useYears) return b.mk !== null ? u.get(b.mk) || 0 : 0;
+            const vals = b.years.map(y => u.get(y * 12 + i) || 0);
+            return vals.length ? vals.reduce((a, x) => a + x, 0) / vals.length : 0;
+        });
+        if (!base.some(x => x > 0) && !only) return;                  // nothing sold: skip, unless the owner picked it
         const demand = base.map(x => (x > 0 ? Math.ceil(x * (1 + growth)) : 0));
         const opening = Math.max(0, Number(p.stock) || 0) + (waitingByProduct.get(p._id) || 0);
         const { orders, safety } = netOrders(demand, opening, start);
         const unitCost = productNetCost(p) || 0;
         const totalToOrder = orders.reduce((a, b) => a + b, 0);
         rows.push({ id: p._id, name: p.name, code: p.code || '', supplier: p.producer || '', unitCost: Math.round(unitCost * 100) / 100,
-            demand, orders, safety, openingStock: opening, totalToOrder, totalCost: Math.round(totalToOrder * unitCost * 100) / 100 });
+            demand, orders, safety, openingStock: opening, totalToOrder, totalCost: Math.round(totalToOrder * unitCost * 100) / 100,
+            // Firestore can't store an array inside an array, so the month's working is kept as text ("3+4").
+            growth, basisYears: useYears || [], basisText: basisUnits.map(v => v.map(x => Math.round(x * 100) / 100).join('+')) });
     });
     rows.sort((a, b) => b.totalCost - a.totalCost || b.demand.reduce((x, y) => x + y, 0) - a.demand.reduce((x, y) => x + y, 0));
-    return { year, version: 2, growthRate: growth, supplier: supplier || 'All', startMonth: start,
+    return { year, version: 2, growthRate: growth, supplier: supplier || 'All', startMonth: start, basisYears: useYears || [],
         basis: basis.map(b => ({ label: b.label, kind: b.kind })), products: rows, generatedAt: now, generatedDate: new Date(now).toISOString() };
+}
+
+// Put rebuilt rows into an existing plan, replacing only those products.
+export function mergePlan(existing, fresh) {
+    if (!existing) return fresh;
+    const updated = new Map(fresh.products.map(r => [r.id, r]));
+    const kept = existing.products.filter(r => !updated.has(r.id));
+    const products = [...kept, ...fresh.products].sort((a, b) => b.totalCost - a.totalCost);
+    return { ...existing, ...fresh, products, generatedAt: existing.generatedAt, editedAt: Date.now(),
+        basis: fresh.products.length ? fresh.basis : existing.basis, basisYears: fresh.basisYears };
 }
 
 // Where the plan stands today, per product: planned vs actual sales to date, pace, and what to

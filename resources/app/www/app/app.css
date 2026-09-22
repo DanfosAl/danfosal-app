@@ -293,6 +293,8 @@ table.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dt .name b { font-weight: 500; display: block; }
 .dt .name span { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }
 .dt .muted { color: var(--muted); }
+.dt th.tick, .dt td.tick { width: 36px; padding-right: 0; text-align: center; }
+.dt .tick input, .res input[type="checkbox"] { accent-color: var(--violet); width: 15px; height: 15px; cursor: pointer; }
 .dt .zero { color: var(--bad); }
 .table-foot { padding: 10px 12px; color: var(--faint); font-size: 12px; border-top: 1px solid var(--line); }
 .cover { display: inline-flex; align-items: center; gap: 8px; }

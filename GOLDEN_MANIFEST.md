@@ -751,6 +751,20 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **33. YEARLY PLAN: PICK THE PRODUCTS AND THE BENCHMARK YEARS** — ✅ **BUILT & VERIFIED (September 22, 2026)**
+
+Asked for by the owner: tick specific machines, plan only those, and choose which years' sales the plan is built from.
+
+- **Tick boxes** on every plan row (plus a select-all in the header). Ticking never opens the product panel. A bar shows what is ticked and offers "Plan these products…". The product panel has "Re-plan this product…".
+- **Benchmark years.** The dialog lists every year with sales (and how many months each has), and several can be ticked. Each month is then the **average of those years**, and the growth % is applied to that: Jan 2025 = 3 and Jan 2026 = 4 with +10% gives 4 for Jan 2027 (`basisFromYears()` + `buildPlan({ years })`).
+- **Partly recorded months** (till-only, e.g. Dec 2025 and Jan 2026) are skipped when another chosen year has that month properly recorded; a tick-box turns that off.
+- **Partial rebuilds** keep the rest of the plan: `mergePlan()` replaces only the chosen products' rows. Each row stores its own `growth`, `basisYears` and `basisText` ("4+0"), which the panel shows as "Jan 14 → 16 · Feb 4+0 → 3 …". Firestore rejects an array inside an array, which is why the working is stored as text.
+- **A live preview** in the dialog shows the first ticked product month by month before anything is saved.
+
+**Verified** on the owner's real 2027 plan: SC 3 re-planned from 2025 + 2026 with +10% went from 140 to 167 planned units (Feb 4+0 → 3, Mar 1+2 → 2), the other 101 products were untouched, and the plan header now reads "from 2025 + 2026 +10%". All 24 tabs still render in the installed build with no errors.
+
+---
+
 #### **32. COST PRICES CORRECTED FROM THE KÄRCHER INVOICES** — ✅ **APPLIED & VERIFIED (September 22, 2026)**
 
 **What the owner confirmed:**

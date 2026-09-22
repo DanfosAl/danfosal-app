@@ -294,6 +294,12 @@ table.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dt .name span { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }
 .dt .muted { color: var(--muted); }
 .dt th.tick, .dt td.tick { width: 36px; padding-right: 0; text-align: center; }
+/* Month-by-month plan grid: twelve narrow columns plus a totals row that stays visible. */
+.dt.grid th, .dt.grid td { padding: 7px 7px; font-size: 12.5px; }
+.dt.grid .name { min-width: 190px; }
+.dt.grid .name span { font-size: 11px; }
+.dt.grid tfoot td { position: sticky; bottom: 0; background: var(--panel-2); border-top: 1px solid var(--line-strong); border-bottom: 0; }
+.dt.grid td.muted { color: var(--faint); }
 .dt .tick input, .res input[type="checkbox"] { accent-color: var(--violet); width: 15px; height: 15px; cursor: pointer; }
 .dt .zero { color: var(--bad); }
 .table-foot { padding: 10px 12px; color: var(--faint); font-size: 12px; border-top: 1px solid var(--line); }

@@ -751,6 +751,20 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **34. YEARLY PLAN: SEE THE PLAN ITSELF, MONTH BY MONTH** — ✅ **BUILT & VERIFIED (September 22, 2026)**
+
+The owner couldn't tell what a save had produced: the screen only showed tracking columns (all "0 / 0" for a year that hasn't started), and a partial save still listed every other product.
+
+- **Two views**, switched in the toolbar: **The plan** (a Jan–Dec grid, one row per product, with a year total, the cost, and a sticky totals row) and **How it's going** (the tracking table as before). A plan for a year that hasn't started opens on the grid; the current year opens on tracking. Switching year re-picks the default.
+- **The grid shows either** the sales expected each month or the deliveries to order each month (the same netting against stock and the order list), with a line explaining which.
+- **Saving is visible:** after a save the screen switches to the grid, the saved products sort to the top with a "just planned" chip, and the filter resets to All.
+- **"Make the plan only these products"** in the dialog replaces the whole plan with the ticked ones (it says how many others would be removed). Unticked, it keeps the rest, as before.
+- **Mixed bases are stated honestly:** once single products are re-planned from different years, the header says "N different sets of years" instead of claiming one.
+
+**Verified** on the owner's 2027 plan: the grid shows SC 3 as Jan 8 · Feb 3 · Mar 2 … 159 for the year, deliveries mode shows nothing until May (stock and the order list cover it), and the totals row reads 1,207 planned units / 645 to order / €75,523. A save of 2 ticked products with "only these" produced a 2-product plan; the 102-product plan was then restored from a snapshot taken first.
+
+---
+
 #### **33. YEARLY PLAN: PICK THE PRODUCTS AND THE BENCHMARK YEARS** — ✅ **BUILT & VERIFIED (September 22, 2026)**
 
 Asked for by the owner: tick specific machines, plan only those, and choose which years' sales the plan is built from.

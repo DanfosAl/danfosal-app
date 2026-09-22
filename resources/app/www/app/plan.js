@@ -7,12 +7,16 @@
 import { db, doc, setDoc } from './firebase.js';
 import { esc, eur, int, icon, plural, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import { buildPlan, mergePlan, trackPlan, planFor, waitingByProduct, basisMonths, basisFromYears, salesYears, netOrders, monthName, PACE_FAST, PACE_SLOW } from './planmodel.js';
+import { RESTOCK_DAYS } from './data.js';
+
+const RESTOCK_WEEKS = Math.round(RESTOCK_DAYS / 7);
 
 const STATUS = {
     out: ['Out of stock', 'bad'], low: ['Will run short', 'bad'], faster: ['Selling faster', 'warn'],
     slower: ['Selling slower', 'vio'], on: ['On plan', 'ok'], future: ['Not started', ''], done: ['Year ended', '']
 };
-const pl = { year: null, filter: 'attention', q: '', sel: new Set() };
+const pl = { year: null, filter: 'attention', q: '', sel: new Set(), view: null, mode: 'sales', justPlanned: new Set() };
+const MONTHS12 = [...Array(12)].map((_, i) => monthName(i));
 const sum = a => a.reduce((x, y) => x + y, 0);
 
 function advice(r) {
@@ -35,7 +39,10 @@ export function renderPlan(ctx) {
     const actions = ctx.setActions(`<div class="seg" role="group" aria-label="Plan year">${years.map(y => `<button type="button" data-y="${y}" aria-pressed="${y === pl.year}">${y}${planFor(m, y) ? '' : ' ·'}</button>`).join('')}</div>
         ${plan ? `<button class="btn" type="button" id="pl-copy">${icon('content_copy')}Copy order plan</button>` : ''}
         <button class="btn ${plan ? '' : 'primary'}" type="button" id="pl-make">${icon(plan ? 'refresh' : 'add')}${plan ? 'Remake plan' : `Make the ${pl.year} plan`}</button>`);
-    actions.querySelectorAll('[data-y]').forEach(b => b.addEventListener('click', () => { pl.year = Number(b.dataset.y); renderPlan(ctx); }));
+    actions.querySelectorAll('[data-y]').forEach(b => b.addEventListener('click', () => {
+        // Each year decides its own default view: a year that hasn't started shows the plan itself.
+        pl.year = Number(b.dataset.y); pl.view = null; pl.sel.clear(); pl.justPlanned.clear(); renderPlan(ctx);
+    }));
     actions.querySelector('#pl-make').addEventListener('click', () => makePlanDialog(ctx, pl.year, plan, null));
     if (plan) actions.querySelector('#pl-copy').addEventListener('click', () => copyPlan(plan));
 
@@ -60,27 +67,51 @@ export function renderPlan(ctx) {
     const rows = t.rows;
     const value = sum(plan.products.map(r => r.totalCost));
     const paceAll = t.plannedToDate >= 1 ? t.actualToDate / t.plannedToDate : null;
-    ctx.setSub(`${plural(plan.products.length, 'product', 'products')} · ${eur(value)} planned purchases (net) · from ${esc((plan.basisYears || []).length ? plan.basisYears.join(' + ') : 'the year before')} ${plan.growthRate ? `${plan.growthRate > 0 ? '+' : ''}${Math.round(plan.growthRate * 100)}%` : ''} · made ${new Date(plan.generatedAt).toLocaleDateString('en-GB')}`);
+    // A plan for a year that hasn't started has nothing to track yet: show the plan itself.
+    // Rows can come from different years once single products have been re-planned.
+    const bases = [...new Set(plan.products.map(r => ((r.basisYears || []).length ? r.basisYears.join(' + ') : (plan.basisYears || []).length ? plan.basisYears.join(' + ') : 'the year before')))];
+    const basisLabel = bases.length === 1 ? bases[0] : `${bases.length} different sets of years`;
+    const started = plan.year <= new Date(now).getFullYear();
+    if (pl.view === null) pl.view = started ? 'progress' : 'plan';
+    const planView = pl.view === 'plan';
+    ctx.setSub(`${plural(plan.products.length, 'product', 'products')} · ${eur(value)} planned purchases (net) · from ${esc(basisLabel)}${bases.length === 1 && plan.growthRate ? ` ${plan.growthRate > 0 ? '+' : ''}${Math.round(plan.growthRate * 100)}%` : ''} · made ${new Date(plan.generatedAt).toLocaleDateString('en-GB')}`);
     const decide = new Set(t.attention.map(r => r.id));   // same rule as Today's alert: the order really changes
     const FILTERS = [['attention', 'Needs a decision', r => decide.has(r.id)], ['faster', 'Selling faster', r => r.status === 'faster'],
         ['slower', 'Selling slower', r => r.status === 'slower'], ['short', 'Short of stock', r => ['out', 'low'].includes(r.status)], ['on', 'On plan', r => r.status === 'on'], ['all', 'All', () => true]];
     const order = { out: 0, low: 1, faster: 2, slower: 3, on: 4, future: 5, done: 6 };
 
+    const plannedUnits = sum(plan.products.map(r => sum(r.demand)));
+    const orderUnits = sum(plan.products.map(r => r.totalToOrder));
     ctx.body.innerHTML = `
-        <div class="kpis">
+        <div class="kpis">${planView ? `
+            <div class="kpi"><small>Products in the plan</small><span class="v">${int(plan.products.length)}</span><span class="d">from ${esc(basisLabel)}${bases.length === 1 && plan.growthRate ? `, ${plan.growthRate > 0 ? '+' : ''}${Math.round(plan.growthRate * 100)}%` : ''}</span></div>
+            <div class="kpi"><small>Planned sales</small><span class="v">${int(plannedUnits)}</span><span class="d">units over the year</span></div>
+            <div class="kpi"><small>To order</small><span class="v">${int(orderUnits)}</span><span class="d">units, after today's stock and the order list</span></div>
+            <div class="kpi"><small>Planned purchases</small><span class="v">${eur(value)}</span><span class="d">net of VAT, at today's costs</span></div>` : `
             <div class="kpi"><small>Sales vs plan, ${esc(String(plan.year))} to date</small><span class="v" style="${paceAll !== null && paceAll < PACE_SLOW ? 'color:var(--warn)' : ''}">${paceAll === null ? '–' : Math.round(paceAll * 100) + '%'}</span><span class="d">${int(Math.round(t.actualToDate))} units sold of ${int(Math.round(t.plannedToDate))} planned so far</span></div>
             <div class="kpi"><small>Selling faster</small><span class="v">${int(rows.filter(r => r.status === 'faster').length)}</span><span class="d">products ${Math.round((PACE_FAST - 1) * 100)}%+ ahead of plan</span></div>
             <div class="kpi"><small>Selling slower</small><span class="v">${int(rows.filter(r => r.status === 'slower').length)}</span><span class="d">products ${Math.round((1 - PACE_SLOW) * 100)}%+ behind plan</span></div>
-            <div class="kpi"><small>Short of stock</small><span class="v" style="${rows.some(r => ['out', 'low'].includes(r.status)) ? 'color:var(--bad)' : ''}">${int(rows.filter(r => ['out', 'low'].includes(r.status)).length)}</span><span class="d">won't last until a restock</span></div>
+            <div class="kpi"><small>Short of stock</small><span class="v" style="${rows.some(r => ['out', 'low'].includes(r.status)) ? 'color:var(--bad)' : ''}">${int(rows.filter(r => ['out', 'low'].includes(r.status)).length)}</span><span class="d">won't last until a restock</span></div>`}
         </div>
         ${plan.basis && plan.basis.some(b => b.kind === 'gap') ? `<p class="empty" style="margin:0">${icon('info')} Planned from ${esc(plan.basis.map(b => b.label).filter((l, i, a) => a.indexOf(l) === i && l !== '–').join(', '))}. ${esc(plan.basis.filter(b => b.kind === 'gap').map(b => b.label).join(', '))} had only till sales, so those months are planned low.</p>` : ''}
         ${t.unplanned.length ? `<div class="panel" style="padding:12px 16px"><b style="font-weight:500">${t.unplanned.length === 1 ? '1 product sells this year but isn’t' : `${int(t.unplanned.length)} products sell this year but aren’t`} in the plan:</b> <span class="muted">${t.unplanned.slice(0, 6).map(u => `${esc(u.product.name)} (${int(u.sold)})`).join(', ')}${t.unplanned.length > 6 ? '…' : ''}. Remake the plan to include them.</span></div>` : ''}
         <div class="toolbar">
             <label class="field-search">${icon('search')}<input id="pl-q" type="search" placeholder="Product or code" value="${esc(pl.q)}" aria-label="Search the plan"></label>
-            <div class="filters" id="pl-f"></div>
+            <div class="seg" role="group" aria-label="View">
+                <button type="button" data-v="plan" aria-pressed="${planView}">${icon('calendar_month')}The plan</button>
+                <button type="button" data-v="progress" aria-pressed="${!planView}">${icon('trending_up')}How it's going</button>
+            </div>
+            ${planView ? `<div class="seg" role="group" aria-label="Show">
+                <button type="button" data-mode="sales" aria-pressed="${pl.mode === 'sales'}">Sales to expect</button>
+                <button type="button" data-mode="orders" aria-pressed="${pl.mode === 'orders'}">Deliveries to order</button>
+            </div>` : ''}
+            <div class="filters" id="pl-f"${planView ? ' hidden' : ''}></div>
         </div>
         <div id="pl-bulk"></div>
-        <div class="table-wrap" style="max-height:calc(100vh - 360px)"><table class="dt"><thead><tr><th class="tick"><input type="checkbox" id="pl-all" aria-label="Select every product shown"></th><th>Product</th><th class="n">Planned ${esc(String(plan.year))}</th><th class="n">Sold so far</th><th>Pace vs plan</th><th class="n">Stock + on order</th><th class="n">Plan still orders</th><th class="n">Needed at this pace</th><th>Status</th></tr></thead><tbody id="pl-body"></tbody></table></div>`;
+        <div class="table-wrap" style="max-height:calc(100vh - 360px)"><table class="dt${planView ? ' grid' : ''}"><thead><tr><th class="tick"><input type="checkbox" id="pl-all" aria-label="Select every product shown"></th><th>Product</th>${planView
+            ? MONTHS12.map(x => `<th class="n">${x}</th>`).join('') + `<th class="n">${esc(String(plan.year))}</th><th class="n">At cost</th>`
+            : `<th class="n">Planned ${esc(String(plan.year))}</th><th class="n">Sold so far</th><th>Pace vs plan</th><th class="n">Stock + on order</th><th class="n">Plan still orders</th><th class="n">Needed at this pace</th><th>Status</th>`}</tr></thead><tbody id="pl-body"></tbody>${planView ? '<tfoot id="pl-foot"></tfoot>' : ''}</table></div>
+        ${planView ? `<p class="chart-note">${pl.mode === 'sales' ? `What each product is expected to sell each month of ${esc(String(plan.year))}, from ${esc(basisLabel)}${bases.length === 1 && plan.growthRate ? ` ${plan.growthRate > 0 ? '+' : ''}${Math.round(plan.growthRate * 100)}%` : ''}. Open a product to see how a month was worked out, or to change it.` : `How many units should arrive each month to cover those sales, after today's stock and what is already on the order list. Order about ${RESTOCK_WEEKS} weeks before the month shown.`}</p>` : ''}`;
 
     const draw = () => {
         const terms = fold(pl.q).trim().split(/\s+/).filter(Boolean);
@@ -88,8 +119,28 @@ export function renderPlan(ctx) {
         drawBulk();
         ctx.body.querySelector('#pl-f').innerHTML = FILTERS.map(([id, label, f]) => `<button class="filter${id === 'attention' || id === 'short' ? ' alert' : ''}" type="button" data-f="${id}" aria-pressed="${id === pl.filter}">${esc(label)}<span class="n">${int(searched.filter(f).length)}</span></button>`).join('');
         const f = FILTERS.find(x => x[0] === pl.filter) || FILTERS[0];
-        const list = searched.filter(f[2]).sort((a, b) => order[a.status] - order[b.status] || Math.abs(b.diff * b.unitCost) - Math.abs(a.diff * a.unitCost));
+        const list = planView
+            ? searched.slice().sort((a, b) => (pl.justPlanned.has(b.id) ? 1 : 0) - (pl.justPlanned.has(a.id) ? 1 : 0) || b.totalCost - a.totalCost || sum(b.demand) - sum(a.demand))
+            : searched.filter(f[2]).sort((a, b) => order[a.status] - order[b.status] || Math.abs(b.diff * b.unitCost) - Math.abs(a.diff * a.unitCost));
         shown = list;
+        if (planView) {
+            const cell = (v, i) => `<td class="n${v ? '' : ' muted'}"${pl.mode === 'orders' && v ? ' style="color:var(--violet-2)"' : ''}>${v ? int(v) : '·'}</td>`;
+            ctx.body.querySelector('#pl-body').innerHTML = list.map(r => {
+                const months = pl.mode === 'sales' ? r.demand : r.orders;
+                return `<tr data-id="${esc(r.id)}" tabindex="0"${pl.sel.has(r.id) ? ' class="sel"' : ''}>
+                    <td class="tick"><input type="checkbox" data-tick="${esc(r.id)}"${pl.sel.has(r.id) ? ' checked' : ''} aria-label="Select ${esc(r.name)}"></td>
+                    <td class="name"><b>${esc(r.name)}${pl.justPlanned.has(r.id) ? ' <span class="chip vio">just planned</span>' : ''}</b><span>${esc(r.code)}</span></td>
+                    ${months.map(cell).join('')}
+                    <td class="n"><b>${int(sum(months))}</b></td>
+                    <td class="n">${r.totalCost ? eur(r.totalCost) : '–'}</td></tr>`;
+            }).join('') || `<tr><td colspan="${MONTHS12.length + 4}" class="muted" style="padding:18px">No products match.</td></tr>`;
+            const foot = ctx.body.querySelector('#pl-foot');
+            const totals = MONTHS12.map((_, i) => sum(list.map(r => (pl.mode === 'sales' ? r.demand : r.orders)[i] || 0)));
+            foot.innerHTML = `<tr><td></td><td class="name"><b>All ${int(list.length)} products</b></td>${totals.map(v => `<td class="n"><b>${v ? int(v) : '·'}</b></td>`).join('')}<td class="n"><b>${int(sum(totals))}</b></td><td class="n"><b>${eur(sum(list.map(r => r.totalCost)))}</b></td></tr>`;
+            const all = ctx.body.querySelector('#pl-all');
+            if (all) all.checked = list.length > 0 && list.every(r => pl.sel.has(r.id));
+            return;
+        }
         ctx.body.querySelector('#pl-body').innerHTML = list.map(r => {
             const w = r.pace === null ? 0 : Math.min(100, r.pace / 2 * 100), col = r.pace === null ? 'var(--faint)' : r.pace >= PACE_FAST ? 'var(--warn)' : r.pace <= PACE_SLOW ? 'var(--violet-2)' : 'var(--ok)';
             return `<tr data-id="${esc(r.id)}" tabindex="0"${pl.sel.has(r.id) ? ' class="sel"' : ''}>
@@ -121,6 +172,8 @@ export function renderPlan(ctx) {
     }
     draw();
     ctx.body.querySelector('#pl-q').addEventListener('input', e => { pl.q = e.target.value; draw(); });
+    ctx.body.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => { pl.view = b.dataset.v; renderPlan(ctx); }));
+    ctx.body.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { pl.mode = b.dataset.mode; renderPlan(ctx); }));
     ctx.body.querySelector('#pl-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { pl.filter = b.dataset.f; draw(); } });
     const open = e => {
         if (e.target.closest('.tick')) return;                       // ticking a box must not open the panel
@@ -213,7 +266,8 @@ async function makePlanDialog(ctx, year, existing, ids) {
         title: picked ? `Plan ${plural(picked.size, 'product', 'products')} for ${year}` : `Make the ${year} plan`,
         confirmLabel: picked ? 'Plan these products' : existing ? 'Remake plan' : 'Make plan',
         body: `${existing && !picked ? '<p>This replaces the whole plan, including changes you made to it. To redo only some products, tick them in the table first.</p>' : ''}
-            ${picked ? `<p>Only these products change; the rest of the plan stays as it is.<br><span class="muted">${esc([...picked].map(nameOf).slice(0, 8).join(', '))}${picked.size > 8 ? '…' : ''}</span></p>` : ''}
+            ${picked ? `<p>Planning ${plural(picked.size, 'product', 'products')}: <span class="muted">${esc([...picked].map(nameOf).slice(0, 8).join(', '))}${picked.size > 8 ? '…' : ''}</span></p>
+            ${existing ? `<label class="check"><input type="checkbox" id="mp-only"><span><b style="font-weight:500">Make the plan only these products</b><br><span class="empty" style="padding:0">The other ${plural(existing.products.length - [...picked].filter(id => existing.products.some(r => r.id === id)).length, 'product', 'products')} in the ${year} plan are removed. Leave it unticked to keep them.</span></span></label>` : ''}` : ''}
             <div><b style="font-weight:500">Take last year's sales from</b>
                 <p class="empty" style="margin:2px 0 6px">Tick one or more years. With several, each month is the average of those years.</p>
                 <div class="filters" id="mp-years">${available.map(y => `<button class="filter" type="button" data-y="${y.year}" aria-pressed="${yearState.years.includes(y.year)}">${y.year}<span class="n">${y.recorded}/12 months</span></button>`).join('')}</div>
@@ -288,11 +342,13 @@ async function makePlanDialog(ctx, year, existing, ids) {
     const fresh = buildPlan(m, { year, growth: g, supplier, years: yearState.years, productIds: picked ? [...picked] : null,
         ignorePartial: yearState.ignorePartial, waitingByProduct: waitingByProduct(m) });
     if (!fresh.products.length) { toast('None of those products sold in the years you picked.', { bad: true }); return; }
-    const doc2 = picked && existing ? mergePlan(existing, fresh) : fresh;
+    const onlyThese = $('#mp-only') && $('#mp-only').checked;
+    const doc2 = picked && existing && !onlyThese ? mergePlan(existing, fresh) : fresh;
     try {
         await setDoc(doc(db, 'predictions', `${year}-plan`), stripLocal(doc2));
-        toast(picked ? `${plural(fresh.products.length, 'product', 'products')} planned for ${year}` : `${year} plan made: ${plural(fresh.products.length, 'product', 'products')}, ${eur(sum(fresh.products.map(r => r.totalCost)))} of purchases`);
-        pl.year = year; pl.sel.clear(); if (!picked) pl.filter = 'all';
+        toast(picked ? `${plural(fresh.products.length, 'product', 'products')} planned for ${year}${onlyThese ? ' (the plan is now only these)' : ''}` : `${year} plan made: ${plural(fresh.products.length, 'product', 'products')}, ${eur(sum(fresh.products.map(r => r.totalCost)))} of purchases`);
+        pl.year = year; pl.sel.clear(); pl.filter = 'all'; pl.view = 'plan';
+        pl.justPlanned = new Set(fresh.products.map(r => r.id));   // shown first, with a chip, so the save is visible
         await ctx.reload();
     } catch (e) { toast(`Couldn't save the plan: ${e.message}`, { bad: true }); }
 }

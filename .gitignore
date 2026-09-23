@@ -86,3 +86,6 @@ resources/app/exports/
 .env
 .env.*
 !.env.example
+
+# --- Claude Code local state (a worktree copy of this repo, launch config, task locks) ---
+.claude/

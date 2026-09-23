@@ -803,9 +803,10 @@ EUR 6,500 sale now carries *BD 50/70 R Bp Classic*, S/N **013425** and a EUR 3,6
 sales with no items went from 22 to 1 (a EUR 0 receipt), refunds with no lines from 4 to 0, and the
 share of 12-month revenue whose cost is known rose from 89% to 91%.
 
-**Stock was deliberately not touched**: these sales are months old and the 14 Sep count set stock from
-what is on the shelf, so deducting now would take the same goods off twice. The one exception worth
-knowing: the BD 50/70 sold today still shows 1 in stock, because its sale never deducted it.
+**Stock was deliberately not touched** for the old sales: they are months old and the 14 Sep count set
+stock from what is on the shelf, so deducting now would take the same goods off twice. One exception,
+corrected on the owner's say-so: the **BD 50/70 sold on 23 Sep went from 1 to 0**, because that sale
+is *after* the count and never deducted it (the product carries a `stockNote` saying why).
 
 ---
 

@@ -4,7 +4,7 @@
 // which is how one app showed three different customer counts and "profit equal to revenue".
 // New screens read these definitions instead of inventing their own. The rules match the
 // Phase 0 data fix (GOLDEN_MANIFEST Finding #25).
-import { db, ready, collection, getDocs, doc, getDoc } from './firebase.js';
+import { db, ready, collection, getDocs, doc, getDoc, query, where } from './firebase.js';
 
 export const VAT = 1.2;                  // Albanian standard VAT, 20%
 export const RESTOCK_DAYS = 42;          // a Kärcher restock takes ~6 weeks (owner, 21 Sep 2026)
@@ -234,6 +234,17 @@ export async function loadAll() {
     ]);
     // Yearly purchase plans, the order list and refunds: small collections, all needed for totals.
     const [predictions, orderLines, returns] = await Promise.all([all('predictions'), all('toOrder'), all('returns')]);
+    // The chatbot's order lines only (about 150 of its 6,700 events), so Today can flag the ones
+    // that never became an order here. Sell > Instagram reads the rest of the log when it opens.
+    let botOrders = [];
+    try {
+        const snap = await getDocs(query(collection(db, 'analytics_events'), where('event_name', '==', 'order_created')));
+        botOrders = snap.docs.map(d => {
+            const v = d.data(), prm = v.params || {};
+            return { _id: d.id, t: toMs(v.timestamp) || toMs(v.created_at), orderId: prm.order_id || '', revenue: Number(prm.revenue) || 0,
+                items: Number(prm.item_count) || 0, handled: !!v.handled, linkedOrderId: v.linkedOrderId || '' };
+        }).filter(b => !isNaN(b.t));
+    } catch { /* no chatbot events, or no permission: Today simply has nothing to say about them */ }
     // What you owe suppliers: creditors/{id} with invoices/{id} and payments/{id} beneath it.
     const creditors = await Promise.all(creditorDocs.docs.map(async c => {
         const [inv, pay] = await Promise.all([getDocs(collection(db, 'creditors', c.id, 'invoices')), getDocs(collection(db, 'creditors', c.id, 'payments'))]);
@@ -254,7 +265,7 @@ export async function loadAll() {
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, botOrders, receiptServices, notSameCustomers, loadedAt: Date.now() };
 }
 
 // ------------------------------------------------------------------ customers
@@ -486,6 +497,13 @@ export function analyze(m, now = Date.now()) {
     const lastEasypos = Math.max(0, ...m.sales.filter(s => s.type === 'easypos').map(saleTime).filter(t => !isNaN(t)));
     const polluted = m.customers.filter(c => /\bcop[eë]\s*x\s*\d|x\s*\d+[.,]\d{2}\s+\d+[.,]\d{2}\s*$/i.test(c.address || '')).length;
 
+    // ---- orders the chatbot logged that never became an order here. Only ones carrying money
+    // and only the last 90 days: the older ones are the bot's first weeks, already dealt with.
+    const orderIds = new Set(m.orders.map(o => o._id));
+    const botMissing = (m.botOrders || []).filter(b => b.t >= now - 90 * DAY && b.revenue > 0 && !b.handled
+        && !orderIds.has(b.orderId) && !(b.linkedOrderId && orderIds.has(b.linkedOrderId)))
+        .sort((x, y) => y.t - x.t);
+
     // ---- today's activity and the most recent sale
     const activity = [];
     m.sales.forEach(s => {
@@ -505,7 +523,7 @@ export function analyze(m, now = Date.now()) {
         now, today0, monthStart,
         todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
-        refunds, refunds30, refunded30, refunded12m, productNames: byName,
+        refunds, refunds30, refunded30, refunded12m, productNames: byName, botMissing,
         soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
         unmatched,
         productsSold: Object.keys(soldUnits).length,

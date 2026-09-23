@@ -195,6 +195,12 @@ a { color: inherit; }
 .kpi .d.up { color: var(--ok); } .kpi .d.down { color: var(--bad); } .kpi .d.miss { color: var(--warn); }
 .kpi svg { display: block; width: 100%; height: 30px; margin-top: 8px; }
 .kpi button.link { all: unset; cursor: pointer; color: var(--violet-2); font-size: 12px; }
+/* A figure you can press to see what is behind it (Sell > Instagram). */
+button.kpi.pick { font: inherit; text-align: left; cursor: pointer; transition: border-color .12s, background .12s; }
+button.kpi.pick:hover { border-color: var(--line-strong); background: var(--panel-2); }
+button.kpi.pick:focus-visible { outline: 0; border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139, 92, 246, .16); }
+button.kpi.pick[aria-pressed="true"] { border-color: var(--violet); background: var(--panel-2); }
+button.kpi.pick[aria-pressed="true"] small { color: var(--violet-2); }
 .kpi button.link:focus-visible { outline: 2px solid var(--violet-2); border-radius: 4px; }
 .goal { height: 6px; border-radius: 4px; background: var(--panel-3); overflow: hidden; margin-top: 8px; }
 .goal i { display: block; height: 100%; background: var(--violet); border-radius: 4px; }

@@ -799,6 +799,38 @@ months, a year or two years, sorted by what they spent or how long they've been 
 
 ---
 
+#### **42. SELL › INSTAGRAM: THE FOUR FIGURES ARE THE FOUR VIEWS** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+The owner asked for the four figures at the top to be pressable, each showing what is behind it,
+and for those rows to be workable rather than read-only.
+
+- **People who wrote** – one row per Instagram sender: messages, questions, first and last time
+  they wrote, and the last thing they asked for. Pressing a row shows only that person's questions.
+- **Asked about a product** – the questions table, with the topic summary above it.
+- **Orders the bot logged** – every `order_created` event: whether it is in the app, its amount and
+  item count, and the two actions ("Add to the app", "Nothing to do" / "Undo"). See Finding #38 for
+  what these events actually are.
+- **Online orders recorded** – the real orders in the period; a row opens the existing order drawer,
+  where the status, the items, stock, a warranty card and deleting all already live.
+
+**Today says it too, without opening the tab.** `loadAll()` now reads just the bot's `order_created`
+events (about 150, not its 6,700 message events, via a single-field query) and `analyze()` returns
+`botMissing`: events from the last 90 days that carry money, are not marked handled, and match no
+order. Today shows them as a **Now** item – currently "1 Instagram order the chatbot took is not in
+the app · 9 Sept, €199.86, 6 items".
+
+The chatbot itself runs outside this machine (the deployed `instagramWebhook` function has seen
+nothing but verification pings since 14 Sep, so the bot writes to Firestore directly and cannot be
+fixed from here). What the app can do, it now does: show every line the bot writes, on Today and in
+Sell › Instagram, and let the shop act on it.
+
+Verified end to end with a disposable event (`order_id: ZZZTESTORDER`, €1.23): "Nothing to do" wrote
+`handled`, "Undo" cleared it, "Add to the app" created the order and wrote `linkedOrderId` back, the
+row then showed the order with "Open", and deleting that order through the same screen put the stock
+back (Filter WD3: 104 → 103 → 104). Both test records removed afterwards.
+
+---
+
 #### **38. SELL › INSTAGRAM: THE QUESTIONS NOBODY IN THE SHOP COULD SEE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 The chatbot answers on Instagram and writes what happened to `analytics_events`. Nothing read that
@@ -813,10 +845,19 @@ five hours before this screen was built.
   solucion, tapet…) so the demand is still readable.
 - **"What people ask for"** groups the period by topic – a topic you keep being asked about and
   don't stock is a gap you can see.
-- **The leak, now visible:** the bot logged 146 `order_created` events; only 55 of those ids exist
-  in `onlineOrders`. **91 orders never reached the app**, including the most recent (9 Sep, €199.86),
-  while the last online order recorded is 21 Jul. The screen says so and offers "Add as order",
-  which opens a new online order with the product filled in (`openNewOrder` in `online.js`).
+- **The orders the bot logs are not orders.** 146 `order_created` events, 55 of those ids in
+  `onlineOrders`. Looked at by month, the 91 unmatched ones are two different things: **66 are from
+  Oct-Nov 2025**, the bot's first weeks, where *nothing* landed (0 of 66) - a launch/test period,
+  long since cleaned up; **25 are from Dec 2025 onward**, where 55 of 80 do land. Of those 25, all
+  but two carry `revenue: 0` with one item, which is the bot logging an order it started and never
+  finished. The two that carry real money - **€199.86 on 9 Sep** and **€1,657.86 on 12 Jun** - have
+  no order on that day at all, and those are real losses. So the honest reading is "the bot's log
+  is not a reliable order list", not "91 orders were lost".
+- **Nothing it logs is invisible now.** Every event is listed with the money and item count it
+  carries; one that has no order can be turned into a real one ("Add to the app", which opens the
+  new online order drawer) or marked **"Nothing to do"**. The decision is written back onto the
+  bot's own event (`handled`, `handledAt`, `linkedOrderId`), so it survives a reload and the same
+  order is never entered twice. `openNewOrder` now takes an `onSaved` callback for that link.
 - Instagram gives the bot a scoped sender id only – no name, no phone, and the text of ordinary
   messages is not stored (only its length). So a lead is "someone asked for X on this day", and the
   reply still happens in the Instagram inbox. The screen says that too.

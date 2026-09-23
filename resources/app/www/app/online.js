@@ -221,9 +221,10 @@ function orderDrawer(ctx, existing, prefill) {
         const data = { clientName: name.value.trim(), telephone: phone.value.trim(), address: addr.value.trim(), items, shippingFee: r2(Number(el.querySelector('#no-ship').value) || 0),
             price: itemsTotal(items), source: el.querySelector('#no-src').value };
         const batch = writeBatch(db);
+        const fresh = isNew ? doc(collection(db, 'onlineOrders')) : null;
         if (isNew) {
             const now = new Date();
-            batch.set(doc(collection(db, 'onlineOrders')), { ...data, status: 'Ordered', timestamp: now, activityLog: [{ status: 'Ordered', timestamp: now }], stockDeducted: true });
+            batch.set(fresh, { ...data, status: 'Ordered', timestamp: now, activityLog: [{ status: 'Ordered', timestamp: now }], stockDeducted: true });
             items.forEach(i => { const p = productFor(products, i); if (p) batch.update(doc(db, 'products', p._id), { stock: increment(-(Number(i.quantity) || 1)) }); });
         } else {
             batch.update(doc(db, 'onlineOrders', o._id), data);
@@ -236,7 +237,13 @@ function orderDrawer(ctx, existing, prefill) {
             }
         }
         const btn = el.querySelector('#no-save'); btn.disabled = true;
-        try { await batch.commit(); toast(isNew ? `Order saved for ${data.clientName}, stock updated` : 'Order updated'); close(); await ctx.reload(); }
+        try {
+            await batch.commit();
+            toast(isNew ? `Order saved for ${data.clientName}, stock updated` : 'Order updated');
+            // Whoever opened this drawer may need to know which order it became.
+            if (fresh && prefill && typeof prefill.onSaved === 'function') await prefill.onSaved(fresh.id);
+            close(); await ctx.reload();
+        }
         catch (x) { btn.disabled = false; fail(`Couldn't save: ${x.message}`); }
     });
 }

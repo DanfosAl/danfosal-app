@@ -1,6 +1,6 @@
 // Today: the one home screen. It answers "what needs me now" before showing any totals, and every
 // figure on it is computed - nothing is decoration (the old dashboard had four hardcoded values).
-import { esc, eur, int, pct, icon, plural, ago, clock, sparkline } from './ui.js';
+import { esc, eur, int, pct, icon, plural, ago, clock, sparkline, day, money2 } from './ui.js';
 import { RESTOCK_DAYS, SALES_WINDOW_DAYS, WALKIN } from './data.js';
 
 const GOAL_KEY = 'dailyRevenueGoal';   // same setting the retired Smart Dashboard used, so the goal carries over
@@ -61,6 +61,12 @@ function needsYou(a) {
             why: [short.length ? `${short.length} short of stock` : '', faster.length ? `${faster.length} selling faster (order more)` : '', slower.length ? `${slower.length} selling slower (order less)` : ''].filter(Boolean).join(', ')
                 + (top ? `. Biggest: ${top.name}, ${top.pace === null ? 'no sales yet' : Math.round(top.pace * 100) + '% of plan'}.` : '.'),
             action: ['Review plan', 'stock.html#plan'] });
+    }
+    if (a.botMissing && a.botMissing.length) {
+        const top = a.botMissing[0];
+        items.push({ sev: 'crit', title: `${plural(a.botMissing.length, 'Instagram order', 'Instagram orders')} the chatbot took ${a.botMissing.length === 1 ? 'is' : 'are'} not in the app`,
+            why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
+            action: ['Open Instagram', 'sell.html#leads'] });
     }
     if (a.openOrders.length) {
         const oldest = a.openOrders[0];

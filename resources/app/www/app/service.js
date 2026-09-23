@@ -6,8 +6,8 @@
 // append to the *current* timeline. Completing a ticket records the repair on the machine's
 // warranty card, once per ticket, exactly as Garanci does.
 import { bootWorkspace } from './workspace.js';
-import { db, collection, doc, addDoc, runTransaction, Timestamp } from './firebase.js';
-import { esc, int, icon, plural, day, fold, toast, openDrawer } from './ui.js';
+import { db, collection, doc, addDoc, runTransaction, writeBatch, deleteDoc, deleteField, Timestamp } from './firebase.js';
+import { esc, int, icon, plural, day, fold, toast, openDrawer, openModal } from './ui.js';
 import { DAY, toMs, saleTime, orderTime, customerDirectory } from './data.js';
 
 // Status values are shared with Garanci and the classic page; the timeline stays in Albanian like theirs.
@@ -266,7 +266,7 @@ function renderWarranties(ctx) {
     ctx.setActions(`<a class="btn" href="sell.html#sales">${icon('receipt_long')}Issue from a sale</a>`);
     ctx.body.innerHTML = `
         <div class="table-wrap" style="max-height:calc(100vh - 250px)"><table class="dt"><thead><tr>
-            <th>Certificate</th><th>Customer</th><th>Machine</th><th class="n">Issued</th><th class="n">Covered until</th><th class="n">Repairs</th></tr></thead>
+            <th>Certificate</th><th>Customer</th><th>Machine</th><th class="n">Issued</th><th class="n">Covered until</th><th class="n">Repairs</th><th></th></tr></thead>
             <tbody id="wc-body">${cards.map(c => {
                 const until = toMs(c.warrantyUntil);
                 return `<tr data-id="${esc(c._id)}" tabindex="0">
@@ -275,12 +275,48 @@ function renderWarranties(ctx) {
                     <td>${(c.items || []).map(i => `${esc(i.name || '?')}${i.serialNumber ? ` <span class="muted" style="font-family:var(--mono);font-size:11.5px">S/N ${esc(i.serialNumber)}</span>` : ''}`).join('<br>')}</td>
                     <td class="n muted">${toMs(c.createdAt) ? esc(day(toMs(c.createdAt))) + ' ' + new Date(toMs(c.createdAt)).getFullYear() : '–'}</td>
                     <td class="n">${until ? `<span class="chip ${until > now ? 'ok' : 'bad'}">${esc(day(until))} ${new Date(until).getFullYear()}</span>` : '<span class="muted">not set</span>'}</td>
-                    <td class="n">${(c.repairs || []).length || ''}</td></tr>`;
-            }).join('') || '<tr><td colspan="6" class="muted" style="padding:18px">No warranty cards yet.</td></tr>'}</tbody></table>
+                    <td class="n">${(c.repairs || []).length || ''}</td>
+                    <td class="n"><button class="btn small ghost" type="button" data-del="${esc(c._id)}" style="color:var(--bad)" title="Delete this certificate" aria-label="Delete certificate ${esc(c.certNo || 'without a number')}">${icon('delete')}</button></td></tr>`;
+            }).join('') || '<tr><td colspan="7" class="muted" style="padding:18px">No warranty cards yet.</td></tr>'}</tbody></table>
             <div class="table-foot">Click a card to open it for printing. Cards with a certificate number come from Danfos Garanci, which sets the 24-month parts and 12-month labour term.</div></div>`;
-    const openCard = e => { const tr = e.target.closest('tr[data-id]'); if (tr) window.open(`warranty-card.html?id=${encodeURIComponent(tr.dataset.id)}`, '_blank'); };
+    const openCard = e => {
+        if (e.target.closest('[data-del]')) return;          // the delete button is not "open this card"
+        const tr = e.target.closest('tr[data-id]');
+        if (tr) window.open(`warranty-card.html?id=${encodeURIComponent(tr.dataset.id)}`, '_blank');
+    };
     ctx.body.querySelector('#wc-body').addEventListener('click', openCard);
     ctx.body.querySelector('#wc-body').addEventListener('keydown', e => { if (e.key === 'Enter') openCard(e); });
+    ctx.body.querySelector('#wc-body').addEventListener('click', e => {
+        const b = e.target.closest('[data-del]');
+        if (b) deleteCard(ctx, cards.find(c => c._id === b.dataset.del));
+    });
+}
+
+// Deleting a certificate. The sale it came from is not touched - only this piece of paper. A repair
+// ticket that points at the card is unlinked in the same batch, so no ticket is left pointing at
+// something that no longer exists.
+async function deleteCard(ctx, card) {
+    if (!card) return;
+    const machine = (card.items || []).map(i => `${i.name || '?'}${i.serialNumber ? ` (S/N ${i.serialNumber})` : ''}`).join(', ');
+    const tickets = ctx.model.tickets.filter(t => t.warrantyCardId === card._id);
+    const repairs = (card.repairs || []).length;
+    const ok = await openModal({
+        title: `Delete ${card.certNo || 'this certificate'}?`,
+        confirmLabel: 'Delete certificate', confirmClass: 'money',
+        body: `<p>${esc(card.customerName || 'No customer')}${machine ? ' · ' + esc(machine) : ''}.
+            ${repairs ? `<b>${plural(repairs, 'repair is', 'repairs are')} recorded on it</b> and will be lost with it. ` : ''}
+            ${tickets.length ? `${plural(tickets.length, 'repair ticket', 'repair tickets')} linked to it will keep ${tickets.length === 1 ? 'its' : 'their'} own history but lose the link. ` : ''}
+            The sale itself is not touched. This can't be undone.</p>`
+    });
+    if (!ok) return;
+    try {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'warrantyCards', card._id));
+        tickets.forEach(t => batch.update(doc(db, 'serviceTickets', t._id), { warrantyCardId: deleteField() }));
+        await batch.commit();
+        toast(`${card.certNo || 'Certificate'} deleted`);
+        await ctx.reload();
+    } catch (e) { toast(`Couldn't delete it: ${e.message}`, { bad: true }); }
 }
 
 // ================================================================== boot

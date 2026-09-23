@@ -751,6 +751,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **46. WARRANTY CERTIFICATES CAN BE DELETED, AND THREE DUPLICATES WERE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+Two places can issue a certificate for the same machine - the till (Sell › Warranty card) and Danfos
+Garanci - so the BD 50/70 sold on 23 Sep ended up with two: a hand-made one with no number, created
+while the receipt parser was still dropping the machine (Finding #43), and GAR-2026-0014 once the
+sale carried its item again. Until now the spare could only be removed from the database by hand.
+
+- **Each row in Service › Warranty cards has a delete button.** The confirmation names the customer,
+  the machine and its serial, says how many repairs are recorded on the card (they go with it) and
+  how many repair tickets lose their link, and states plainly that the sale itself is untouched.
+- **Tickets are unlinked in the same batch** (`warrantyCardId` removed with `deleteField`), so no
+  ticket is left pointing at a certificate that no longer exists.
+- Pressing delete does not also open the print page, which the row click does.
+
+Verified on a disposable card first (`ZZZ-TEST-0001`, created and removed through the button), then
+used for real: the numberless BD 50/70 card, and **GAR-2026-0011** - AK Aviation's CVH 3 Plus had two
+certificates for one machine (same sale, same serial 144574, same invoice 59/2026, same cover to 15
+Sep 2028, no repairs on either), so the later of the two was removed and GAR-2026-0010 kept. Its
+document is backed up at `scratchpad/warrantycard-GAR-2026-0011-backup.json` in case the customer's
+printed copy carries the other number. Cards went 13 → 11, and **no machine now has more than one.**
+
+Still open, not a duplicate: four cards (GAR-0006, 0007, 0008, 0013) carry `xxxxxx` as the serial
+number instead of a real one, from invoices 348/2026, 349/2026 and 357/2026.
+
+---
+
 #### **45. THE SCANNER READS 6 AS 8 IN THE LINE-TOTAL COLUMN** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
 Six receipts had lines that did not add up to their own printed total - five by exactly EUR 2, one

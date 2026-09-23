@@ -772,8 +772,18 @@ Sep 2028, no repairs on either), so the later of the two was removed and GAR-202
 document is backed up at `scratchpad/warrantycard-GAR-2026-0011-backup.json` in case the customer's
 printed copy carries the other number. Cards went 13 → 11, and **no machine now has more than one.**
 
-Still open, not a duplicate: four cards (GAR-0006, 0007, 0008, 0013) carry `xxxxxx` as the serial
-number instead of a real one, from invoices 348/2026, 349/2026 and 357/2026.
+**`xxxxxx` is not a mistake** - it is what the owner types when a machine has no serial number, or
+when nobody knows it. The app used to print it back as though it were one ("S/N xxxxxx" on six
+cards, on the customer's machines, on sale and order lines) and a serial search matched every one of
+them at once. `realSerial()` in `data.js` now reads a run of x's, dashes or "n/a" as no serial, and
+the screens say **"no serial number"** instead: the warranty list, the ticket list and drawer, the
+delete confirmation, the customer's machines and history, and the sale and order drawers. It is also
+skipped when collecting a machine's serials and when searching tickets.
+
+**The record keeps exactly what was typed, and the certificate still prints it.** Verified on
+GAR-2026-0007 in the installed app: six cards read "no serial number" on screen, `xxxxxx` appears
+nowhere on screen, real serials still show as before - and the printed certificate still says
+`xxxxxx`, because that is the paper the customer is handed.
 
 ---
 

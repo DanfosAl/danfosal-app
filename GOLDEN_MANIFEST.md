@@ -751,6 +751,19 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **36. INSIGHTS: THE STOCK-AGE BAR IS NOW A REORDER TOOL** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+"How long your stock has been waiting" showed the bands but only ever listed the slow stock, so the fast-selling bands couldn't be acted on.
+
+- **Every band is pickable** (the bar itself and its legend entry, by mouse or keyboard). The table underneath then lists exactly those products; picking again, or "Show 3+ months", returns to the default slow-stock view.
+- **The table answers the reorder question:** in stock, units sold in 90 days, how long the stock lasts at that rate (red under the 6-week restock), when it last sold, and the money tied up.
+- **Order of the rows matches the decision:** the two "still selling" bands are sorted by what runs out soonest; the slow bands by the money tied up.
+- **A row opens that product in Stock › Catalogue.**
+
+Live figures: within 30 days = 27 products, €29,257 (led by CVH 3 Plus and Universal floor cloth set, 90 days of cover each); 31–90 days = 42 products, €12,079; the default slow view = 208 products, €77,145.
+
+---
+
 #### **35. WARRANTY CERTIFICATE: NEW SCREEN, IDENTICAL PRINT** — ✅ **DONE & PROVEN IDENTICAL (September 23, 2026)**
 
 The last page still on the old look. The owner asked for it to be redesigned **but to print exactly as before**, so every new rule lives in `@media screen` and the sheet (`.page-container`, its CSS and its `@page A4 landscape`) was not touched.

@@ -8,8 +8,8 @@
 import { bootWorkspace } from './workspace.js';
 import { esc, eur, int, icon, plural, fold, toast } from './ui.js';
 import {
-    DAY, saleTime, orderTime, orderTotal, netRevenue, lineNetCost, lineNetRevenues, productFamily,
-    productIdOfLine, productNetCost, saleSource, VAT
+    DAY, RESTOCK_DAYS, SALES_WINDOW_DAYS, saleTime, orderTime, orderTotal, netRevenue, lineNetCost, lineNetRevenues,
+    productFamily, productIdOfLine, productNetCost, saleSource, VAT
 } from './data.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -278,7 +278,7 @@ function familyTreemap(el, fams, selected) {
 
 // ================================================================== screen
 
-const state = { period: '12m', family: null };
+const state = { period: '12m', family: null, stockBand: null };
 let lastCtx = null;
 
 function renderInsights(ctx) {
@@ -317,10 +317,21 @@ function renderInsights(ctx) {
         const last = a.lastSoldAt[p._id];
         const age = last ? (a.now - last) / DAY : null;
         const b = age === null ? buckets[5] : buckets.find(x => x.days !== null && age <= x.days);
-        b.value += stock * c; b.items.push({ p, value: stock * c, last });
+        const sold = a.soldUnits[p._id] || 0;
+        b.value += stock * c;
+        b.items.push({ p, value: stock * c, last, sold, cover: sold > 0 ? stock / (sold / SALES_WINDOW_DAYS) : null });
     });
     const stockTotal = buckets.reduce((x, b) => x + b.value, 0);
-    const stale = buckets.slice(2).flatMap(b => b.items).sort((x, y) => y.value - x.value).slice(0, 8);
+    const shownBands = buckets.filter(b => b.value > 0);
+    if (state.stockBand !== null && !(buckets[state.stockBand] && buckets[state.stockBand].items.length)) state.stockBand = null;
+    const band = state.stockBand === null ? null : buckets[state.stockBand];
+    // Sellers are ranked by what runs out soonest; slow stock by how much money is tied up.
+    const fastBand = band && buckets.indexOf(band) <= 1;
+    const stockList = (band ? band.items : buckets.slice(2).flatMap(b => b.items)).slice()
+        .sort(fastBand ? (x, y) => (x.cover ?? Infinity) - (y.cover ?? Infinity) || y.value - x.value : (x, y) => y.value - x.value);
+    const bandTitle = band
+        ? `${band.label === 'Never sold' ? 'Never sold' : 'Last sold within ' + band.label} · ${plural(band.items.length, 'product', 'products')} · ${eur(band.value)} at cost`
+        : `Not sold in 3+ months · ${plural(stockList.length, 'product', 'products')} · ${eur(buckets.slice(2).reduce((x, b) => x + b.value, 0))} at cost`;
 
     // Supplier cost changes: purchase batches deduplicated by invoice.
     const costChanges = ctx.model.products.map(p => {
@@ -384,9 +395,21 @@ function renderInsights(ctx) {
         <div class="cols" style="grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)">
             <section class="panel viz" aria-labelledby="h-stock">
                 <div class="viz-head"><h2 class="panel-title" id="h-stock">How long your stock has been waiting</h2><span class="muted">${eur(stockTotal)} at cost</span></div>
-                <div class="stackbar">${buckets.filter(b => b.value > 0).map(b => `<i style="flex:${b.value};background:${b.color}" data-tip="${esc(`<b>Last sold: ${b.label === 'Never sold' ? 'never' : 'within ' + b.label}</b>${tipRow('Stock at cost', eur(b.value))}${tipRow('Share', Math.round(100 * b.value / stockTotal) + '%')}${tipRow('Products', int(b.items.length))}`)}"></i>`).join('')}</div>
-                <div class="legend" style="margin:10px 0 12px">${buckets.map(b => `<span><i style="background:${b.color}"></i>${esc(b.label)} <b>${k(b.value)}</b></span>`).join('')}</div>
-                ${stale.length ? `<div class="lines">${stale.map(x => `<div class="line"><div><b><a href="stock.html?q=${encodeURIComponent(x.p.name)}#catalogue" style="text-decoration:none">${esc(x.p.name)}</a></b><span>${int(Number(x.p.stock) || 0)} in stock · last sold ${x.last ? new Date(x.last).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'never'}</span></div><span class="n">${eur(x.value)}</span></div>`).join('')}</div>` : ''}
+                <div class="stackbar" id="stock-bar">${shownBands.map(b => `<i role="button" tabindex="0" data-band="${buckets.indexOf(b)}" aria-pressed="${state.stockBand === buckets.indexOf(b)}" style="flex:${b.value};background:${b.color}" data-tip="${esc(`<b>Last sold: ${b.label === 'Never sold' ? 'never' : 'within ' + b.label}</b>${tipRow('Stock at cost', eur(b.value))}${tipRow('Share', Math.round(100 * b.value / stockTotal) + '%')}${tipRow('Products', int(b.items.length))}<div class="tn">Click to list these products.</div>`)}"></i>`).join('')}</div>
+                <div class="legend" id="stock-legend" style="margin:10px 0 12px">${buckets.map((b, i) => `<span${b.items.length ? ` role="button" tabindex="0" data-band="${i}" class="pick${state.stockBand === i ? ' on' : ''}"` : ''}><i style="background:${b.color}"></i>${esc(b.label)} <b>${k(b.value)}</b></span>`).join('')}</div>
+                <div class="viz-head" style="margin-bottom:6px"><h3 style="margin:0" id="stock-band-title">${esc(bandTitle)}</h3>${state.stockBand !== null ? `<button class="btn ghost small" type="button" id="stock-clear">${icon('close')}Show 3+ months</button>` : ''}</div>
+                ${stockList.length ? `<div class="table-wrap" style="max-height:340px"><table class="dt"><thead><tr><th>Product</th><th class="n">In stock</th><th class="n">Sold ${SALES_WINDOW_DAYS}d</th><th class="n">Stock lasts</th><th class="n">Last sold</th><th class="n">At cost</th></tr></thead>
+                <tbody id="stock-body">${stockList.map(x => `<tr data-name="${esc(x.p.name)}" tabindex="0">
+                    <td class="name"><b>${esc(x.p.name)}</b><span>${esc(x.p.code || '')}</span></td>
+                    <td class="n">${int(Number(x.p.stock) || 0)}</td>
+                    <td class="n ${x.sold ? '' : 'muted'}">${int(x.sold)}</td>
+                    <td class="n ${x.cover !== null && x.cover < RESTOCK_DAYS ? 'zero' : 'muted'}">${x.cover === null ? '–' : x.cover > 730 ? 'years' : x.cover > 365 ? 'over a year' : plural(Math.round(x.cover), 'day', 'days')}</td>
+                    <td class="n muted">${x.last ? esc(new Date(x.last).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })) : 'never'}</td>
+                    <td class="n">${eur(x.value)}</td></tr>`).join('')}</tbody></table></div>`
+                : '<p class="empty">No products in this band.</p>'}
+                <p class="chart-note">${fastBand
+                    ? 'These are your sellers: "Stock lasts" below six weeks means order before it runs out. Click a row to open it in Stock.'
+                    : 'Money sitting still: consider a discount or a bundle before ordering more. Click a row to open it in Stock.'}</p>
             </section>
             <div class="stack"><section class="panel viz" aria-labelledby="h-hours">
                 <div class="viz-head"><h2 class="panel-title" id="h-hours">When customers buy</h2></div>
@@ -411,6 +434,27 @@ function renderInsights(ctx) {
     });
     const clear = ctx.body.querySelector('#clear-fam');
     if (clear) clear.addEventListener('click', () => { state.family = null; renderInsights(ctx); });
+
+    // Picking a band of the stock bar lists exactly those products underneath.
+    const pickBand = el => {
+        const t = el.closest('[data-band]'); if (!t) return;
+        const i = Number(t.dataset.band);
+        state.stockBand = state.stockBand === i ? null : i;
+        renderInsights(ctx);
+    };
+    ['#stock-bar', '#stock-legend'].forEach(sel => {
+        const el = ctx.body.querySelector(sel); if (!el) return;
+        el.addEventListener('click', e => pickBand(e.target));
+        el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickBand(e.target); } });
+    });
+    const clearBand = ctx.body.querySelector('#stock-clear');
+    if (clearBand) clearBand.addEventListener('click', () => { state.stockBand = null; renderInsights(ctx); });
+    const stockBody = ctx.body.querySelector('#stock-body');
+    if (stockBody) {
+        const open = e => { const tr = e.target.closest('tr[data-name]'); if (tr) window.location.href = `stock.html?q=${encodeURIComponent(tr.dataset.name)}#catalogue`; };
+        stockBody.addEventListener('click', open);
+        stockBody.addEventListener('keydown', e => { if (e.key === 'Enter') open(e); });
+    }
 }
 
 async function exportPdf(periodLabel) {

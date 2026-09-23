@@ -423,7 +423,14 @@ select.inp { appearance: auto; }
 .rank-row .rv { font-family: var(--mono); font-size: 13px; text-align: right; white-space: nowrap; }
 .rank-row .rv small { display: block; color: var(--faint); font-size: 11px; }
 .stackbar { display: flex; height: 22px; border-radius: 7px; overflow: hidden; gap: 2px; }
-.stackbar i { display: block; min-width: 3px; }
+.stackbar i { display: block; min-width: 3px; transition: filter .12s, opacity .12s; }
+/* Bands and legend entries are pickable: choosing one lists those products underneath. */
+.stackbar i[data-band] { cursor: pointer; }
+.stackbar i[data-band]:hover, .stackbar i[data-band]:focus-visible { filter: brightness(1.25); outline: none; }
+.stackbar i[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.legend span.pick { cursor: pointer; padding: 2px 7px; margin: -2px 0; border-radius: 999px; border: 1px solid transparent; }
+.legend span.pick:hover { border-color: var(--line-strong); }
+.legend span.pick.on { border-color: var(--violet); background: var(--violet-bg); color: var(--ink); }
 .viz-tip { position: fixed; z-index: 150; pointer-events: none; max-width: 300px; background: #0f1124; border: 1px solid var(--line-strong); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; box-shadow: 0 16px 40px -14px rgba(0, 0, 0, .8); }
 .viz-tip b { font-weight: 600; display: block; margin-bottom: 4px; }
 .viz-tip .tr { display: flex; align-items: center; gap: 8px; color: var(--muted); }

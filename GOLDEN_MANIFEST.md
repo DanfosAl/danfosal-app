@@ -770,8 +770,12 @@ fix, 289 before the whole day's work).
 
 **Nothing in the database was wrong because of this**: a saved sale keeps the *unit* price and takes
 its total from the `TOTAL EUR` line, and both of those were read correctly. It was the parser that
-was internally inconsistent. The one exception is a refund record whose stored lines keep the
-unsigned 35.00 - harmless, because every screen reads refund lines as magnitudes, but it is there.
+was internally inconsistent. One refund record did keep the unsigned 35.00 on a line; it was tidied
+to -35.00 (backup: `scratchpad/refund-line-backup.json`, the receipt's own figure kept as
+`printedLineTotal`, the refund's EUR 111 total unchanged).
+
+Where the data now stands: **all 38 refund lines agree with quantity x price, and every EasyPOS sale
+with items adds up to its own total.**
 
 ---
 

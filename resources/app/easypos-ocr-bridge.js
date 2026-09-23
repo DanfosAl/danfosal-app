@@ -978,7 +978,8 @@ class EasyPOSOCRProcessor {
             action: returnInfo.returnType,
             returnId: returnRef.id,
             invoiceNumber: invoiceData.invoiceNumber,
-            linkedOrderId: linkedOrder ? linkedOrder.orderId : null
+            linkedOrderId: originalTransaction && originalTransaction.type === 'onlineOrder' ? originalTransaction.orderId : null,
+            linkedSaleId: originalTransaction && originalTransaction.type === 'storeSale' ? originalTransaction.saleId : null
         };
     }
     
@@ -989,6 +990,12 @@ class EasyPOSOCRProcessor {
      * 2. Search onlineOrders by linkedInvoiceNumber
      * 3. FALLBACK: Search by customer name + matching amount (for OCR errors)
      */
+    // The date printed on the credit note (DD/MM/YYYY), in milliseconds.
+    invoiceDateMs(invoiceData) {
+        const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(invoiceData.invoiceDate || ''));
+        return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() : null;
+    }
+
     async findOriginalTransaction(db, invoiceData) {
         const invoiceNumber = invoiceData.invoiceNumber;
         const customerName = invoiceData.customerName;
@@ -1053,6 +1060,25 @@ class EasyPOSOCRProcessor {
                     }
                 }
                 
+                // The shop's trade is mostly over the counter, so the sale being reversed is
+                // usually a store sale - and until now this only ever looked at online orders.
+                // Same customer, same amount, the sale at or before the refund and within four
+                // months of it. Only a single candidate is accepted: two sales of the same amount
+                // to the same customer cannot be told apart, and guessing would mark the wrong one.
+                const salesByName = await db.collection('storeSales').where('clientName', '==', customerName).get();
+                const refundAt = this.invoiceDateMs(invoiceData) || Date.now();
+                const near = salesByName.docs.filter(d => {
+                    const v = d.data();
+                    const t = v.timestamp && v.timestamp.toMillis ? v.timestamp.toMillis() : 0;
+                    return Math.abs((Number(v.total) || 0) - total) < 0.01
+                        && t <= refundAt + 86400000 && t >= refundAt - 120 * 86400000;
+                });
+                if (near.length === 1) {
+                    log(`   → Found the store sale it reverses: ${near[0].id} (${customerName}, EUR ${total})`);
+                    return { type: 'storeSale', saleId: near[0].id };
+                }
+                if (near.length > 1) log(`   → ${near.length} sales of EUR ${total} to ${customerName} - cannot tell which, leaving it unlinked`);
+
                 log(`   → No match found by customer+amount`);
             }
             

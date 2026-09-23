@@ -6,9 +6,9 @@
 // recorded in a transaction that re-reads the invoice and recomputes the balance from the
 // payments themselves, so two people paying in at once can't lose one.
 import { bootWorkspace } from './workspace.js';
-import { db, collection, doc, addDoc, deleteDoc, runTransaction, writeBatch, Timestamp } from './firebase.js';
+import { db, collection, doc, addDoc, updateDoc, deleteDoc, runTransaction, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { toMs, customerKey, saleInvoiceNumber, shortInvoice, saleTime, netRevenue, saleNetCost, DAY, productNameIndex, returnTime, returnTotal, returnNet, returnNetCost
+import { toMs, customerKey, saleInvoiceNumber, shortInvoice, saleTime, netRevenue, saleNetCost, DAY, productNameIndex, returnTime, returnTotal, returnNet, returnNetCost, recurringFor, runningCostOf, monthKeyOf
 } from './data.js';
 import { addSupplierInvoice } from './payables.js';
 
@@ -231,7 +231,12 @@ function renderExpenses(ctx) {
     const next = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(); };
     const all = m.expenses.filter(e => !isNaN(expTime(e))).sort((a, b) => expTime(b) - expTime(a));
     const monthExp = all.filter(e => expTime(e) >= exp.month && expTime(e) < next(exp.month));
-    const monthTotal = monthExp.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+    // Rent and salaries do not need retyping every month: they are entered once under "Every
+    // month" and counted here, which is what lets a month state its real profit at all.
+    const repeat = recurringFor(m, exp.month);
+    const cost = runningCostOf(m, exp.month, monthExp);
+    const monthTotal = cost.total;
+    const known = monthExp.length > 0 || repeat.length > 0;
     const gross = grossByMonth(m);
     const g = gross.get(exp.month) || { net: 0, costedNet: 0, cost: 0 };
     const gp = g.costedNet - g.cost;
@@ -239,17 +244,19 @@ function renderExpenses(ctx) {
     const prevMonths = [...new Set(all.map(e => monthStartOf(expTime(e))))].filter(t => t < exp.month).sort((a, b) => b - a);
     const template = prevMonths.length ? all.filter(e => monthStartOf(expTime(e)) === prevMonths[0]) : [];
 
-    ctx.setSub(`${monthName(exp.month)} · ${monthExp.length ? eur(monthTotal) + ' spent' : 'nothing recorded yet'}`);
+    ctx.setSub(`${monthName(exp.month)} · ${known ? eur(monthTotal) + ' to run the shop' : 'nothing recorded yet'}`);
     const actions = ctx.setActions(`<div class="seg" role="group" aria-label="Month">
             <button type="button" data-mv="-1" aria-label="Previous month">${icon('chevron_left')}</button>
             <button type="button" aria-pressed="true" style="min-width:150px;justify-content:center">${esc(monthName(exp.month))}</button>
             <button type="button" data-mv="1" aria-label="Next month"${exp.month >= thisMonth ? ' disabled' : ''}>${icon('chevron_right')}</button></div>
         ${template.length && !monthExp.length ? `<button class="btn" type="button" id="copy-exp">${icon('content_copy')}Copy ${esc(shortMonth(prevMonths[0]))}'s costs</button>` : ''}
+        <button class="btn" type="button" id="fixed-exp">${icon('event_repeat')}Every month</button>
         <button class="btn primary" type="button" id="new-exp">${icon('add')}New expense</button>`);
     actions.querySelectorAll('[data-mv]').forEach(b => b.addEventListener('click', () => {
         const d = new Date(exp.month); exp.month = new Date(d.getFullYear(), d.getMonth() + Number(b.dataset.mv), 1).getTime(); renderExpenses(ctx);
     }));
     actions.querySelector('#new-exp').addEventListener('click', () => expenseDialog(ctx));
+    actions.querySelector('#fixed-exp').addEventListener('click', () => recurringDialog(ctx));
     const copy = actions.querySelector('#copy-exp');
     if (copy) copy.addEventListener('click', () => copyExpenses(ctx, template));
 
@@ -259,7 +266,8 @@ function renderExpenses(ctx) {
         const d = new Date(exp.month), k = new Date(d.getFullYear(), d.getMonth() - i, 1).getTime();
         const x = gross.get(k) || { net: 0, costedNet: 0, cost: 0 };
         const list = all.filter(z => monthStartOf(expTime(z)) === k);
-        rows.push({ k, gp: x.costedNet - x.cost, net: x.net, costedShare: x.net ? x.costedNet / x.net : 1, e: list.reduce((a, z) => a + (Number(z.amount) || 0), 0), hasExp: list.length > 0 });
+        const c = runningCostOf(m, k, list);
+        rows.push({ k, gp: x.costedNet - x.cost, net: x.net, costedShare: x.net ? x.costedNet / x.net : 1, e: c.total, hasExp: list.length > 0 || c.repeating > 0, repeating: c.repeating });
     }
     const byCat = new Map();
     monthExp.forEach(e => byCat.set(e.category || 'Other', (byCat.get(e.category || 'Other') || 0) + (Number(e.amount) || 0)));
@@ -267,20 +275,23 @@ function renderExpenses(ctx) {
 
     ctx.body.innerHTML = `
         <div class="kpis">
-            <div class="kpi"><small>Expenses</small><span class="v">${eur(monthTotal)}</span><span class="d">${plural(monthExp.length, 'entry', 'entries')} in ${esc(shortMonth(exp.month))}</span></div>
+            <div class="kpi"><small>Costs</small><span class="v">${eur(monthTotal)}</span><span class="d">${repeat.length ? `${eur(cost.repeating)} every month${cost.oneOff ? ` + ${eur(cost.oneOff)} recorded` : ''}` : `${plural(monthExp.length, 'entry', 'entries')} in ${esc(shortMonth(exp.month))}`}</span></div>
             <div class="kpi"><small>Gross profit</small><span class="v">${eur(gp)}</span><span class="d">sales after cost of goods, net of VAT</span></div>
-            <div class="kpi"><small>Net profit</small><span class="v" style="${monthExp.length && gp - monthTotal < 0 ? 'color:var(--bad)' : ''}">${monthExp.length ? eur(gp - monthTotal) : '–'}</span><span class="d">${monthExp.length ? 'gross profit minus expenses' : 'record this month’s expenses to see it'}</span></div>
-            <div class="kpi"><small>Costs covered by profit</small><span class="v">${monthExp.length && monthTotal ? Math.round(100 * gp / monthTotal) + '%' : '–'}</span><span class="d">${monthExp.length && gp < monthTotal ? `${eur(monthTotal - gp)} short of covering them` : 'gross profit ÷ expenses'}</span></div>
+            <div class="kpi"><small>Net profit</small><span class="v" style="${known && gp - monthTotal < 0 ? 'color:var(--bad)' : ''}">${known ? eur(gp - monthTotal) : '–'}</span><span class="d">${known ? 'gross profit minus what the shop costs to run' : 'add what the shop costs to run to see it'}</span></div>
+            <div class="kpi"><small>Break even</small><span class="v">${known && monthTotal ? eur(monthTotal / Math.max(0.05, g.net ? (g.costedNet - g.cost) / g.net : 0.4)) : '–'}</span><span class="d">${known && monthTotal ? `of sales a month at ${Math.round(100 * (g.net ? (g.costedNet - g.cost) / g.net : 0.4))}% margin · ${gp >= monthTotal ? 'reached' : eur(monthTotal - gp) + ' of profit short'}` : 'sales needed to cover the costs'}</span></div>
         </div>
         <div class="cols">
             <section class="panel" aria-labelledby="ex-h">
                 <h2 class="panel-title" id="ex-h">${esc(monthName(exp.month))}<span>${eur(monthTotal)}</span></h2>
                 ${cats.length > 1 ? `<div class="stackbar" style="margin-bottom:8px">${cats.map(([c, v], i) => `<i style="flex:${v};background:${CAT_COLORS[i % 8]}" title="${esc(catLabel(c))}: ${eur(v)}"></i>`).join('')}</div>
                     <div class="legend" style="margin-bottom:10px">${cats.map(([c, v], i) => `<span><i style="background:${CAT_COLORS[i % 8]}"></i>${esc(catLabel(c))} <b>${eur(v)}</b></span>`).join('')}</div>` : ''}
+                ${repeat.length ? `<div class="lines">${repeat.map(r => `
+                    <div class="line"><div><b>${esc(r.description || catLabel(r.category))}</b><span>${esc(catLabel(r.category))} · <span class="chip">every month</span>${r.fromMonth ? ` since ${esc(r.fromMonth)}` : ''}</span></div>
+                        <span class="n">€${money2(r.amount)}</span></div>`).join('')}</div>` : ''}
                 ${monthExp.length ? `<div class="lines">${monthExp.map(e => `
                     <div class="line"><div><b>${esc(e.description || catLabel(e.category))}</b><span>${esc(catLabel(e.category))} · ${esc(day(expTime(e)))}</span></div>
                         <span class="n" style="display:flex;gap:6px;align-items:center;justify-content:flex-end">€${money2(e.amount)}<button class="btn ghost small" type="button" data-del="${esc(e._id)}" aria-label="Delete this expense">${icon('delete')}</button></span></div>`).join('')}</div>`
-                : `<p class="empty">No expenses recorded for this month.${template.length ? ` Rent and salaries repeat, so “Copy ${esc(shortMonth(prevMonths[0]))}'s costs” adds that month's entries in one step, and you can adjust the amounts.` : ''}</p>`}
+                : repeat.length ? '' : `<p class="empty">Nothing recorded for this month. Rent, salaries and the like repeat every month – put them under “Every month” once and every month counts them by itself.${template.length ? ` Or copy ${esc(shortMonth(prevMonths[0]))}'s entries.` : ''}</p>`}
             </section>
             <section class="panel" aria-labelledby="pl-h">
                 <h2 class="panel-title" id="pl-h">Profit after expenses, last 12 months</h2>
@@ -288,7 +299,7 @@ function renderExpenses(ctx) {
                 <tbody id="pl-body">${rows.map(r => `<tr data-k="${r.k}"${r.k === exp.month ? ' class="sel"' : ''}><td>${esc(new Date(r.k).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }))}${r.net && r.costedShare < 0.8 ? ' <span class="chip warn" title="Part of this month’s sales have no cost price">partly costed</span>' : ''}</td>
                     <td class="n">${r.net ? eur(r.gp) : '<span class="muted">no sales</span>'}</td><td class="n">${r.hasExp ? eur(r.e) : '<span class="muted">not recorded</span>'}</td>
                     <td class="n">${r.hasExp ? `<b style="color:${r.gp - r.e < 0 ? 'var(--bad)' : 'var(--ok)'}">${eur(r.gp - r.e)}</b>` : '–'}</td></tr>`).join('')}</tbody></table></div>
-                <p class="chart-note" style="margin-top:8px">Net is shown only for months with expenses recorded: a month with none recorded would otherwise look like pure profit. Click a month to open it.</p>
+                <p class="chart-note" style="margin-top:8px">Net is shown only for months whose costs are known: a month with none would otherwise look like pure profit. Costs entered under “Every month” count for every month they cover. Click a month to open it.</p>
             </section>
         </div>`;
     ctx.body.querySelector('#pl-body').addEventListener('click', e => { const tr = e.target.closest('[data-k]'); if (tr) { exp.month = Number(tr.dataset.k); renderExpenses(ctx); } });
@@ -343,6 +354,74 @@ async function copyExpenses(ctx, template) {
     });
     try { await batch.commit(); toast(`${plural(n, 'expense', 'expenses')} added, ${eur(total)}`); await ctx.reload(); }
     catch (x) { toast(`Couldn't save: ${x.message}`, { bad: true }); }
+}
+
+// What the shop costs to run every month, entered once. Deliberately plain: a name, an amount,
+// a category, and the month it started - a cost that ends gets an end month rather than being
+// deleted, so past months keep counting it.
+async function recurringDialog(ctx) {
+    const m = ctx.model;
+    const thisKey = monthKeyOf(ctx.a.now);
+    const draw = () => {
+        const list = (m.recurring || []).slice().sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+        const live = list.filter(r => !r.toMonth || r.toMonth >= thisKey);
+        const total = live.reduce((a, r) => a + (Number(r.amount) || 0), 0);
+        return `
+            <p class="empty" style="margin:0 0 10px">Rent, salaries, the accountant, internet – whatever the shop pays every month whether it sells anything or not. Entered here once, counted in every month.</p>
+            <div class="kv"><div><small>Every month</small><b>${eur(total)}</b></div>
+                <div><small>Entries</small><b>${int(live.length)}</b></div>
+                <div><small>A year</small><b>${eur(total * 12)}</b></div></div>
+            ${list.length ? `<div class="lines" id="rc-list">${list.map(r => {
+                const ended = r.toMonth && r.toMonth < thisKey;
+                return `<div class="line"${ended ? ' style="opacity:.55"' : ''}><div><b>${esc(r.description || catLabel(r.category))}</b>
+                    <span>${esc(catLabel(r.category))}${r.fromMonth ? ` · since ${esc(r.fromMonth)}` : ''}${r.toMonth ? ` · until ${esc(r.toMonth)}` : ''}</span></div>
+                    <span class="n" style="display:flex;gap:6px;align-items:center;justify-content:flex-end">€${money2(r.amount)}
+                        ${ended ? '' : `<button class="btn ghost small" type="button" data-stop="${esc(r._id)}" title="It has stopped">${icon('event_busy')}</button>`}
+                        <button class="btn ghost small" type="button" data-rm="${esc(r._id)}" title="Remove it completely" style="color:var(--bad)">${icon('delete')}</button></span></div>`;
+            }).join('')}</div>` : '<p class="empty">Nothing yet.</p>'}
+            <form class="form-grid" id="rc-form" style="margin-top:12px" novalidate>
+                <label class="fld wide">What is it<input id="rc-name" placeholder="Rent, salaries, accountant…" autocomplete="off"></label>
+                <label class="fld">Every month (€)<input id="rc-amt" type="number" min="0" step="0.01"></label>
+                <label class="fld">Category<select id="rc-cat">${CATEGORIES.map(c => `<option value="${esc(c[0])}">${esc(c[1])}</option>`).join('')}</select></label>
+                <label class="fld">Paying it since<input id="rc-from" type="month" value="${esc(thisKey)}"></label>
+                <p class="err wide" id="rc-err" hidden></p>
+            </form>`;
+    };
+    const { el, close } = openDrawer({ title: 'What the shop costs every month', sub: 'Counted in every month, without retyping', body: draw(),
+        foot: `<button class="btn primary" type="button" id="rc-add">${icon('add')}Add it</button><span class="muted" style="margin-left:auto">Close when you are done</span>` });
+
+    const refresh = async () => { await ctx.reload(); close(); recurringDialog(ctx); };
+    el.querySelector('#rc-add').addEventListener('click', async () => {
+        const err = el.querySelector('#rc-err');
+        const name = el.querySelector('#rc-name').value.trim();
+        const amount = Number(el.querySelector('#rc-amt').value) || 0;
+        if (!name || !(amount > 0)) { err.textContent = 'A name and an amount, please.'; err.hidden = false; return; }
+        try {
+            await addDoc(collection(db, 'recurringCosts'), { description: name, amount: Math.round(amount * 100) / 100, category: el.querySelector('#rc-cat').value,
+                fromMonth: el.querySelector('#rc-from').value || thisKey, toMonth: null, createdAt: Timestamp.now() });
+            toast(`${name} counted every month`);
+            await refresh();
+        } catch (x) { err.textContent = `Couldn't save it: ${x.message}`; err.hidden = false; }
+    });
+    el.addEventListener('click', async e => {
+        const stop = e.target.closest('[data-stop]'), rm = e.target.closest('[data-rm]');
+        if (!stop && !rm) return;
+        const id = (stop || rm).dataset[stop ? 'stop' : 'rm'];
+        const r = (m.recurring || []).find(x => x._id === id);
+        if (stop) {
+            const ok = await openModal({ title: `Stop ${r.description}?`, confirmLabel: 'It has stopped',
+                body: `<p>It stops counting from next month. Months up to ${esc(monthName(ctx.a.now))} keep it, because the shop paid it then.</p>` });
+            if (!ok) return;
+            try { await updateDoc(doc(db, 'recurringCosts', id), { toMonth: thisKey }); toast(`${r.description} stops after ${monthName(ctx.a.now)}`); await refresh(); }
+            catch (x) { toast(`Couldn't save: ${x.message}`, { bad: true }); }
+            return;
+        }
+        const ok = await openModal({ title: `Remove ${r.description}?`, confirmLabel: 'Remove', confirmClass: 'money',
+            body: `<p>It disappears from every month, past ones included – their profit goes up by €${money2(r.amount)} each. If the shop simply stopped paying it, use “it has stopped” instead.</p>` });
+        if (!ok) return;
+        try { await deleteDoc(doc(db, 'recurringCosts', id)); toast(`${r.description} removed`); await refresh(); }
+        catch (x) { toast(`Couldn't remove: ${x.message}`, { bad: true }); }
+    });
 }
 
 // ================================================================== you owe (suppliers)
@@ -507,10 +586,12 @@ function renderOutlook(ctx) {
     // Out: supplier invoices by due date.
     const sup = m.creditors.flatMap(c => c.invoices.filter(i => cBal(i) > 0.005).map(i => ({ c, i, due: dueOf(i) })));
     const dueSoon = sup.filter(x => !isNaN(x.due) && x.due < end), noDue = sup.filter(x => isNaN(x.due));
-    // Out: running costs, estimated from the latest month that has expenses recorded.
+    // Out: what the shop costs to run. The costs entered as repeating are the honest answer;
+    // failing that, fall back to the latest month that has anything recorded.
+    const repeating = recurringFor(m, monthStartOf(now)).reduce((a, r) => a + (Number(r.amount) || 0), 0);
     const months = [...new Set(m.expenses.map(e => monthStartOf(expTime(e))).filter(t => !isNaN(t)))].sort((a, b) => b - a);
     const lastMonth = months[0];
-    const running = lastMonth ? m.expenses.filter(e => monthStartOf(expTime(e)) === lastMonth).reduce((a, e) => a + (Number(e.amount) || 0), 0) : 0;
+    const running = repeating || (lastMonth ? m.expenses.filter(e => monthStartOf(expTime(e)) === lastMonth).reduce((a, e) => a + (Number(e.amount) || 0), 0) : 0);
     // Out: deliveries the yearly plan puts in this month and next (net cost; VAT on imports is extra).
     const plan = (m.predictions || []).find(p => p.version === 2 && Number(p.year) === new Date(now).getFullYear());
     const mo = new Date(now).getMonth();

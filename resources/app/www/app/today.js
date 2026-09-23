@@ -141,6 +141,11 @@ function renderKpis(a) {
         <div class="kpi"><small>This month</small><span class="v">${eur(a.monthRevenue)}</span>
             <span class="d ${vsLast === null ? '' : vsLast >= 0 ? 'up' : 'down'}">${plural(a.monthSalesCount, 'sale', 'sales')}${vsLast === null ? '' : ` · ${vsLast >= 0 ? '+' : ''}${Math.round(vsLast * 100)}% vs same days last month`}</span>
             ${sparkline(a.dailySeries)}</div>
+        <div class="kpi"><small>Profit this month</small>
+            <span class="v" style="${a.monthProfit === null ? '' : a.monthProfit < 0 ? 'color:var(--bad)' : 'color:var(--ok)'}">${a.monthProfit === null ? '–' : eur(a.monthProfit)}</span>
+            <span class="d">${a.monthProfit === null
+                ? `${eur(a.monthGross)} gross · <a href="money.html#expenses" style="color:var(--violet-2)">add what the shop costs to run</a>`
+                : `${eur(a.monthGross)} gross − ${eur(a.monthRunning.total)} to run${a.breakEven ? ` · break even at ${eur(a.breakEven)} of sales` : ''}`}</span></div>
         <div class="kpi"><small>Gross margin · 30 days</small><span class="v">${a.margin30 === null ? '–' : Math.round(a.margin30 * 100) + '%'}</span>${marginNote}</div>
         <div class="kpi"><small>Owed to you</small><span class="v">${eur(a.owedTotal)}</span>
             <span class="d">${plural(a.owed.length, 'unpaid invoice', 'unpaid invoices')} · <a href="money.html#owed" style="color:var(--violet-2)">Money</a></span></div>`;

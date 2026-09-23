@@ -244,8 +244,8 @@ export async function loadAll() {
         all('serviceTickets'), all('warrantyCards'), getDocs(collection(db, 'debtors')), all('stockCorrections'),
         all('expenses'), getDocs(collection(db, 'creditors'))
     ]);
-    // Yearly purchase plans, the order list and refunds: small collections, all needed for totals.
-    const [predictions, orderLines, returns] = await Promise.all([all('predictions'), all('toOrder'), all('returns')]);
+    // Yearly purchase plans, the order list, refunds and the costs that repeat every month.
+    const [predictions, orderLines, returns, recurring] = await Promise.all([all('predictions'), all('toOrder'), all('returns'), all('recurringCosts')]);
     // The chatbot's order lines only (about 150 of its 6,700 events), so Today can flag the ones
     // that never became an order here. Sell > Instagram reads the rest of the log when it opens.
     let botOrders = [];
@@ -277,7 +277,27 @@ export async function loadAll() {
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, botOrders, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, loadedAt: Date.now() };
+}
+
+// ---- costs that repeat every month (rent, salaries, the accountant)
+
+// A recurring cost runs from the month it started until the month it stopped, if it stopped.
+// Months are plain 'YYYY-MM' strings so a comparison is a comparison, with no timezone in it.
+export const monthKeyOf = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+
+export function recurringFor(m, monthStart) {
+    const k = monthKeyOf(monthStart);
+    return (m.recurring || []).filter(r => Number(r.amount) > 0
+        && (!r.fromMonth || r.fromMonth <= k)
+        && (!r.toMonth || r.toMonth >= k));
+}
+
+// Everything the month costs to run: what was recorded on a day, plus what repeats.
+export function runningCostOf(m, monthStart, expenses) {
+    const one = (expenses || []).reduce((a, e) => a + (Number(e.amount) || 0), 0);
+    const rep = recurringFor(m, monthStart).reduce((a, r) => a + (Number(r.amount) || 0), 0);
+    return { oneOff: one, repeating: rep, total: one + rep };
 }
 
 // ------------------------------------------------------------------ customers
@@ -509,6 +529,30 @@ export function analyze(m, now = Date.now()) {
     const lastEasypos = Math.max(0, ...m.sales.filter(s => s.type === 'easypos').map(saleTime).filter(t => !isNaN(t)));
     const polluted = m.customers.filter(c => /\bcop[eë]\s*x\s*\d|x\s*\d+[.,]\d{2}\s+\d+[.,]\d{2}\s*$/i.test(c.address || '')).length;
 
+    // ---- this month, after everything: goods, and what the shop costs to run whether it sells
+    // or not. Only stated when the running costs are known - a month with none recorded would
+    // otherwise look like pure profit.
+    const monthSales = sales.filter(s => saleTime(s) >= monthStart);
+    let monthNet = 0, monthCostedNet = 0, monthCost = 0;
+    monthSales.forEach(s => {
+        const net = netRevenue(s), c = saleNetCost(s);
+        monthNet += net;
+        if (c !== null) { monthCostedNet += net; monthCost += c; }
+    });
+    refunds.filter(r => r._t >= monthStart).forEach(r => {
+        const net = returnNet(r), c = returnNetCost(r, byName);
+        monthNet -= net;
+        if (c !== null) { monthCostedNet -= net; monthCost -= c; }
+    });
+    const monthGross = monthCostedNet - monthCost;
+    const monthRunning = runningCostOf(m, monthStart, (m.expenses || []).filter(e => {
+        const t = toMs(e.date) || toMs(e.createdAt);
+        return t >= monthStart && t < now + DAY;
+    }));
+    const monthProfit = monthRunning.total > 0 ? monthGross - monthRunning.total : null;
+    const monthMargin = monthCostedNet > 0 ? monthGross / monthCostedNet : null;
+    const breakEven = monthRunning.total > 0 && monthMargin > 0.05 ? monthRunning.total / monthMargin : null;
+
     // ---- orders the chatbot logged that never became an order here. Only ones carrying money
     // and only the last 90 days: the older ones are the bot's first weeks, already dealt with.
     const orderIds = new Set(m.orders.map(o => o._id));
@@ -536,6 +580,7 @@ export function analyze(m, now = Date.now()) {
         todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
         refunds, refunds30, refunded30, refunded12m, productNames: byName, botMissing,
+        monthGross, monthRunning, monthProfit, monthMargin, breakEven,
         soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
         unmatched,
         productsSold: Object.keys(soldUnits).length,

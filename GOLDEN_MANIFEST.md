@@ -771,7 +771,7 @@ first draft of online orders, superseded by `onlineOrders`) and `suppliers` (7 �
 
 #### **40. THE TILL ASKS FOR A PHONE NUMBER** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
-446 buyers have no phone number, which is why only 53 of the 200 customers worth winning back can
+446 buyers have no phone number, which is why only 53 of the 199 customers worth winning back can
 be written to. The till now asks – but only when it is new information.
 
 - A **Phone** field appears under the customer name in Sell › New sale **only** when that customer
@@ -783,7 +783,7 @@ be written to. The till now asks – but only when it is new information.
 
 ---
 
-#### **39. WIN BACK: 200 CUSTOMERS, €202,175, FORGOTTEN** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+#### **39. WIN BACK: 199 CUSTOMERS, €194,058, FORGOTTEN** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 New tab **Customers › Win back**: everyone who bought at least twice and hasn't been back for 6
 months, a year or two years, sorted by what they spent or how long they've been away.
@@ -792,7 +792,7 @@ months, a year or two years, sorted by what they spent or how long they've been 
   preferred over the mop it came with) – opened in WhatsApp through `wa.me`, with Albanian mobile
   numbers normalised (069… → 35569…). **Nothing is ever sent by the app**: WhatsApp opens with the
   text ready and the owner presses send. "Copy" puts the same text on the clipboard.
-- **The gap is visible:** 200 customers, €202,175 spent with the shop, and only 53 have a phone
+- **The gap is visible:** 199 customers, €194,058 spent with the shop, and only 53 have a phone
   number – which is what Finding #40 is for.
 - **"Pa klient"** ("no customer") is now read as a walk-in placeholder everywhere (`WALKIN` in
   `data.js`), not as a customer with 80 purchases and €8,118 of spend.

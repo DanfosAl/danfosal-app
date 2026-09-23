@@ -37,6 +37,18 @@ export function customerKey(name) {
         .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// A serial number the owner typed to mean "there isn't one": xxxxxx (their own convention), or
+// dashes, or n/a. It is kept on the record exactly as typed - the printed certificate shows what
+// was written on it - but no screen pretends it identifies a machine.
+export function realSerial(value) {
+    const s = String(value || '').trim();
+    if (!s) return '';
+    if (/^x+$/i.test(s)) return '';
+    if (/^[-_.?*\s]+$/.test(s)) return '';
+    if (/^(n\/?a|none|no serial|pa numer|pa seri)$/i.test(s)) return '';
+    return s;
+}
+
 export function saleSource(s) {
     if (s.type === 'easypos') return 'EasyPOS';
     if ((s.source || '').startsWith('Manual PDF')) return 'PDF';

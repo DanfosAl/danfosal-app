@@ -9,7 +9,8 @@
 import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs } from './data.js';
+import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs, realSerial
+} from './data.js';
 
 const directoryOf = m => m._directory || (m._directory = customerDirectory(m));
 const reviewOf = m => m._review || (m._review = lookalikeCustomers(directoryOf(m), m.notSameCustomers));
@@ -113,7 +114,7 @@ function historyOf(e) {
     e.orders.forEach(o => rows.push({ t: orderTime(o), icon: 'shopping_bag', amount: orderTotal(o), title: `Online order · ${o.status || 'open'}`,
         sub: (o.items || []).map(i => i.name || i.productName || '?').join(', ') || o.productName || '', href: 'sell.html#online' }));
     e.warranties.forEach(w => rows.push({ t: toMs(w.createdAt), icon: 'verified', amount: null, title: `Warranty ${w.certNo || 'card'} issued`,
-        sub: (w.items || []).map(i => `${i.name}${i.serialNumber ? ' · S/N ' + i.serialNumber : ''}`).join(', '), href: `warranty-card.html?id=${encodeURIComponent(w._id)}`, external: true }));
+        sub: (w.items || []).map(i => `${i.name}${realSerial(i.serialNumber) ? ' · S/N ' + realSerial(i.serialNumber) : ''}`).join(', '), href: `warranty-card.html?id=${encodeURIComponent(w._id)}`, external: true }));
     e.tickets.forEach(t => rows.push({ t: toMs(t.createdAt), icon: 'build', amount: null, title: `Repair: ${t.productName || 'machine'} · ${String(t.status || '').replace(/_/g, ' ')}`,
         sub: t.issueDescription || '', href: `service.html?id=${encodeURIComponent(t._id)}#tickets` }));
     e.debts.forEach(d => rows.push({ t: toMs(d.date) || toMs(d.createdAt), icon: 'account_balance_wallet', amount: null,
@@ -129,9 +130,9 @@ function machinesOf(e) {
         const k = fold(name); const m = byName.get(k) || { name, qty: 0, last: 0, serials: new Set() };
         m.qty += qty; m.last = Math.max(m.last, t || 0); if (serial) m.serials.add(serial); byName.set(k, m);
     };
-    e.sales.filter(s => !s.isReturn).forEach(s => (s.items || []).filter(i => !i.isService).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, saleTime(s), i.serialNumber)));
-    e.orders.forEach(o => (o.items || []).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, orderTime(o), i.serialNumber)));
-    e.warranties.forEach(w => (w.items || []).forEach(i => { const m = byName.get(fold(i.name)); if (m && i.serialNumber) m.serials.add(i.serialNumber); }));
+    e.sales.filter(s => !s.isReturn).forEach(s => (s.items || []).filter(i => !i.isService).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, saleTime(s), realSerial(i.serialNumber))));
+    e.orders.forEach(o => (o.items || []).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, orderTime(o), realSerial(i.serialNumber))));
+    e.warranties.forEach(w => (w.items || []).forEach(i => { const m = byName.get(fold(i.name)); if (m && realSerial(i.serialNumber)) m.serials.add(realSerial(i.serialNumber)); }));
     return [...byName.values()].sort((a, b) => b.last - a.last);
 }
 

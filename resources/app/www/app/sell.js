@@ -13,7 +13,7 @@ import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDo
 import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import {
     VAT, WALKIN, saleTime, orderTime, orderTotal, saleSource, saleInvoiceNumber, shortInvoice,
-    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey
+    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey, realSerial
 } from './data.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -147,7 +147,7 @@ function saleDrawer(ctx, r) {
                 ${s.customerAddress ? `<p class="empty" style="margin:4px 0 0">${esc(s.customerAddress)}</p>` : ''}</section>
             <section><h3>Items</h3><div class="lines">${r.items.map(i => {
                 const c = lineNetCost(i); const q = Number(i.quantity) || 1;
-                return `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(q)} × €${money2(i.price)} · cost ${c === null ? '<span style="color:var(--warn)">unknown</span>' : i.isService ? 'service' : '€' + money2(c) + ' net'}${i.serialNumber ? ` · S/N ${esc(i.serialNumber)}` : ''}</span></div>
+                return `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(q)} × €${money2(i.price)} · cost ${c === null ? '<span style="color:var(--warn)">unknown</span>' : i.isService ? 'service' : '€' + money2(c) + ' net'}${realSerial(i.serialNumber) ? ` · S/N ${esc(realSerial(i.serialNumber))}` : ''}</span></div>
                     <span class="n">€${money2((Number(i.price) || 0) * q)}</span></div>`;
             }).join('')}</div></section>`,
         foot: `<button class="btn" type="button" id="sd-warranty">${icon('verified')}Warranty card</button>

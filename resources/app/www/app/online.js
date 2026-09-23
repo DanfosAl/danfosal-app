@@ -11,7 +11,8 @@
 // cancelled or returned. Older orders offer "Take from stock" instead of guessing.
 import { db, collection, doc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
-import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs } from './data.js';
+import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs, realSerial
+} from './data.js';
 import { warrantyDialog } from './warranty.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -98,7 +99,7 @@ export function orderDetail(ctx, o) {
             <section><h3>Customer</h3><p style="margin:0">${esc(who(o) || '–')}${phoneOf(o) ? ` · <a href="tel:${esc(phoneOf(o).replace(/\s/g, ''))}">${esc(phoneOf(o))}</a>` : ''}</p>
                 <p class="empty" style="margin:2px 0 0">${esc(addressOf(o) || 'No address')}</p></section>
             <section><h3>Items</h3><div class="lines">${(o.items || []).map(i => { const p = productFor(products, i); return `
-                <div class="line"><div><b>${Number(i.quantity) > 1 ? int(i.quantity) + ' × ' : ''}${esc(i.name)}</b><span>${p ? `${int(Number(p.stock) || 0)} in stock` : 'not in the catalogue'}${i.serialNumber ? ' · S/N ' + esc(i.serialNumber) : ''}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`; }).join('') || '<p class="empty">No items recorded.</p>'}</div></section>
+                <div class="line"><div><b>${Number(i.quantity) > 1 ? int(i.quantity) + ' × ' : ''}${esc(i.name)}</b><span>${p ? `${int(Number(p.stock) || 0)} in stock` : 'not in the catalogue'}${realSerial(i.serialNumber) ? ' · S/N ' + esc(realSerial(i.serialNumber)) : ''}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`; }).join('') || '<p class="empty">No items recorded.</p>'}</div></section>
             ${log.length ? `<section><h3>History</h3><div class="lines">${log.map(x => `<div class="line"><div><b>${esc(x.status)}</b><span>${isNaN(toMs(x.timestamp)) ? '' : esc(dateTime(toMs(x.timestamp)))}</span></div></div>`).join('')}</div></section>` : ''}`,
         foot: `<button class="btn primary" type="button" id="od-save">${icon('check')}Save status</button>
             ${!o.stockDeducted && !CLOSED.has(status) && (o.items || []).length ? `<button class="btn" type="button" id="od-take">${icon('inventory_2')}Take from stock</button>` : ''}

@@ -8,7 +8,8 @@
 import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, runTransaction, writeBatch, deleteDoc, deleteField, Timestamp } from './firebase.js';
 import { esc, int, icon, plural, day, fold, toast, openDrawer, openModal } from './ui.js';
-import { DAY, toMs, saleTime, orderTime, customerDirectory } from './data.js';
+import { DAY, toMs, saleTime, orderTime, customerDirectory, realSerial
+} from './data.js';
 
 // Status values are shared with Garanci and the classic page; the timeline stays in Albanian like theirs.
 const STATUS = {
@@ -62,7 +63,7 @@ function renderTickets(ctx) {
             <tbody id="tk-body"></tbody></table></div>`;
     const draw = () => {
         const terms = fold(tk.q).trim().split(/\s+/).filter(Boolean);
-        const searched = tickets.filter(t => { const hay = fold(`${t.customerName} ${t.productName} ${t.serialNumber} ${t.customerPhone} ${t.claimNo || ''} ${t.tech || ''}`); return terms.every(x => hay.includes(x)); });
+        const searched = tickets.filter(t => { const hay = fold(`${t.customerName} ${t.productName} ${realSerial(t.serialNumber)} ${t.customerPhone} ${t.claimNo || ''} ${t.tech || ''}`); return terms.every(x => hay.includes(x)); });
         ctx.body.querySelector('#tk-f').innerHTML = FILTERS.map(([id, label, test]) =>
             `<button class="filter${id === 'late' ? ' alert' : ''}" type="button" data-f="${id}" aria-pressed="${id === tk.filter}">${esc(label)}<span class="n">${int(searched.filter(test).length)}</span></button>`).join('');
         const f = FILTERS.find(x => x[0] === tk.filter) || FILTERS[0];
@@ -72,7 +73,7 @@ function renderTickets(ctx) {
             const last = (t.timeline || []).slice(-1)[0];
             const late = !CLOSED.has(t.status) && t.promisedBy && new Date(t.promisedBy + 'T23:59') < new Date();
             return `<tr data-id="${esc(t._id)}" tabindex="0">
-                <td class="name"><b>${esc(t.customerName || '?')}</b><span>${esc([t.productName, t.serialNumber ? 'S/N ' + t.serialNumber : '', t.claimNo].filter(Boolean).join(' · '))}</span></td>
+                <td class="name"><b>${esc(t.customerName || '?')}</b><span>${esc([t.productName, realSerial(t.serialNumber) ? 'S/N ' + realSerial(t.serialNumber) : '', t.claimNo].filter(Boolean).join(' · '))}</span></td>
                 <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.issueDescription || '')}">${esc(t.issueDescription || '–')}</td>
                 <td>${statusChip(t.status)}${t.tech ? ` <span class="muted" style="font-size:12px">${esc(t.tech)}</span>` : ''}</td>
                 <td class="n ${age > 14 && !CLOSED.has(t.status) ? 'zero' : ''}">${isNaN(age) ? '–' : plural(age, 'day', 'days')}</td>
@@ -109,7 +110,7 @@ function ticketDrawer(ctx, t) {
                 <div><small>Warranty</small><b>${card ? (until ? (until > Date.now() ? `<span class="chip ok">until ${esc(day(until))} ${new Date(until).getFullYear()}</span>` : '<span class="chip bad">expired</span>') : '<span class="chip ok">card issued</span>') : '<span class="chip">none found</span>'}</b></div>
             </div>
             <section><h3>Problem</h3><p style="margin:0">${esc(t.issueDescription || '–')}</p>
-                <p class="empty" style="margin:4px 0 0">${t.serialNumber ? 'Serial ' + esc(t.serialNumber) : 'No serial number recorded'}${t.lastCustomerContactAt ? ' · customer last contacted ' + esc(day(toMs(t.lastCustomerContactAt))) : ''}</p></section>
+                <p class="empty" style="margin:4px 0 0">${realSerial(t.serialNumber) ? 'Serial ' + esc(realSerial(t.serialNumber)) : 'No serial number recorded'}${t.lastCustomerContactAt ? ' · customer last contacted ' + esc(day(toMs(t.lastCustomerContactAt))) : ''}</p></section>
             <form class="form-grid" id="tf" novalidate>
                 <label class="fld">Status<select id="tf-status">${STATUS[t.status] ? '' : `<option value="${esc(t.status || '')}" selected>${esc(String(t.status || 'unknown').replace(/_/g, ' '))}</option>`}${Object.entries(STATUS).map(([k, v]) => `<option value="${k}"${k === t.status ? ' selected' : ''}>${esc(v.en)}</option>`).join('')}</select></label>
                 <label class="fld">Technician<input id="tf-tech" value="${esc(t.tech || '')}" placeholder="Name"></label>
@@ -272,7 +273,7 @@ function renderWarranties(ctx) {
                 return `<tr data-id="${esc(c._id)}" tabindex="0">
                     <td class="name"><b>${esc(c.certNo || 'No number')}</b><span>${esc(c.invoiceNumber ? 'Invoice ' + c.invoiceNumber : c.saleType || '')}</span></td>
                     <td>${esc(c.customerName || '–')}</td>
-                    <td>${(c.items || []).map(i => `${esc(i.name || '?')}${i.serialNumber ? ` <span class="muted" style="font-family:var(--mono);font-size:11.5px">S/N ${esc(i.serialNumber)}</span>` : ''}`).join('<br>')}</td>
+                    <td>${(c.items || []).map(i => `${esc(i.name || '?')}${realSerial(i.serialNumber) ? ` <span class="muted" style="font-family:var(--mono);font-size:11.5px">S/N ${esc(realSerial(i.serialNumber))}</span>` : ' <span class="muted" style="font-size:11.5px">no serial number</span>'}`).join('<br>')}</td>
                     <td class="n muted">${toMs(c.createdAt) ? esc(day(toMs(c.createdAt))) + ' ' + new Date(toMs(c.createdAt)).getFullYear() : '–'}</td>
                     <td class="n">${until ? `<span class="chip ${until > now ? 'ok' : 'bad'}">${esc(day(until))} ${new Date(until).getFullYear()}</span>` : '<span class="muted">not set</span>'}</td>
                     <td class="n">${(c.repairs || []).length || ''}</td>
@@ -297,7 +298,7 @@ function renderWarranties(ctx) {
 // something that no longer exists.
 async function deleteCard(ctx, card) {
     if (!card) return;
-    const machine = (card.items || []).map(i => `${i.name || '?'}${i.serialNumber ? ` (S/N ${i.serialNumber})` : ''}`).join(', ');
+    const machine = (card.items || []).map(i => `${i.name || '?'}${realSerial(i.serialNumber) ? ` (S/N ${realSerial(i.serialNumber)})` : ''}`).join(', ');
     const tickets = ctx.model.tickets.filter(t => t.warrantyCardId === card._id);
     const repairs = (card.repairs || []).length;
     const ok = await openModal({

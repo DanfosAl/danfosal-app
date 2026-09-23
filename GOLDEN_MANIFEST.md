@@ -751,6 +751,30 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **45. THE SCANNER READS 6 AS 8 IN THE LINE-TOTAL COLUMN** — ✅ **FIXED & VERIFIED (September 23, 2026)**
+
+Six receipts had lines that did not add up to their own printed total - five by exactly EUR 2, one
+by EUR 70. They are all the same thing, and it is not arithmetic:
+
+- Five carry a line reading `1 cope X 6.00 8.00`. The unit price is 6.00 and the line total prints
+  as 8.00: the scanner reads a 6 as an 8 in that column. (The same misread turned "6.30" into
+  "8.30" on the discounted invoice in Finding #43.)
+- One is a credit note whose minus went missing: `-5 cope X 7.00 35.00`, which should be -35.00.
+  Its four lines came to -41 instead of the -111 printed on it.
+
+**Quantity times unit price now wins when the two disagree**, the receipt's own number is kept
+alongside as `printedLineTotal`, and the disagreement is logged. Every receipt is also checked as a
+whole: the lines must add up to the total, allowing for a credit note whose total line lost its
+minus. **All 294 captures that have both items and a total now reconcile** (it was 288 before this
+fix, 289 before the whole day's work).
+
+**Nothing in the database was wrong because of this**: a saved sale keeps the *unit* price and takes
+its total from the `TOTAL EUR` line, and both of those were read correctly. It was the parser that
+was internally inconsistent. The one exception is a refund record whose stored lines keep the
+unsigned 35.00 - harmless, because every screen reads refund lines as magnitudes, but it is there.
+
+---
+
 #### **44. A RECEIPT WRITTEN IN LEK WAS COUNTED AS EUROS** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
 Chasing what looked like a wrong cost price (a EUR 2,300 sale of a pad whose cost is EUR 17.54)

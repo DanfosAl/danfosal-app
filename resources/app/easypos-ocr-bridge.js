@@ -165,7 +165,6 @@ class EasyPOSOCRProcessor {
                 lineCount: lines.length
             }
         };
-        
         // An invoice written in lek has lek on every line, not just in its total. The total is
         // already converted; the lines are converted here, with the same rate, so a sale's parts
         // and its total are in the same money (invoice 242/2026: a 2,300 lek pad, not a EUR 2,300 one).
@@ -179,6 +178,19 @@ class EasyPOSOCRProcessor {
                 originalCurrency: invoiceData.currency,
                 originalPricePerUnit: item.pricePerUnit
             }));
+        }
+
+        // Do the lines add up to what the customer was charged? Checked after any currency
+        // conversion, so both sides are in the same money. When they do not agree the receipt
+        // is worth a human look, so it is said out loud rather than left to be found later.
+        if (invoiceData.grandTotal !== null && (invoiceData.items || []).length) {
+            const sum = Math.round(invoiceData.items.reduce((a, i) => a + (Number(i.lineTotal) || 0), 0) * 100) / 100;
+            const same = Math.abs(sum - invoiceData.grandTotal) <= 0.05;
+            // A credit note often loses the minus from its own total line.
+            const mirrored = Math.abs(Math.abs(sum) - Math.abs(invoiceData.grandTotal)) <= 0.05;
+            invoiceData.linesMatchTotal = same || mirrored;
+            if (mirrored && !same) log(`   \u2139 Credit note: the lines come to ${sum} and the total line reads ${invoiceData.grandTotal} - its minus was not read`);
+            if (!invoiceData.linesMatchTotal) log(`   \u26a0 Lines add up to ${sum}, but the receipt total is ${invoiceData.grandTotal}`, 'WARN');
         }
 
         return invoiceData;
@@ -423,6 +435,18 @@ class EasyPOSOCRProcessor {
                         }
                     }
 
+                    // The line total is the column the scanner gets wrong: it has read "6.00" as
+                    // "8.00" on five receipts, and dropped the minus from "-35.00" on a credit
+                    // note. Quantity times unit price is the steadier number, and it is the one
+                    // that agrees with the invoice's own total, so it wins when the two disagree.
+                    const computed = Math.round(pricePerUnit * quantity * 100) / 100;
+                    let printedLineTotal = null;
+                    if (lineTotal !== null && Math.abs(lineTotal - computed) > 0.05) {
+                        printedLineTotal = lineTotal;
+                        lineTotal = computed;
+                        log(`      \u2139 "${itemName}": receipt says ${printedLineTotal}, ${quantity} x ${pricePerUnit} is ${computed} - using ${computed}`);
+                    }
+
                     // Only add if we have valid data
                     if (itemName && !itemName.match(/^(NIPT|Data|Fatura|Kodi|Njesia|Menyrat|Valuta|Kursi|DETAJET)/)) {
                         items.push({
@@ -430,7 +454,8 @@ class EasyPOSOCRProcessor {
                             quantity: quantity,
                             pricePerUnit: pricePerUnit,
                             lineTotal: lineTotal,
-                            unit: (itemLineMatch[2] || 'cope').toLowerCase()
+                            unit: (itemLineMatch[2] || 'cope').toLowerCase(),
+                            ...(printedLineTotal === null ? {} : { printedLineTotal })
                         });
                         i += skip; // Skip the lines we have just consumed
                     }

@@ -8,7 +8,8 @@
 import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, deleteDoc, runTransaction, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { toMs, customerKey, saleInvoiceNumber, shortInvoice, saleTime, netRevenue, saleNetCost, DAY } from './data.js';
+import { toMs, customerKey, saleInvoiceNumber, shortInvoice, saleTime, netRevenue, saleNetCost, DAY, productNameIndex, returnTime, returnTotal, returnNet, returnNetCost
+} from './data.js';
 import { addSupplierInvoice } from './payables.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -210,6 +211,15 @@ function grossByMonth(m) {
         const k = monthStartOf(t), x = out.get(k) || { net: 0, costedNet: 0, cost: 0 };
         const net = netRevenue(s), cost = saleNetCost(s);
         x.net += net; if (cost !== null) { x.costedNet += net; x.cost += cost; }
+        out.set(k, x);
+    });
+    // Refunds reverse the month they were given in: the money went back, and so did the goods.
+    const byName = productNameIndex(m.products);
+    (m.returns || []).forEach(r => {
+        const t = returnTime(r); if (isNaN(t)) return;
+        const k = monthStartOf(t), x = out.get(k) || { net: 0, costedNet: 0, cost: 0 };
+        const net = returnNet(r), cost = returnNetCost(r, byName);
+        x.net -= net; if (cost !== null) { x.costedNet -= net; x.cost -= cost; }
         out.set(k, x);
     });
     return out;
@@ -490,7 +500,8 @@ function renderOutlook(ctx) {
     // In: sales at the pace of the last 90 days (what customers actually pay, VAT included).
     const since = now - 90 * DAY;
     const sold90 = m.sales.filter(s => !s.isReturn && saleTime(s) >= since).reduce((a, s) => a + (Number(s.total) || 0), 0)
-        + m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && toMs(o.timestamp || o.orderDate) >= since).reduce((a, o) => a + (Number(o.total) || Number(o.price) || 0), 0);
+        + m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && toMs(o.timestamp || o.orderDate) >= since).reduce((a, o) => a + (Number(o.total) || Number(o.price) || 0), 0)
+        - (m.returns || []).filter(r => returnTime(r) >= since).reduce((a, r) => a + returnTotal(r), 0);
     const salesIn = sold90 / 3;
     const owedToYou = m.debts.reduce((a, d) => a + Math.max(0, balanceOf(d)), 0);
     // Out: supplier invoices by due date.

@@ -751,6 +751,110 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **41. UNUSED COLLECTIONS DELETED, AFTER A BACKUP** — ✅ **DONE (September 23, 2026)**
+
+Five Firestore collections nothing in the app reads, backed up to JSON first at the owner's request:
+`analytics` (3 docs – an old dashboard cache), `competitor_tracking` (9 – Globi price comparisons,
+last touched in the classic app), `instore_sales` (1 – a "TEST123" record), `storeOrders` (5 – a
+first draft of online orders, superseded by `onlineOrders`) and `suppliers` (7 – names only).
+
+- **Backup:** `C:\Users\User\Documents\Danfosal backups\unused-collections-2026-09-23\` – one JSON per
+  collection, each document keeping its `_id`, plus a README saying how to put them back.
+- **Guard:** the delete script refuses to run unless the backup holds the same count and the same
+  document ids as the live collection (`scratchpad/delete_unused.cjs`).
+- **`suppliers` can come back on its own:** `smart-inventory-scanner.js` still adds a supplier name
+  there when Receive delivery books an unknown product. Nothing reads it; left as it is.
+- **`analytics_events` was NOT deleted** – it looked like chatbot telemetry, but it is the only
+  record of what people ask for on Instagram. It is now the source of Sell › Instagram (Finding #38).
+
+---
+
+#### **40. THE TILL ASKS FOR A PHONE NUMBER** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+446 buyers have no phone number, which is why only 53 of the 200 customers worth winning back can
+be written to. The till now asks – but only when it is new information.
+
+- A **Phone** field appears under the customer name in Sell › New sale **only** when that customer
+  has no number yet ("ERALB has no number yet") or the name is new ("new customer"). A known
+  customer with a number, a blank name or a walk-in never sees it.
+- On charge, the number is saved to the customer's profile (a profile is created if they had none)
+  and onto the sale as `customerPhone`. It is saved **after** the sale commits, in its own
+  try/catch: if it fails, the sale still stands and the toast says so.
+
+---
+
+#### **39. WIN BACK: 200 CUSTOMERS, €202,175, FORGOTTEN** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+New tab **Customers › Win back**: everyone who bought at least twice and hasn't been back for 6
+months, a year or two years, sorted by what they spent or how long they've been away.
+
+- **The message writes itself** in Albanian, naming the machine they own (a machine family is
+  preferred over the mop it came with) – opened in WhatsApp through `wa.me`, with Albanian mobile
+  numbers normalised (069… → 35569…). **Nothing is ever sent by the app**: WhatsApp opens with the
+  text ready and the owner presses send. "Copy" puts the same text on the clipboard.
+- **The gap is visible:** 200 customers, €202,175 spent with the shop, and only 53 have a phone
+  number – which is what Finding #40 is for.
+- **"Pa klient"** ("no customer") is now read as a walk-in placeholder everywhere (`WALKIN` in
+  `data.js`), not as a customer with 80 purchases and €8,118 of spend.
+
+---
+
+#### **38. SELL › INSTAGRAM: THE QUESTIONS NOBODY IN THE SHOP COULD SEE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+The chatbot answers on Instagram and writes what happened to `analytics_events`. Nothing read that
+collection, so **25 product questions a month** arrived and left again unseen – the most recent one
+five hours before this screen was built.
+
+- **What was asked, and whether you stock it.** A question is matched to the catalogue only through
+  model numbers built from any part of a product name ("Steam cleaner sg 4/4" → *Floor Tool
+  Replacement SG 4/4*). Keys must mix letters and digits: keying on words matched "fshesë me larje"
+  to *Fshes me korent STAR 3420 WD* and "karcher" to any Kärcher product. 6 of 25 name a model; the
+  rest describe what they want, and are tagged by topic instead (Albanian shop words: avull, fshes,
+  solucion, tapet…) so the demand is still readable.
+- **"What people ask for"** groups the period by topic – a topic you keep being asked about and
+  don't stock is a gap you can see.
+- **The leak, now visible:** the bot logged 146 `order_created` events; only 55 of those ids exist
+  in `onlineOrders`. **91 orders never reached the app**, including the most recent (9 Sep, €199.86),
+  while the last online order recorded is 21 Jul. The screen says so and offers "Add as order",
+  which opens a new online order with the product filled in (`openNewOrder` in `online.js`).
+- Instagram gives the bot a scoped sender id only – no name, no phone, and the text of ordinary
+  messages is not stored (only its length). So a lead is "someone asked for X on this day", and the
+  reply still happens in the Instagram inbox. The screen says that too.
+- Reads only the last year of events, once per session, straight from `analytics_events` – not part
+  of `loadAll()`.
+
+---
+
+#### **37. REFUNDS NOW COUNT, AND TWO PRODUCTS WERE PRICED BELOW COST** — ✅ **FIXED & VERIFIED (September 23, 2026)**
+
+**€11,418 of refunds in 12 months were invisible.** When the till bridge reads a credit note it
+writes it to `returns` and leaves the original sale standing – and nothing in the app read
+`returns`. So the shop counted money it had handed back. (This is not the `isReturn` flag: those 98
+sales are old imported records, already excluded, and none of them is one of these 18 refunds.)
+
+- **`data.js` loads `returns`** and defines them once: `returnTime`, `returnTotal` (VAT included,
+  like a sale), `returnNet`, `returnLines` (name-matched to products through `productNameIndex`,
+  which reads a product's own name and the till names linked to it) and `returnNetCost`.
+- **Revenue** takes the refund off the day it was given back – Today, Sell, Money and the 12-month
+  figures. **Margin** reverses both sides: the money went back to the customer and the goods came
+  back to the shelf, so only refunds whose cost is known come off the costed pair.
+- **The yearly plan** doesn't buy a replacement for a machine that came back: refunded units are
+  taken off their own month in `unitsByMonth`, never below zero.
+- **Sell › All sales** shows refunds as their own rows ("money back", negative amount, source
+  *Refund*) with a drawer showing what came back; **Today** lists them in the day's activity.
+- Effect on the real numbers: 12 months gross €178,368 → €166,950; Insights net revenue €138,700;
+  gross profit €43,545 → €41,807; margin unchanged at 40%. 28 of 34 refunded lines match a product;
+  9 of 18 refunds are fully costed.
+- **New Data health check: "priced below cost".** Two products lose money on every sale – *Carpet
+  nozzle flexible 240mm* (€6.94 against a €64.37 cost) and *Gyp fleksibil 34 MM* (€9 against
+  €61.16). Neither was touched by the 22 Sep cost correction; both prices are simply wrong.
+- Found in passing, not fixed (it is outside this app): `processReturn` in `easypos-ocr-bridge.js`
+  ends with `linkedOrder ? …`, a variable that doesn't exist – it throws after the refund is
+  recorded and the stock put back. That is why all 18 refunds have `linkedSaleId: null` and no
+  original sale is marked *Returned*.
+
+---
+
 #### **36. INSIGHTS: THE STOCK-AGE BAR IS NOW A REORDER TOOL** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 "How long your stock has been waiting" showed the bands but only ever listed the slow stock, so the fast-selling bands couldn't be acted on.

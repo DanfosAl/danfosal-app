@@ -153,9 +153,13 @@ export function orderDetail(ctx, o) {
 
 // ------------------------------------------------------------------ new or edited order
 
-function orderDrawer(ctx, existing) {
+// A new order can arrive with items already chosen - Sell > Instagram opens it that way from a
+// question somebody asked the chatbot.
+export function openNewOrder(ctx, prefill) { orderDrawer(ctx, null, prefill); }
+
+function orderDrawer(ctx, existing, prefill) {
     const isNew = !existing;
-    const o = existing || { clientName: '', telephone: '', address: '', items: [], shippingFee: 0, source: 'Instagram' };
+    const o = existing || { clientName: '', telephone: '', address: '', items: (prefill && prefill.items) || [], shippingFee: 0, source: (prefill && prefill.source) || 'Instagram' };
     const products = ctx.model.products;
     let items = (o.items || []).map(i => ({ ...i }));
     const dir = ctx.model._directory || (ctx.model._directory = customerDirectory(ctx.model));

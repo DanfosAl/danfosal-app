@@ -9,7 +9,8 @@ import { bootWorkspace } from './workspace.js';
 import { esc, eur, int, icon, plural, fold, toast } from './ui.js';
 import {
     DAY, RESTOCK_DAYS, SALES_WINDOW_DAYS, saleTime, orderTime, orderTotal, netRevenue, lineNetCost, lineNetRevenues,
-    productFamily, productIdOfLine, productNetCost, saleSource, VAT
+    productFamily, productIdOfLine, productNetCost, saleSource, VAT,
+    productNameIndex, returnTime, returnNet, returnLines
 } from './data.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -46,6 +47,23 @@ function prepare(m) {
     });
     m.orders.forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT }); });
 
+    // Refunds are negative sales, entered in the same lists so every chart below takes the money
+    // off the month it went back out, and the units off the product that came back.
+    const byName = productNameIndex(m.products);
+    (m.returns || []).forEach(r => {
+        const t = returnTime(r); if (isNaN(t)) return;
+        const rows = returnLines(r, byName);
+        let cost = 0, costed = rows.length > 0;
+        rows.forEach(l => {
+            const c = l.product ? productNetCost(l.product) : null;
+            if (!c) costed = false; else cost += c * l.units;
+            const name = l.product ? l.product.name : l.name;
+            lines.push({ t, net: -l.net, cost: c ? -c * l.units : null, qty: -l.units, pid: l.product ? l.product._id : null,
+                name, family: productFamily(name, {}), src: 'Refund' });
+        });
+        sales.push({ t, net: -returnNet(r), cost: costed ? -cost : null, src: 'Refund', easypos: false, refund: true });
+    });
+
     // Month by month, from the first recorded sale to this month.
     const first = Math.min(...sales.map(s => s.t), ...orders.map(o => o.t));
     const nowMk = monthKey(Date.now());
@@ -54,7 +72,7 @@ function prepare(m) {
     const byMk = new Map(months.map(x => [x.mk, x]));
     sales.forEach(s => {
         const x = byMk.get(monthKey(s.t)); if (!x) return;
-        x.count++; x.src[s.src] = (x.src[s.src] || 0) + 1;
+        if (!s.refund) { x.count++; x.src[s.src] = (x.src[s.src] || 0) + 1; }
         if (s.cost === null) x.uncosted += s.net; else { x.costedNet += s.net; x.cost += s.cost; }
     });
     orders.forEach(o => { const x = byMk.get(monthKey(o.t)); if (x) x.online += o.net; });
@@ -424,7 +442,7 @@ function renderInsights(ctx) {
         </div>`;
 
     monthlyChart(ctx.body.querySelector('#c-month'), d.months, range);
-    familyTreemap(ctx.body.querySelector('#c-fam'), fams, state.family);
+    familyTreemap(ctx.body.querySelector('#c-fam'), fams.filter(f => f.net > 0), state.family);
     calendarChart(ctx.body.querySelector('#c-cal'), d.sales, d.orders, a.now);
     hoursChart(ctx.body.querySelector('#c-hours'), d.sales, range);
     wireTooltip(ctx.body);

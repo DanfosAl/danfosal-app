@@ -7,12 +7,13 @@
 import { bootWorkspace } from './workspace.js';
 import { warrantyDialog } from './warranty.js';
 import { renderOnline, orderDetail } from './online.js';
+import { renderLeads } from './leads.js';
 import { renderImport } from './importpdf.js';
 import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDoc } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import {
     VAT, WALKIN, saleTime, orderTime, orderTotal, saleSource, saleInvoiceNumber, shortInvoice,
-    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts
+    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey
 } from './data.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -20,7 +21,7 @@ const r2 = n => Math.round(n * 100) / 100;
 // ================================================================== all sales
 
 const PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['month', 'This month'], ['all', 'All time']];
-const SOURCES = ['EasyPOS', 'PDF', 'Till', 'Online', 'Import'];
+const SOURCES = ['EasyPOS', 'PDF', 'Till', 'Online', 'Import', 'Refund'];
 const salesState = { period: '30', source: 'all', q: null };
 
 function allRecords(model) {
@@ -40,7 +41,15 @@ function allRecords(model) {
         kind: 'order', id: o._id, rec: o, t: orderTime(o), src: 'Online', total: orderTotal(o),
         doc: 'Online order', who: o.clientName || o.customerName || '', items: o.items || [], margin: null, status: o.status
     }));
-    return sales.concat(orders).filter(r => !isNaN(r.t)).sort((a, b) => b.t - a.t);
+    // Money handed back. The till bridge writes these when it reads a credit note; the original
+    // sale stays in the list as it was, so the refund is a row of its own, for a negative amount.
+    const byName = productNameIndex(model.products);
+    const refunds = (model.returns || []).map(r => ({
+        kind: 'refund', id: r._id, rec: r, t: returnTime(r), src: 'Refund', total: -returnTotal(r),
+        doc: r.type === 'cancellation' ? 'Cancelled sale' : 'Refund', who: r.customerName || '', margin: null,
+        items: returnLines(r, byName).map(l => ({ name: l.product ? l.product.name : l.name, quantity: l.units, price: l.net * VAT / (l.units || 1) }))
+    }));
+    return sales.concat(orders, refunds).filter(r => !isNaN(r.t)).sort((a, b) => b.t - a.t);
 }
 
 function inPeriod(t, period, now) {
@@ -81,11 +90,12 @@ function renderSales(ctx) {
         }).join('');
         const list = base.filter(r => salesState.source === 'all' || r.src === salesState.source);
         const revenue = list.reduce((a, r) => a + r.total, 0);
+        const refunded = list.filter(r => r.kind === 'refund');
         const costed = list.filter(r => r.margin !== null && r.kind === 'sale');
         const costedNet = costed.reduce((a, r) => a + netRevenue(r.rec), 0);
         const costedCost = costed.reduce((a, r) => a + saleNetCost(r.rec), 0);
-        ctx.setSub(`${plural(list.length, 'sale', 'sales')} · ${eur(revenue)}`);
-        ctx.body.querySelector('#s-sum').innerHTML = `<span>Revenue <b>${eur(revenue, 2)}</b></span>
+        ctx.setSub(`${plural(list.length - refunded.length, 'sale', 'sales')}${refunded.length ? ` · ${plural(refunded.length, 'refund', 'refunds')}` : ''} · ${eur(revenue)}`);
+        ctx.body.querySelector('#s-sum').innerHTML = `<span>Revenue <b>${eur(revenue, 2)}</b>${refunded.length && refunded.length < list.length ? ` <small class="muted">after ${eur(-refunded.reduce((a, r) => a + r.total, 0))} refunded</small>` : ''}</span>
             <span>Gross margin <b>${costedNet ? Math.round(100 * (costedNet - costedCost) / costedNet) + '%' : '–'}</b></span>
             <span>Profit <b>${eur(costedNet - costedCost)}</b> on ${pct(costed.length, list.filter(r => r.kind === 'sale').length)} of sales with a known cost</span>`;
         const shown = list.slice(0, 400);
@@ -94,11 +104,11 @@ function renderSales(ctx) {
             const more = r.items.length > 1 ? ` +${r.items.length - 1}` : '';
             return `<tr data-kind="${r.kind}" data-id="${esc(r.id)}" tabindex="0">
                 <td class="muted" style="white-space:nowrap">${esc(dateTime(r.t))}</td>
-                <td>${esc(r.doc)}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}</td>
+                <td>${esc(r.doc)}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}${r.kind === 'refund' ? ' <span class="chip bad">money back</span>' : ''}</td>
                 <td>${r.who && !WALKIN.test(r.who) ? esc(r.who) : '<span class="muted">walk-in</span>'}</td>
                 <td class="muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${first ? esc(`${Number(first.quantity) || 1} × ${first.name || '?'}`) + more : '–'}</td>
                 <td><span class="chip">${esc(r.src)}</span></td>
-                <td class="n">${money2(r.total)}</td>
+                <td class="n"${r.total < 0 ? ' style="color:var(--bad)"' : ''}>${money2(r.total)}</td>
                 <td class="n">${r.margin === null ? '<span class="muted">–</span>' : Math.round(r.margin * 100) + '%'}</td></tr>`;
         }).join('') || `<tr><td colspan="7" class="muted" style="padding:18px">No sales match.</td></tr>`;
         ctx.body.querySelector('#s-foot').textContent = list.length > shown.length ? `Showing the latest ${shown.length} of ${list.length}. Narrow the period or search to see older ones.` : 'Totals include VAT. Margin is net of VAT, on sales whose cost is known.';
@@ -123,6 +133,7 @@ function saleDrawer(ctx, r) {
         orderDetail(ctx, r.rec);
         return;
     }
+    if (r.kind === 'refund') { refundDrawer(ctx, r); return; }
     const s = r.rec;
     const net = netRevenue(s), cost = saleNetCost(s);
     const nipt = s.customerNipt || (s.easypos && s.easypos.customerNIPT) || '';
@@ -159,9 +170,27 @@ function saleDrawer(ctx, r) {
     });
 }
 
+// A refund read off a credit note. Nothing to edit here: the till recorded it, the bridge put
+// the goods back on the shelf, and every total on this screen already has the money taken off.
+function refundDrawer(ctx, r) {
+    const rec = r.rec, back = -r.total;
+    openDrawer({
+        title: esc(r.doc), sub: esc(`${dateTime(r.t)} · ${rec.reason || 'credit note'}`),
+        body: `
+            <div class="kv"><div><small>Given back</small><b style="color:var(--bad)">− €${money2(back)}</b></div>
+                <div><small>Net</small><b>€${money2(back / VAT)}</b></div>
+                <div><small>Customer</small><b>${rec.customerName && !WALKIN.test(rec.customerName) ? esc(rec.customerName) : 'Walk-in'}</b></div></div>
+            <section><h3>Came back</h3>${r.items.length
+                ? `<div class="lines">${r.items.map(i => `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(i.quantity)} × €${money2(i.price)}</span></div><span class="n">− €${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`).join('')}</div>`
+                : '<p class="empty">The credit note was read without item lines – only the amount is known.</p>'}</section>
+            <p class="empty">Stock was put back when this was read. Revenue, profit and the yearly plan all have it taken off already.</p>`,
+        foot: ''
+    });
+}
+
 // ================================================================== new sale (till)
 
-const till = { cart: [], payment: 'cash', customer: '', q: '', sel: 0, done: null };
+const till = { cart: [], payment: 'cash', customer: '', phone: '', known: null, q: '', sel: 0, done: null };
 
 function renderTill(ctx) {
     ctx.setSub('Keyboard: F2 search · ↑ ↓ choose · Enter add · F9 charge');
@@ -179,6 +208,7 @@ function renderTill(ctx) {
                 <div id="t-cart"></div>
                 <label class="fld" style="margin-top:12px">Customer (optional)<input id="t-cust" list="t-custlist" value="${esc(till.customer)}" placeholder="Walk-in"></label>
                 <datalist id="t-custlist">${customerNames.slice(0, 800).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+                <label class="fld" id="t-phone-fld" hidden style="margin-top:8px">Phone <span class="hint" id="t-phone-why"></span><input id="t-phone" type="tel" placeholder="+355 6…" autocomplete="off"></label>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
                     <span class="muted">Payment</span>
                     <div class="seg" role="group" aria-label="Payment" id="t-pay">
@@ -248,8 +278,21 @@ function renderTill(ctx) {
         if (line.quantity <= 0) till.cart.splice(Number(b.dataset.q), 1);
         drawCart();
     });
-    ctx.body.querySelector('#t-clear').addEventListener('click', () => { till.cart = []; till.customer = ''; ctx.body.querySelector('#t-cust').value = ''; drawCart(); q.focus(); });
-    ctx.body.querySelector('#t-cust').addEventListener('input', e => { till.customer = e.target.value; });
+    ctx.body.querySelector('#t-clear').addEventListener('click', () => { till.cart = []; till.customer = ''; till.phone = ''; ctx.body.querySelector('#t-cust').value = ''; askPhone(); drawCart(); q.focus(); });
+    // Ask for a number only when it's new information: a known customer with a phone is left alone.
+    const dir = () => ctx.model._directory || (ctx.model._directory = customerDirectory(ctx.model));
+    const phoneFld = ctx.body.querySelector('#t-phone-fld'), phoneInput = ctx.body.querySelector('#t-phone'), phoneWhy = ctx.body.querySelector('#t-phone-why');
+    const askPhone = () => {
+        const name = till.customer.trim();
+        const known = name ? dir().find(x => x.keys.has(customerKey(name))) : null;
+        till.known = known || null;
+        if (!name || WALKIN.test(name) || (known && known.phoneDigits)) { phoneFld.hidden = true; return; }
+        phoneWhy.textContent = known ? `${known.name} has no number yet` : 'new customer';
+        phoneFld.hidden = false;
+    };
+    askPhone();
+    ctx.body.querySelector('#t-cust').addEventListener('input', e => { till.customer = e.target.value; till.phone = ''; phoneInput.value = ''; askPhone(); });
+    phoneInput.addEventListener('input', e => { till.phone = e.target.value; });
     ctx.body.querySelector('#t-pay').addEventListener('click', e => {
         const b = e.target.closest('[data-pay]'); if (!b) return; till.payment = b.dataset.pay;
         ctx.body.querySelectorAll('#t-pay button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
@@ -284,6 +327,8 @@ async function charge(ctx) {
         total, paymentMethod: till.payment, notes: '', timestamp: Timestamp.now(), type: 'store'
     };
     if (customer) saleData.clientName = customer;
+    const phone = String(till.phone || '').trim();
+    if (customer && phone) saleData.customerPhone = phone;
     const btn = ctx.body.querySelector('#t-charge'); till.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
     const saleRef = doc(collection(db, 'storeSales'));
     const batch = writeBatch(db);
@@ -292,8 +337,16 @@ async function charge(ctx) {
     try {
         await batch.commit();
         till.done = { sale: { _id: saleRef.id, ...saleData }, total, customer };
-        till.cart = []; till.customer = '';
-        toast(`Sale saved · €${money2(total)}`);
+        // The number is saved after the sale, on its own: if this fails, the sale still stands.
+        if (customer && phone) {
+            try {
+                const known = till.known;
+                if (known && known.profile) await updateDoc(doc(db, 'customers', known.profile._id), { phone });
+                else await addDoc(collection(db, 'customers'), { name: customer, phone, email: '', address: '', nipt: '', status: 'Active', image: '', source: 'till', createdAt: Timestamp.now() });
+            } catch (e) { toast(`Sale saved, but the phone number didn't save: ${e.message}`, { bad: true }); }
+        }
+        till.cart = []; till.customer = ''; till.phone = ''; till.known = null;
+        toast(`Sale saved · €${money2(total)}${customer && phone ? ' · number saved' : ''}`);
         await ctx.reload();
     } catch (e) {
         btn.disabled = false; btn.textContent = `Charge €${money2(total)}`;
@@ -316,6 +369,7 @@ bootWorkspace({
         { id: 'sales', label: 'All sales', icon: 'receipt_long', render: renderSales },
         { id: 'new', label: 'New sale', icon: 'point_of_sale', render: renderTill },
         { id: 'online', label: 'Online orders', icon: 'shopping_bag', render: renderOnline, count: a => a.openOrders.length },
+        { id: 'leads', label: 'Instagram', icon: 'forum', render: renderLeads },
         { id: 'import', label: 'Import invoice', icon: 'document_scanner', render: renderImport }
     ]
 });

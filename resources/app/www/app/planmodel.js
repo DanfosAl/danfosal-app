@@ -7,7 +7,8 @@
 // date, the rest of the year is projected at the actual pace, and the difference becomes
 // "order N more" or "order N less". (The classic plan stored only order quantities and compared
 // them with sales, which can't tell you anything.)
-import { RESTOCK_DAYS, saleTime, orderTime, productIdOfLine, productNetCost, saleSource } from './data.js';
+import { RESTOCK_DAYS, saleTime, orderTime, productIdOfLine, productNetCost, saleSource, productNameIndex, returnTime, returnLines
+} from './data.js';
 
 export const PACE_FAST = 1.2;       // selling 20%+ faster than planned
 export const PACE_SLOW = 0.7;       // selling 30%+ slower than planned
@@ -35,6 +36,17 @@ export function unitsByMonth(m) {
     m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status)).forEach(o => {
         const t = orderTime(o); if (isNaN(t)) return;
         (o.items || []).forEach(it => add(pidOf(it), mkOf(t), Number(it.quantity) || 1));
+    });
+    // A machine that came back was not sold, so don't plan to buy another one for it. The refund
+    // is taken off its own month and never below zero - the sale it reverses may be months older.
+    const refundIndex = productNameIndex(m.products);
+    (m.returns || []).forEach(r => {
+        const t = returnTime(r); if (isNaN(t)) return;
+        returnLines(r, refundIndex).forEach(l => {
+            if (!l.product || !units.has(l.product._id)) return;
+            const u = units.get(l.product._id), mk = mkOf(t);
+            u.set(mk, Math.max(0, (u.get(mk) || 0) - l.units));
+        });
     });
     // Recorded automatically (EasyPOS/PDF) beats imported beats till-only; a month counts as imported
     // only if most of its sales were (Dec 2025 has 1 imported sale among 24 till sales).

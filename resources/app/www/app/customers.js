@@ -9,7 +9,7 @@
 import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { DAY, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs } from './data.js';
+import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs } from './data.js';
 
 const directoryOf = m => m._directory || (m._directory = customerDirectory(m));
 const reviewOf = m => m._review || (m._review = lookalikeCustomers(directoryOf(m), m.notSameCustomers));
@@ -200,6 +200,109 @@ function customerDrawer(ctx, e) {
     });
 }
 
+// ================================================================== win back
+
+// Customers who bought more than once and haven't been back. Nothing here is automatic: it writes
+// the message, the owner sends it from their own WhatsApp. A Karcher machine needs filters, bags
+// and descaler, so the people who already own one are the cheapest sales in the shop - and 200 of
+// them, worth EUR 202,175 between them, had simply been forgotten. Half have no phone number,
+// which is why the till now asks for one.
+const wb = { months: 6, sort: 'revenue', only: 'all' };
+const MONTHS = [[6, '6 months'], [12, 'A year'], [24, 'Two years']];
+
+// Albanian mobiles are written 06x xxx xxxx; WhatsApp wants 3556x xxx xxxx.
+export function waNumber(phone) {
+    let d = String(phone || '').replace(/\D/g, '');
+    if (!d) return '';
+    if (d.startsWith('00')) d = d.slice(2);
+    if (d.startsWith('355')) return d;
+    if (d.startsWith('0')) return '355' + d.slice(1);
+    if (d.length === 9 && d.startsWith('6')) return '355' + d;
+    return d;
+}
+
+// What to say: their name, what they own, and one reason to come in. Short on purpose - it is a
+// message from a shop they know, not a campaign.
+function winBackMessage(e, machines) {
+    const first = String(e.name || '').trim().split(/\s+/)[0] || '';
+    const owns = machines.length ? machines[0].name.replace(/\s*\*?(EU|EU\*)\s*$/i, '').trim() : '';
+    return `Pershendetje ${first}, jemi Danfos (Karcher, Tirane). `
+        + (owns ? `Keni blere ${owns} tek ne. ` : '')
+        + 'Nese ju duhen filtra, qese, solucion ose nje servis per pajisjen, na shkruani ketu - e pergatisim dhe e merrni kur t\u2019ju vije mire. Faleminderit!';
+}
+
+// The machine is the reason to write, not the mop it was bought with: prefer a family that is a
+// machine, and only fall back to whatever they bought last.
+const MACHINE_FAMILIES = new Set(['Pressure washers', 'Vacuums', 'Steam cleaners', 'Floor cleaners & scrubbers', 'Carpet & upholstery', 'Window cleaning']);
+function ownedMachines(e) {
+    const all = machinesOf(e);
+    const machines = all.filter(m => MACHINE_FAMILIES.has(productFamily(m.name, {})));
+    return machines.length ? machines.concat(all.filter(m => !machines.includes(m))) : all;
+}
+
+function renderWinBack(ctx) {
+    const dir = directoryOf(ctx.model), now = ctx.a.now;
+    const draw = () => {
+        const cut = now - wb.months * 30 * DAY;
+        const all = dir.filter(e => e.count >= 2 && e.last && e.last < cut && e.revenue > 0);
+        const withPhone = all.filter(e => e.phoneDigits);
+        const list = (wb.only === 'phone' ? withPhone : wb.only === 'nophone' ? all.filter(e => !e.phoneDigits) : all)
+            .slice().sort((a, b) => wb.sort === 'revenue' ? b.revenue - a.revenue : b.last - a.last);
+        const worth = all.reduce((a, e) => a + e.revenue, 0);
+        const noPhoneBuyers = dir.filter(e => e.count > 0 && !e.phoneDigits).length;
+
+        ctx.setSub(`${plural(all.length, 'customer', 'customers')} to bring back · ${eur(worth)} spent with you before`);
+        ctx.body.innerHTML = `
+            <div class="toolbar">
+                <div class="seg" role="group" aria-label="Away for" id="wb-months">${MONTHS.map(([m, label]) => `<button type="button" data-m="${m}" aria-pressed="${m === wb.months}">${label}</button>`).join('')}</div>
+                <div class="seg" role="group" aria-label="Sort by" id="wb-sort">${[['revenue', 'Biggest spenders'], ['last', 'Away longest']].map(([id, label]) => `<button type="button" data-s="${id}" aria-pressed="${id === wb.sort}">${label}</button>`).join('')}</div>
+            </div>
+            <div class="kpis">
+                <div class="kpi"><small>Haven’t been back</small><span class="v">${int(all.length)}</span><span class="d">bought at least twice, nothing in ${wb.months} months</span></div>
+                <div class="kpi"><small>They spent</small><span class="v">${eur(worth)}</span><span class="d">with you before they stopped coming</span></div>
+                <div class="kpi"><small>You can message</small><span class="v"${withPhone.length < all.length / 2 ? ' style="color:var(--warn)"' : ''}>${int(withPhone.length)}</span><span class="d">of ${int(all.length)} have a phone number</span></div>
+                <div class="kpi"><small>No phone at all</small><span class="v">${int(noPhoneBuyers)}</span><span class="d">buyers you can never reach · the till now asks</span></div>
+            </div>
+            <div class="filters" id="wb-only" role="group" aria-label="Show">
+                ${[['all', 'Everyone', all.length], ['phone', 'Can message', withPhone.length], ['nophone', 'Need a number', all.length - withPhone.length]]
+                    .map(([id, label, n]) => `<button class="filter" type="button" data-o="${id}" aria-pressed="${wb.only === id}">${label}<span class="n">${int(n)}</span></button>`).join('')}
+            </div>
+            <div class="table-wrap" style="max-height:calc(100vh - 400px)"><table class="dt"><thead><tr>
+                <th>Customer</th><th>What they own</th><th class="n">Spent</th><th class="n">Purchases</th><th class="n">Last bought</th><th></th></tr></thead>
+                <tbody id="wb-body">${list.slice(0, 200).map((e, i) => {
+                    const machines = ownedMachines(e);
+                    const away = Math.round((now - e.last) / 30 / DAY);
+                    return `<tr data-id="${esc(e.id)}" tabindex="0">
+                        <td class="name"><b>${esc(e.name)}</b><span>${e.phoneDigits ? esc(e.phone) : '<span style="color:var(--warn)">no phone number</span>'}${e.owed > 0.005 ? ` · owes ${eur(e.owed)}` : ''}</span></td>
+                        <td class="muted" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${machines.length ? esc(machines[0].name) + (machines.length > 1 ? ` +${machines.length - 1}` : '') : '–'}</td>
+                        <td class="n">${eur(e.revenue)}</td>
+                        <td class="n">${int(e.count)}</td>
+                        <td class="n muted">${esc(day(e.last))} ${new Date(e.last).getFullYear()}<span style="display:block;font-size:11px">${plural(away, 'month', 'months')} ago</span></td>
+                        <td class="n" style="white-space:nowrap">${e.phoneDigits
+                            ? `<a class="btn small primary" href="https://wa.me/${waNumber(e.phone)}?text=${encodeURIComponent(winBackMessage(e, machines))}" target="_blank" rel="noopener">${icon('chat')}WhatsApp</a>
+                               <button class="btn small ghost" type="button" data-copy="${i}">${icon('content_copy')}</button>`
+                            : `<button class="btn small" type="button" data-add="${esc(e.id)}">${icon('add_call')}Add number</button>`}</td></tr>`;
+                }).join('') || '<tr><td colspan="6" class="muted" style="padding:18px">Nobody has stayed away that long.</td></tr>'}</tbody></table>
+                <div class="table-foot">WhatsApp opens with the message written; you can change it before sending. Nothing is ever sent from the app.</div></div>`;
+
+        ctx.body.querySelector('#wb-months').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { wb.months = Number(b.dataset.m); draw(); } });
+        ctx.body.querySelector('#wb-sort').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) { wb.sort = b.dataset.s; draw(); } });
+        ctx.body.querySelector('#wb-only').addEventListener('click', e => { const b = e.target.closest('[data-o]'); if (b) { wb.only = b.dataset.o; draw(); } });
+        ctx.body.querySelector('#wb-body').addEventListener('click', async ev => {
+            const copy = ev.target.closest('[data-copy]'), addPhone = ev.target.closest('[data-add]'), row = ev.target.closest('tr[data-id]');
+            if (copy) {
+                const e = list[Number(copy.dataset.copy)];
+                try { await navigator.clipboard.writeText(winBackMessage(e, ownedMachines(e))); toast('Message copied'); }
+                catch { toast('Couldn\u2019t copy the message', { bad: true }); }
+                return;
+            }
+            if (addPhone) { customerDrawer(ctx, dir.find(x => x.id === addPhone.dataset.add)); return; }
+            if (row) customerDrawer(ctx, dir.find(x => x.id === row.dataset.id));
+        });
+    };
+    draw();
+}
+
 // ================================================================== review lookalike names
 
 function renderReview(ctx) {
@@ -270,6 +373,7 @@ bootWorkspace({
     active: 'customers', title: 'Customers', defaultTab: 'all',
     tabs: [
         { id: 'all', label: 'Customers', icon: 'group', render: renderList },
+        { id: 'winback', label: 'Win back', icon: 'campaign', render: renderWinBack },
         { id: 'review', label: 'Review names', icon: 'merge', render: renderReview, count: (a, m) => reviewOf(m).length }
     ]
 });

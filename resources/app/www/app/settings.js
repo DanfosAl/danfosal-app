@@ -6,7 +6,8 @@
 import { bootWorkspace } from './workspace.js';
 import { db, doc, setDoc, arrayRemove } from './firebase.js';
 import { esc, eur, int, icon, plural, ago, day, fold, money2, toast, openModal } from './ui.js';
-import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers } from './data.js';
+import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost
+} from './data.js';
 
 const store = {
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
@@ -105,6 +106,16 @@ function renderHealth(ctx) {
     add(negative.length ? 'bad' : 'ok', negative.length ? `${plural(negative.length, 'product has', 'products have')} stock below zero` : 'No negative stock',
         negative.length ? 'More was sold than was ever booked in. Count them and correct the stock in the catalogue.' : 'Every stock figure is zero or more.', null,
         negative.slice(0, 12).map(p => ({ label: p.name, sub: `${int(p.stock)} in stock`, href: `stock.html?q=${encodeURIComponent(p.name)}#catalogue` })));
+    // Selling under what it cost you. Both of today's cases are accessories whose price was
+    // typed once and never revisited, while the cost came from a Kaercher invoice.
+    const underCost = m.products.map(p => {
+        const cost = productNetCost(p), net = (Number(p.price) || 0) / VAT;
+        return { p, cost, net, loss: cost && net ? cost - net : 0 };
+    }).filter(x => x.loss > 0.5).sort((x, y) => y.loss - x.loss);
+    add(underCost.length ? 'bad' : 'ok', underCost.length ? `${plural(underCost.length, 'product is', 'products are')} priced below cost` : 'No product is priced below cost',
+        underCost.length ? 'Every one of these sold loses money. Check the price against the supplier invoice and raise it.' : 'Every price covers its cost.', null,
+        underCost.slice(0, 12).map(x => ({ label: x.p.name, sub: `sells for €${money2(Number(x.p.price) || 0)} · costs €${money2(x.cost * VAT)} · loses €${money2(x.loss * VAT)} each`, href: `stock.html?q=${encodeURIComponent(x.p.name)}#catalogue` })));
+
     add(a.needsCount.length ? 'warn' : 'ok', a.needsCount.length ? `${plural(a.needsCount.length, 'product needs', 'products need')} a physical count` : 'No product needs a count', 'Flagged by the stock correction of 14 Sep 2026.', ['Show them', 'stock.html?filter=count#catalogue']);
     add(a.soldWithoutCost.length ? 'warn' : 'ok', a.soldWithoutCost.length ? `${plural(a.soldWithoutCost.length, 'product sold has', 'products sold have')} no cost price` : 'Every product you sell has a cost', 'Profit on those sales is unknown until a cost is entered.', ['Enter costs', 'stock.html?filter=nocost#catalogue']);
     add(a.unmatched.length ? 'warn' : 'ok', a.unmatched.length ? `${plural(a.unmatched.length, 'receipt name isn’t', 'receipt names aren’t')} linked to a product` : 'Every receipt item is linked', 'Unlinked lines neither reduce stock nor count toward profit.', ['Link them', 'stock.html#link']);

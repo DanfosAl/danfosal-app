@@ -28,7 +28,7 @@ export const orderTime = o => toMs(o.timestamp) || toMs(o.orderDate);
 export const orderTotal = o => Number(o.total) || Number(o.price) || 0;
 
 // Placeholders the receipts use when nobody gave a name.
-export const WALKIN = /walk.?in|klient.*(pa|i )|klien(t)?\s+privat|anonim|^-+$|^\?+$|^n\/?a$/i;
+export const WALKIN = /walk.?in|klient.*(pa|i )|klien(t)?\s+privat|^pa\s+klient|anonim|^-+$|^\?+$|^n\/?a$/i;
 
 // Spelling-normalised customer identity: accents, case, punctuation and "Sh.p.k" don't make a new customer.
 export function customerKey(name) {
@@ -86,6 +86,51 @@ export function productMargin(p) {
     const net = productNetCost(p), price = Number(p.price) || 0;
     if (!net || !price) return null;
     return (price / VAT - net) / (price / VAT);
+}
+
+// ------------------------------------------------------------------ refunds
+
+// A refunded sale is not in `storeSales` at all: the till bridge spots the credit note, writes it
+// to `returns` and leaves the original sale standing. So every number that counts sales has to
+// take the refund back off, or the month keeps money that was handed back. Quantities on a refund
+// are negative; `total` is the positive amount refunded, VAT included, like a sale's total.
+const dmy = d => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(d || '')); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+export const returnTime = r => toMs(r.timestamp) || toMs(dmy(r.invoiceDate));
+export const returnTotal = r => Math.abs(Number(r.total) || 0);
+export const returnNet = r => returnTotal(r) / VAT;
+
+// Receipt lines on a refund carry no product link, so match the name the way the Link screen
+// does: the product's own name, or any till name already linked to it.
+export function productNameIndex(products) {
+    const byName = new Map();
+    (products || []).forEach(p => [p.name, ...(Array.isArray(p.receiptNames) ? p.receiptNames : [])]
+        .forEach(n => { const k = squash(n); if (k && !byName.has(k)) byName.set(k, p); }));
+    return byName;
+}
+
+// One row per refunded line: units and money as positive numbers, plus the product when the name
+// matches one. Some refunds have no lines at all - there only the amount is known.
+export function returnLines(r, byName) {
+    return (r.items || []).map(i => ({
+        product: (byName && byName.get(squash(i.itemName || i.name || ''))) || null,
+        name: String(i.itemName || i.name || '').trim(),
+        units: Math.abs(Number(i.quantity) || 1),
+        net: Math.abs(Number(i.lineTotal) || (Number(i.pricePerUnit) || 0) * (Number(i.quantity) || 1)) / VAT
+    }));
+}
+
+// What the returned goods cost you. The stock came back, so this cost comes off the month's cost
+// as well. Null when a line has no product or no cost - a half-known refund would flatter margin.
+export function returnNetCost(r, byName) {
+    const lines = returnLines(r, byName);
+    if (!lines.length) return null;
+    let cost = 0;
+    for (const line of lines) {
+        const c = line.product ? productNetCost(line.product) : null;
+        if (!c) return null;
+        cost += c * line.units;
+    }
+    return cost;
 }
 
 // Compare receipt names the way the bridge does: case, spacing and punctuation don't matter.
@@ -187,8 +232,8 @@ export async function loadAll() {
         all('serviceTickets'), all('warrantyCards'), getDocs(collection(db, 'debtors')), all('stockCorrections'),
         all('expenses'), getDocs(collection(db, 'creditors'))
     ]);
-    // Yearly purchase plans and the order list: small collections, needed for plan tracking.
-    const [predictions, orderLines] = await Promise.all([all('predictions'), all('toOrder')]);
+    // Yearly purchase plans, the order list and refunds: small collections, all needed for totals.
+    const [predictions, orderLines, returns] = await Promise.all([all('predictions'), all('toOrder'), all('returns')]);
     // What you owe suppliers: creditors/{id} with invoices/{id} and payments/{id} beneath it.
     const creditors = await Promise.all(creditorDocs.docs.map(async c => {
         const [inv, pay] = await Promise.all([getDocs(collection(db, 'creditors', c.id, 'invoices')), getDocs(collection(db, 'creditors', c.id, 'payments'))]);
@@ -209,7 +254,7 @@ export async function loadAll() {
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, receiptServices, notSameCustomers, loadedAt: Date.now() };
 }
 
 // ------------------------------------------------------------------ customers
@@ -331,11 +376,15 @@ export function analyze(m, now = Date.now()) {
     const productById = new Map(m.products.map(p => [p._id, p]));
     const knownIds = new Set(productById.keys());
     const sales = m.sales.filter(s => !s.isReturn);
+    const refunds = (m.returns || []).map(r => ({ ...r, _t: returnTime(r) })).filter(r => !isNaN(r._t));
+    const byName = productNameIndex(m.products);
 
-    // ---- revenue: today, month to date, and the same days of last month
+    // ---- revenue: today, month to date, and the same days of last month.
+    // Money handed back comes off the day it was handed back - the sale itself stays as it was.
     const revenueOf = (from, to) =>
         sales.filter(s => { const t = saleTime(s); return t >= from && t < to; }).reduce((a, s) => a + (Number(s.total) || 0), 0)
-        + m.orders.filter(o => { const t = orderTime(o); return t >= from && t < to; }).reduce((a, o) => a + orderTotal(o), 0);
+        + m.orders.filter(o => { const t = orderTime(o); return t >= from && t < to; }).reduce((a, o) => a + orderTotal(o), 0)
+        - refunds.filter(r => r._t >= from && r._t < to).reduce((a, r) => a + returnTotal(r), 0);
     const todayRevenue = revenueOf(today0, now + DAY);
     const monthRevenue = revenueOf(monthStart, now + DAY);
     const prevMonthToDate = revenueOf(prevMonthStart, prevMonthCutoff);
@@ -353,7 +402,17 @@ export function analyze(m, now = Date.now()) {
         net30 += net; count30++;
         if (cost !== null) { costedNet30 += net; cost30 += cost; costedCount30++; }
     });
+    // A refund reverses both sides: the money went back to the customer, the goods came back to
+    // the shelf. Only refunds we can cost come off the costed pair, so margin stays like for like.
+    const refunds30 = refunds.filter(r => r._t >= since30);
+    refunds30.forEach(r => {
+        const net = returnNet(r), cost = returnNetCost(r, byName);
+        net30 -= net;
+        if (cost !== null) { costedNet30 -= net; cost30 -= cost; }
+    });
     const margin30 = costedNet30 > 0 ? (costedNet30 - cost30) / costedNet30 : null;
+    const refunded30 = refunds30.reduce((a, r) => a + returnTotal(r), 0);
+    const refunded12m = refunds.filter(r => r._t >= now - 365 * DAY).reduce((a, r) => a + returnTotal(r), 0);
 
     // ---- stock: how fast each product sells, what to reorder, what isn't moving
     const soldUnits = {}, lastSoldAt = {};
@@ -368,6 +427,11 @@ export function analyze(m, now = Date.now()) {
     });
     countLines(sales, saleTime);
     countLines(m.orders, orderTime);
+    // Units that came back are not units sold. Never below zero: the sale itself may be older
+    // than the 90-day window while the refund falls inside it.
+    refunds.forEach(r => { if (r._t >= sinceWindow) returnLines(r, byName).forEach(l => {
+        if (l.product) soldUnits[l.product._id] = Math.max(0, (soldUnits[l.product._id] || 0) - l.units);
+    }); });
     // Only recent unlinked lines are "needs you"; the Link screen shows them all.
     const unmatched = unlinkedReceiptLines(m).filter(g => g.last >= sinceWindow).map(g => [g.name, g.units]);
 
@@ -431,6 +495,7 @@ export function analyze(m, now = Date.now()) {
         activity.push({ t, what: `${inv ? (s.type === 'easypos' ? 'Receipt ' : 'Invoice ') + inv + ' · ' : 'Sale · '}${WALKIN.test(who) ? 'walk-in' : who}`, chip: saleSource(s), amount: Number(s.total) || 0 });
     });
     m.orders.forEach(o => { const t = orderTime(o); if (t >= today0) activity.push({ t, what: `Online order · ${o.clientName || o.customerName || '?'}`, chip: 'Online', amount: orderTotal(o) }); });
+    refunds.forEach(r => { if (r._t >= today0) activity.push({ t: r._t, what: `Refund · ${WALKIN.test(r.customerName || '') ? 'walk-in' : (r.customerName || '?')}`, chip: 'Refund', amount: -returnTotal(r) }); });
     m.warranties.forEach(w => { const t = toMs(w.createdAt); if (t >= today0) activity.push({ t, what: `Warranty issued · ${w.customerName || ''}`, chip: 'Garanci', amount: null }); });
     m.tickets.forEach(tk => { const t = toMs(tk.createdAt); if (t >= today0) activity.push({ t, what: `Repair ticket · ${tk.customerName || ''}`, chip: 'Service', amount: null }); });
     activity.sort((a, b) => b.t - a.t);
@@ -440,6 +505,7 @@ export function analyze(m, now = Date.now()) {
         now, today0, monthStart,
         todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
+        refunds, refunds30, refunded30, refunded12m, productNames: byName,
         soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
         unmatched,
         productsSold: Object.keys(soldUnits).length,

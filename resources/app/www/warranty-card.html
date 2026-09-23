@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warranty Card - Kärcher</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4 landscape;
@@ -200,17 +202,74 @@
             }
         }
     </style>
+
+    <!-- Screen only: the app's dark frame around the sheet. Printing ignores all of this, so the
+         printed certificate is exactly the same document as before. -->
+    <style>
+        @media screen {
+            :root {
+                --wc-bg: #0b0d18; --wc-panel: #13162a; --wc-line: #232640; --wc-line-2: #30355a;
+                --wc-ink: #e9e9f5; --wc-muted: #9092ad; --wc-violet: #8b5cf6; --wc-scale: 1;
+                color-scheme: dark;
+            }
+            body {
+                background: var(--wc-bg);
+                font-family: "Geist", "Segoe UI", system-ui, sans-serif;
+                color: var(--wc-ink);
+            }
+            .wc-bar {
+                position: sticky; top: 0; z-index: 5;
+                display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+                padding: 14px 24px; background: rgba(11, 13, 24, .92); backdrop-filter: blur(6px);
+                border-bottom: 1px solid var(--wc-line);
+            }
+            .wc-bar h1 {
+                font-family: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+                font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0; line-height: 1.2;
+            }
+            .wc-bar p { margin: 2px 0 0; color: var(--wc-muted); font-size: 12.5px; text-align: left; }
+            .wc-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+            .wc-btn {
+                display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13.5px;
+                padding: 9px 15px; border-radius: 9px; cursor: pointer;
+                background: var(--wc-panel); border: 1px solid var(--wc-line-2); color: var(--wc-ink);
+            }
+            .wc-btn:hover { background: #1e2240; }
+            .wc-btn.primary { background: var(--wc-violet); border-color: var(--wc-violet); color: #fff; font-weight: 500; }
+            .wc-btn.primary:hover { background: #7c4df0; }
+            .wc-btn .material-symbols-outlined { font-size: 19px; }
+            .wc-stage { padding: 22px 24px 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+            /* The sheet keeps its real A4 size; only the preview is scaled down to fit the window. */
+            .wc-paper-fit { height: calc(210mm * var(--wc-scale)); width: calc(297mm * var(--wc-scale)); }
+            /* The sheet is a white page: keep its own black text, not the dark theme's light ink. */
+            .wc-paper, .wc-paper .page-container { color: #000; }
+            .wc-paper {
+                transform: scale(var(--wc-scale)); transform-origin: top left;
+                box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .8); border-radius: 2px; overflow: hidden;
+            }
+            .wc-hint { color: #65678a; font-size: 12px; margin: 0; }
+            .wc-hint b { color: var(--wc-muted); font-weight: 500; }
+        }
+    </style>
 </head>
 <body>
-    <div class="no-print" style="text-align: right; padding: 15px; background: #f5f5f5; border-bottom: 2px solid #ddd;">
-        <button onclick="window.print()" style="background: #4285f4; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-            <span class="material-symbols-outlined" style="font-size:1.1em; vertical-align:-3px;">print</span> Print Warranty Card
-        </button>
-        <button onclick="goBack()" style="background: #666; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-left: 8px;">
-            ← Back to Store Sales
-        </button>
-    </div>
+    <header class="wc-bar no-print">
+        <div>
+            <h1>Warranty card</h1>
+            <p id="wc-sub">Kärcher warranty certificate</p>
+        </div>
+        <div class="wc-actions">
+            <button class="wc-btn primary" type="button" onclick="window.print()">
+                <span class="material-symbols-outlined">print</span> Print
+            </button>
+            <button class="wc-btn" type="button" onclick="goBack()">
+                <span class="material-symbols-outlined">close</span> Close
+            </button>
+        </div>
+    </header>
 
+    <div class="wc-stage no-print-stage">
+        <div class="wc-paper-fit"><div class="wc-paper">
     <div class="page-container">
         <!-- Left Column - Terms and Conditions -->
         <div class="left-column">
@@ -324,6 +383,8 @@
                 </div>
             </div>
         </div>
+    </div></div>
+        <p class="wc-hint no-print">Prints on <b>A4, landscape</b> — exactly the sheet above. Press <b>Ctrl P</b> to print, <b>Esc</b> to close.</p>
     </div>
 
     <!-- Print styles to hide notifications when printing -->
@@ -338,107 +399,36 @@
         // Get data from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         
-        // Check for AI-sent data from localStorage
-        const fromAI = localStorage.getItem('warranty_from_ai');
-        
-        if (fromAI === 'true') {
-            // Use AI-sent data
-            const customerName = localStorage.getItem('warranty_customer_name') || '';
-            const productsData = JSON.parse(localStorage.getItem('warranty_products') || '[]');
-            const total = localStorage.getItem('warranty_total') || '';
-            
-            // Fill warranty card with AI data
-            document.getElementById('buyer-name').textContent = customerName;
-            
-            // Use first product for main product field
-            if (productsData.length > 0) {
-                document.getElementById('product-name').textContent = productsData[0].name || '';
-            }
-            
-            // Set current date as purchase date
-            const today = new Date();
-            const formatDate = today.getDate().toString().padStart(2, '0') + '/' + 
-                              (today.getMonth() + 1).toString().padStart(2, '0') + '/' + 
-                              today.getFullYear();
-            document.getElementById('purchase-date').textContent = formatDate;
-            document.getElementById('sale-location').textContent = 'Danfosal Store';
-            
-            // Show AI notification
-            showAIWarrantyNotification(customerName, total);
-            
-            // Clear stored data
-            localStorage.removeItem('warranty_customer_name');
-            localStorage.removeItem('warranty_products');
-            localStorage.removeItem('warranty_total');
-            localStorage.removeItem('warranty_from_ai');
-        } else {
-            // Use URL parameters (existing functionality)
-            document.getElementById('product-name').textContent = urlParams.get('product') || '';
-            document.getElementById('catalog-number').textContent = urlParams.get('catalog') || '';
-            document.getElementById('serial-number').textContent = urlParams.get('serial') || '';
-            document.getElementById('buyer-name').textContent = urlParams.get('buyer') || '';
-            document.getElementById('purchase-date').textContent = urlParams.get('date') || '';
-            document.getElementById('sale-location').textContent = urlParams.get('location') || '';
+        const field = (id, value) => { const el = document.getElementById(id); if (el && value) el.textContent = value; };
+        field('product-name', urlParams.get('product'));
+        field('catalog-number', urlParams.get('catalog'));
+        field('serial-number', urlParams.get('serial'));
+        field('buyer-name', urlParams.get('buyer'));
+        field('purchase-date', urlParams.get('date'));
+        field('sale-location', urlParams.get('location'));
+
+        // Header line on screen (never printed): what this certificate is for.
+        function describe() {
+            const bits = [document.getElementById('product-name').textContent, document.getElementById('serial-number').textContent && 'S/N ' + document.getElementById('serial-number').textContent,
+                document.getElementById('buyer-name').textContent, document.getElementById('purchase-date').textContent].filter(Boolean);
+            const sub = document.getElementById('wc-sub');
+            if (sub) sub.textContent = bits.length ? bits.join(' · ') : 'Kärcher warranty certificate';
         }
-        
-        function showAIWarrantyNotification(customerName, total) {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-                color: white;
-                padding: 20px 24px;
-                border-radius: 12px;
-                font-weight: 600;
-                box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
-                z-index: 10000;
-                animation: slideInRight 0.5s ease-out;
-                max-width: 400px;
-                font-family: Arial, sans-serif;
-                line-height: 1.4;
-            `;
-            
-            notification.innerHTML = `
-                🤖 <strong>AI Assistant Complete!</strong><br>
-                📄 Warranty card ready for ${customerName}<br>
-                💰 Order total: €${total}<br><br>
-                🎫 <strong>Print or save warranty card</strong><br>
-                <button onclick="this.parentElement.remove(); window.print();" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 8px; margin-right: 8px;">🖨️ Print</button>
-                <button onclick="this.parentElement.remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 8px;">✅ Done</button>
-            `;
-            
-            // Add animation styles
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
-            
-            document.body.appendChild(notification);
-            
-            // Auto-remove after 10 seconds if not manually closed
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.style.animation = 'slideOutRight 0.5s ease-out';
-                    setTimeout(() => {
-                        if (notification.parentElement) {
-                            notification.remove();
-                        }
-                    }, 500);
-                }
-            }, 10000);
+        describe();
+
+        // Preview scaling: the sheet is a real A4 landscape page (297mm), shown at whatever fits.
+        function fitPaper() {
+            const stage = document.querySelector('.wc-stage');
+            if (!stage) return;
+            const mm = 297 * (96 / 25.4);                       // A4 landscape width in CSS pixels
+            const scale = Math.min(1, (stage.clientWidth - 48) / mm);
+            document.documentElement.style.setProperty('--wc-scale', scale.toFixed(4));
         }
-        
-        // Navigation function
+        fitPaper();
+        window.addEventListener('resize', fitPaper);
+
+        // Back to wherever this was opened from (Service, a sale, or Danfos Garanci).
         function goBack() {
-            // If user came from AI workflow, go back to store sales
-            const fromAI = localStorage.getItem('warranty_from_ai');
-            
             if (window.history.length > 1) {
                 // Go back to previous page
                 window.history.back();
@@ -492,7 +482,21 @@
 
                     const snap = await getDoc(doc(db, 'warrantyCards', cardId));
                     if (!snap.exists()) return;
-                    const repairs = snap.data().repairs || [];
+                    const card = snap.data();
+                    const item = (card.items || [])[0] || {};
+                    const ms = t => (t && t.toMillis ? t.toMillis() : t && t.seconds ? t.seconds * 1000 : t ? new Date(t).getTime() : NaN);
+                    const dateOf = t => isNaN(ms(t)) ? '' : new Date(ms(t)).toLocaleDateString('en-GB');
+                    const set = (id, v) => { const el = document.getElementById(id); if (el && !el.textContent.trim() && v) el.textContent = v; };
+                    set('product-name', item.name);
+                    set('catalog-number', item.modelCode || item.code);
+                    set('serial-number', item.serialNumber);
+                    set('buyer-name', card.customerName);
+                    set('purchase-date', dateOf(card.purchaseDate) || dateOf(card.createdAt));
+                    set('sale-location', card.location || 'Danfos');
+                    const sub = document.getElementById('wc-sub');
+                    if (sub && card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent;
+                    if (typeof describe === 'function') { describe(); if (card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent; }
+                    const repairs = card.repairs || [];
                     repairs.slice(0, 4).forEach((r, i) => {
                         const dateCell = document.getElementById('repair-date-' + i);
                         const typeCell = document.getElementById('repair-type-' + i);

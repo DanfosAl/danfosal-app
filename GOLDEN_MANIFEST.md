@@ -751,6 +751,19 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **35. WARRANTY CERTIFICATE: NEW SCREEN, IDENTICAL PRINT** — ✅ **DONE & PROVEN IDENTICAL (September 23, 2026)**
+
+The last page still on the old look. The owner asked for it to be redesigned **but to print exactly as before**, so every new rule lives in `@media screen` and the sheet (`.page-container`, its CSS and its `@page A4 landscape`) was not touched.
+
+- **On screen:** the app's dark bar (title, what the certificate is for, violet Print, Close) and the sheet shown as white paper on a dark stage, scaled to fit the window (`--wc-scale`, recalculated on resize; never enlarged past 100%). The sheet keeps black text on screen, so the preview matches the paper.
+- **Printing:** the chrome is `.no-print`, the wrappers carry no print styles, and the scale only exists on screen.
+- **Two bugs fixed:** opening a card from Service (`?id=`) filled only the repair history, so the product, catalogue number, serial, buyer, date and location **printed blank**; they now come from the saved card. The dead "AI assistant" path (its page was retired in Phase 5) and its pop-up are gone.
+- **Back** goes to wherever it was opened from, instead of the retired Store Sales page.
+
+**Proof the print is unchanged:** the certificate was rendered before and after in print media at A4 landscape (2246 × 1588 at 2×) and compared pixel by pixel: **0 of 3,566,648 pixels differ**, and `printToPDF` gives the same 1-page, 69,133-byte document.
+
+---
+
 #### **34. YEARLY PLAN: SEE THE PLAN ITSELF, MONTH BY MONTH** — ✅ **BUILT & VERIFIED (September 22, 2026)**
 
 The owner couldn't tell what a save had produced: the screen only showed tracking columns (all "0 / 0" for a year that hasn't started), and a partial save still listed every other product.

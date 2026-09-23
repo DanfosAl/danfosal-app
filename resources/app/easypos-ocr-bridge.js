@@ -166,6 +166,21 @@ class EasyPOSOCRProcessor {
             }
         };
         
+        // An invoice written in lek has lek on every line, not just in its total. The total is
+        // already converted; the lines are converted here, with the same rate, so a sale's parts
+        // and its total are in the same money (invoice 242/2026: a 2,300 lek pad, not a EUR 2,300 one).
+        if (invoiceData.currency && invoiceData.currency !== 'EUR') {
+            const rate = this.findRate(lines) || EasyPOSOCRProcessor.LEK_PER_EUR;
+            invoiceData.exchangeRate = rate;
+            invoiceData.items = (invoiceData.items || []).map(item => ({
+                ...item,
+                pricePerUnit: Math.round((item.pricePerUnit / rate) * 100) / 100,
+                lineTotal: Math.round((item.lineTotal / rate) * 100) / 100,
+                originalCurrency: invoiceData.currency,
+                originalPricePerUnit: item.pricePerUnit
+            }));
+        }
+
         return invoiceData;
     }
 
@@ -292,41 +307,61 @@ class EasyPOSOCRProcessor {
     }
     
     findCurrency(lines) {
-        // Look for "Valuta EUR" or currency in total line
+        // A EUR invoice says so: "Valuta EUR", a rate ("Kursi 95.50") and both TOTAL LEK and
+        // TOTAL EUR. An invoice written in lek prints none of that - just TOTAL LEK. Defaulting
+        // to EUR turned a 2,300 lek pad (invoice 242/2026) into a EUR 2,300 sale, which is a
+        // hundredfold error in a month's revenue.
         for (const line of lines) {
-            if (line.includes('Valuta')) {
-                const match = line.match(/Valuta\s+(\w+)/);
-                if (match) return match[1];
-            }
+            const match = line.match(/Valuta\s+(\w+)/);
+            if (match) return match[1].toUpperCase();
         }
-        return 'EUR'; // Default
+        return lines.some(l => /TOTAL\s+EUR/i.test(l)) ? 'EUR' : 'ALL';   // ALL = Albanian lek
     }
 
-    findGrandTotal(lines) {
-        // Priority 1: Look for "TOTAL EUR" specifically
+    // The rate the till printed all through 2026. Only used for a lek invoice that carries no
+    // rate of its own - the receipt for invoice 242/2026 had none. Logged whenever it is used, so
+    // a drifting rate shows up rather than sitting silently in the numbers.
+    static LEK_PER_EUR = 95.5;
+
+    findRate(lines) {
         for (const line of lines) {
-            if (line.includes('TOTAL EUR')) {
-                const match = line.match(/TOTAL\s+EUR\s+(-?[0-9,]+\.?\d*)/);  // ✅ Added -? for negative
-                if (match) return parseFloat(match[1].replace(/,/g, ''));
-            }
+            const m = line.match(/Kursi\s+([\d.,]+)/i);
+            if (m) { const r = parseFloat(m[1].replace(/,/g, '')); if (r > 1) return r; }
         }
-        
-        // Priority 2: Look for "TOTAL" in any context
-        for (let i = lines.length - 1; i >= 0; i--) {
-            const line = lines[i];
-            if (line.startsWith('TOTAL')) {
-                const match = line.match(/(-?[0-9,]+\.?\d*)/);  // ✅ Added -? for negative
-                if (match) return parseFloat(match[1].replace(/,/g, ''));
-            }
-        }
-        
         return null;
     }
 
-    // "<qty><unit?> X <price> <total>" - extractItems explains each part and why it is this loose.
+    // What the customer paid, always in euros, because that is the currency the app counts in.
+    // A EUR invoice prints TOTAL EUR; a lek invoice prints only TOTAL LEK and is converted here.
+    findGrandTotal(lines) {
+        const num = v => parseFloat(String(v).replace(/,/g, ''));
+        for (const line of lines) {
+            const m = line.match(/TOTAL\s+EUR\s+(-?[\d,]+\.?\d*)/i);
+            if (m) return num(m[1]);
+        }
+        for (const line of lines) {
+            const m = line.match(/TOTAL\s+LEK\s+(-?[\d,]+\.?\d*)/i);
+            if (m) {
+                const lek = num(m[1]);
+                const rate = this.findRate(lines) || EasyPOSOCRProcessor.LEK_PER_EUR;
+                log(`   \u2139 Invoice written in lek: ${lek} LEK at ${rate} = EUR ${Math.round((lek / rate) * 100) / 100}`);
+                return Math.round((lek / rate) * 100) / 100;
+            }
+        }
+        // Last resort: any TOTAL line at all, read as euros.
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].startsWith('TOTAL')) {
+                const m = lines[i].match(/(-?[\d,]+\.?\d*)/);
+                if (m) return num(m[1]);
+            }
+        }
+        return null;
+    }
+
+    // "<qty><unit?> X <price> <total?>" - extractItems explains each part and why it is loose.
     static ITEM_LINE = /^(-?[\d.,]+)\s*(cope|cape|cop\u00eb|kg|gr|ml|l|lit(?:er|ra)?)?\s*[Xx]\s+(-?[\d.,]+)(?:\s+(-?[\d.,]+))?\s*$/i;
     // A discounted item puts its money on the line after it: "280.00 (-10.00%) 252.00".
-    // What the customer actually paid is the last number on that line.
+    // The percentage is there too, which is what lets the arithmetic be checked.
     static DISCOUNT_LINE = /^(-?[\d.,]+)\s*[({\[]\s*(-?[\d.,]+)\s*%\s*[)}\]]\s*(-?[\d.,]+)\s*$/;
 
     extractItems(lines) {

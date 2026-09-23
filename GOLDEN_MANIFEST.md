@@ -751,6 +751,33 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **44. A RECEIPT WRITTEN IN LEK WAS COUNTED AS EUROS** — ✅ **FIXED & VERIFIED (September 23, 2026)**
+
+Chasing what looked like a wrong cost price (a EUR 2,300 sale of a pad whose cost is EUR 17.54)
+turned up something else: **invoice 242/2026 was written in lek, and stored as if its number were
+euros.** The receipt prints `TOTAL LEK 2,300.00` and nothing else - no `Valuta EUR`, no `Kursi`,
+no `TOTAL EUR`. 2,300 lek is about EUR 24; the same disk had sold for EUR 25 a month earlier.
+
+- `findCurrency` returned `'EUR'` whenever no `Valuta` line was found - so "no currency stated"
+  and "euros" were the same answer. It now reads a lek invoice as `ALL`, because a EUR invoice
+  always says so.
+- `findGrandTotal` preferred `TOTAL EUR`, then fell through to *any* TOTAL line - which on a lek
+  invoice is the lek one. It now converts, using the rate printed on the receipt when there is one
+  and `LEK_PER_EUR = 95.5` (what the till printed all through 2026) when there is not, and logs
+  which it used, so a drifting rate shows up instead of sitting silently in the numbers.
+- The item lines are in lek too, so `extractInvoiceData` converts them with the same rate and keeps
+  `originalPricePerUnit` and `exchangeRate` on each line. A sale's parts and its total now agree.
+
+Across all 296 captures exactly one stored total changes: 242/2026, EUR 2,300 → EUR 24.08. Two other
+receipts have no EUR total either, but no readable total at all.
+
+**Corrected in the data, with the owner's approval and a backup** (`scratchpad/lek-fix-backup.json`):
+the sale is now EUR 24.08 with a note saying what it was and why, and the product's price went from
+2,500 (its lek price) to EUR 25, which is what it sold for on 20 Apr. **The EUR 17.54 cost was right
+all along.** Twelve-month revenue falls by EUR 2,276 that the shop never took.
+
+---
+
 #### **43. THE TILL PARSER LOST EVERY ITEM PRICED OVER EUR 999, AND EVERYTHING SOLD BY WEIGHT** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
 The owner asked why the EUR 6,500 sale of 23 Sep arrived with no machine and no serial number.

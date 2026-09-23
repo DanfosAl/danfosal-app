@@ -323,6 +323,9 @@ class EasyPOSOCRProcessor {
         return null;
     }
 
+    // "<qty><unit?> X <price> <total>" - extractItems explains each part and why it is this loose.
+    static ITEM_LINE = /^(-?[\d.,]+)\s*(cope|cape|cop\u00eb|kg|gr|ml|l|lit(?:er|ra)?)?\s*[Xx]\s+(-?[\d.,]+)\s+(-?[\d.,]+)/i;
+
     extractItems(lines) {
         // Extract line items from EasyPOS receipt format
         const items = [];
@@ -340,17 +343,26 @@ class EasyPOSOCRProcessor {
                 break; // Stop at totals
             }
             
-            // Look for item name lines (e.g., "K 5 Basic *EU")
-            // Followed by quantity and price line (e.g., "1 cope X 340.00 340.00" or "-1 cope X 99.00 -99.00" for returns)
-            if (i < lines.length - 1 && !line.match(/^-?\d+\s+cope/)) {
+            // Look for item name lines (e.g., "K 5 Basic *EU"), followed by their quantity line.
+            // Four things that line really is, three of which used to lose the item in silence
+            // (found 23 Sep 2026, when a EUR 6,500 BD 50/70 R Bp Classic arrived with no product
+            // and no serial number on its own sale):
+            //   "1 cope X 340.00 340.00"      pieces
+            //   "1 cope X 6,500.00 6,500.00"  from 1,000 up, the price carries a thousands comma
+            //   "5kg X 11.00 55.00"           sold by weight (Repox is priced per kg, stocked per kg)
+            //   "10 cape X 1.00 10.00"        the scanner reads "cope" as "cape" now and then
+            // The unit is optional, so an unfamiliar one cannot drop the line; the "X" is what
+            // makes it a quantity line. Quantity is decimal, because half a kilo is a quantity.
+            if (i < lines.length - 1 && !EasyPOSOCRProcessor.ITEM_LINE.test(line)) {
                 const nextLine = lines[i + 1];
-                const itemLineMatch = nextLine.match(/^(-?\d+)\s+cope\s+X\s+([0-9.]+)\s+(-?[0-9.]+)/);  // ✅ Added -? for negatives
+                const itemLineMatch = nextLine.match(EasyPOSOCRProcessor.ITEM_LINE);
                 
                 if (itemLineMatch) {
                     const itemName = line.trim();
-                    const quantity = parseInt(itemLineMatch[1]);
-                    const pricePerUnit = parseFloat(itemLineMatch[2]);
-                    const lineTotal = parseFloat(itemLineMatch[3]);
+                    const num = v => parseFloat(String(v).replace(/,/g, ''));
+                    const quantity = num(itemLineMatch[1]);
+                    const pricePerUnit = num(itemLineMatch[3]);
+                    const lineTotal = num(itemLineMatch[4]);
                     
                     // Only add if we have valid data
                     if (itemName && !itemName.match(/^(NIPT|Data|Fatura|Kodi|Njesia|Menyrat|Valuta|Kursi|DETAJET)/)) {
@@ -358,7 +370,8 @@ class EasyPOSOCRProcessor {
                             itemName: itemName,
                             quantity: quantity,
                             pricePerUnit: pricePerUnit,
-                            lineTotal: lineTotal
+                            lineTotal: lineTotal,
+                            unit: (itemLineMatch[2] || 'cope').toLowerCase()
                         });
                         i++; // Skip the next line since we've processed it
                     }

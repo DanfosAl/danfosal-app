@@ -751,6 +751,39 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **43. THE TILL PARSER LOST EVERY ITEM PRICED OVER EUR 999, AND EVERYTHING SOLD BY WEIGHT** — ✅ **FIXED & VERIFIED (September 23, 2026)**
+
+The owner asked why the EUR 6,500 sale of 23 Sep arrived with no machine and no serial number.
+The OCR had read the receipt perfectly - the capture on disk holds `Karcher BD 50/70 R Bp Classic`,
+`1 cope X 6,500.00 6,500.00` and `SIN:013425`. The parser threw the line away.
+
+`extractItems` matched a quantity line with `/^(-?\d+)\s+cope\s+X\s+([0-9.]+)\s+(-?[0-9.]+)/`.
+Three things that expression cannot read, each of which dropped the item in silence while the sale
+itself was still saved with its total:
+
+- **a thousands separator**: `[0-9.]+` stops at the comma in `6,500.00`, so **every item priced
+  1,000 or more** was lost. (`findGrandTotal` allows commas, which is why the total was right and
+  only the line was missing.)
+- **any unit but pieces**: `5kg X 11.00 55.00` - Repox is priced and stocked per kg. 19 lines.
+- **the scanner's own typo**: `10 cape X 1.00 10.00`, "cope" misread. 2 lines.
+
+Fixed with one definition on the class, `EasyPOSOCRProcessor.ITEM_LINE`, where the unit is optional
+(an unfamiliar one can no longer drop a line), the "X" is what makes it a quantity line, commas are
+stripped before parsing, and quantity is a decimal because half a kilo is a quantity.
+
+**Checked against all 296 captures the shop has printed** (`scratchpad/verify_bridgefix.cjs`, which
+runs the patched parser over each stored `_data.json` and compares with what was saved at the time):
+268 identical, **27 lines recovered**, 1 receipt gained a line it had been missing, **0 regressions**.
+Recovered: 19 Repox kg lines, one 10-bag line, and the machines - SGV 8/5 (EUR 4,000), HD 9/20-4
+(EUR 1,450, twice), HD 7/20 G (EUR 1,200), Qeleshe disk (EUR 2,300) and the BD 50/70 (EUR 6,500).
+Three of the refunds that Finding #37 could not cost are the same bug: their credit notes carry the
+same big numbers.
+
+The bridge was restarted from its own hidden-PowerShell startup command, so the fix is live; the log
+shows it watching again from 17:07.
+
+---
+
 #### **41. UNUSED COLLECTIONS DELETED, AFTER A BACKUP** — ✅ **DONE (September 23, 2026)**
 
 Five Firestore collections nothing in the app reads, backed up to JSON first at the owner's request:

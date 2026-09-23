@@ -751,6 +751,47 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **47. WHAT THE SHOP COSTS TO RUN, ENTERED ONCE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+
+Money's expenses screen could already show net profit; it had nothing to show it from. **Five
+expense entries exist in the whole database, all from December 2025**, because rent and salaries
+had to be retyped every month, and nobody does that.
+
+- **New `recurringCosts` collection** and an "Every month" drawer: a name, an amount, a category,
+  and the month it started. A cost that stops gets an end month rather than being deleted, so past
+  months keep counting it - removing one instead raises the profit of every month it appeared in,
+  which the confirmation says out loud.
+- Money's four figures are now **Costs / Gross profit / Net profit / Break even**, the twelve-month
+  table counts the repeating costs in every month they cover, and Next 30 days uses them instead of
+  guessing from the last month anything was recorded in.
+- **Today gains "Profit this month"**: gross profit minus what the shop costs to run, with the sales
+  needed to break even at that month's own margin. Until costs are entered it says so, and links to
+  where they go, rather than showing a flattering number.
+
+Verified on live data with a disposable EUR 1,500 rent: September read *EUR 1,500 to run the shop,
+EUR 3,179 net profit, break even at EUR 3,259 of sales at 46% margin*, and Today matched. The test
+entry was removed afterwards; the installed app now reads "add what the shop costs to run".
+
+---
+
+#### **47b. THE REFUND HANDLER THREW ON EVERY CREDIT NOTE** — ✅ **FIXED & VERIFIED (September 23, 2026)**
+
+`processReturn` ended with `linkedOrder ? linkedOrder.orderId : null` - a variable that does not
+exist - so it threw **after** recording the refund and putting the stock back. And its search for
+the sale being reversed only ever looked at `onlineOrders`, never at the store sales that are nearly
+all of the shop's trade. Between them, that is why all 18 refunds carry `linkedSaleId: null` and no
+sale is marked *Returned*.
+
+Both fixed: the undefined variable, and a store-sale search on the same terms the online one uses -
+same customer, same amount, the sale at or before the refund and within four months, **a single
+candidate only** (two sales of the same amount to the same customer cannot be told apart, and
+guessing would mark the wrong one). Run against all 17 real credit notes: **7 now link to the sale
+they reverse, 2 are ambiguous and left alone**, the rest are walk-ins or partial refunds with no
+match. The existing 18 refunds are not backfilled - that is a data change, and it is offered rather
+than assumed.
+
+---
+
 #### **46. WARRANTY CERTIFICATES CAN BE DELETED, AND THREE DUPLICATES WERE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 Two places can issue a certificate for the same machine - the till (Sell › Warranty card) and Danfos

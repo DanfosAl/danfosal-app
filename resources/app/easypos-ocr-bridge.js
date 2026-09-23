@@ -324,7 +324,10 @@ class EasyPOSOCRProcessor {
     }
 
     // "<qty><unit?> X <price> <total>" - extractItems explains each part and why it is this loose.
-    static ITEM_LINE = /^(-?[\d.,]+)\s*(cope|cape|cop\u00eb|kg|gr|ml|l|lit(?:er|ra)?)?\s*[Xx]\s+(-?[\d.,]+)\s+(-?[\d.,]+)/i;
+    static ITEM_LINE = /^(-?[\d.,]+)\s*(cope|cape|cop\u00eb|kg|gr|ml|l|lit(?:er|ra)?)?\s*[Xx]\s+(-?[\d.,]+)(?:\s+(-?[\d.,]+))?\s*$/i;
+    // A discounted item puts its money on the line after it: "280.00 (-10.00%) 252.00".
+    // What the customer actually paid is the last number on that line.
+    static DISCOUNT_LINE = /^(-?[\d.,]+)\s*[({\[]\s*(-?[\d.,]+)\s*%\s*[)}\]]\s*(-?[\d.,]+)\s*$/;
 
     extractItems(lines) {
         // Extract line items from EasyPOS receipt format
@@ -361,9 +364,30 @@ class EasyPOSOCRProcessor {
                     const itemName = line.trim();
                     const num = v => parseFloat(String(v).replace(/,/g, ''));
                     const quantity = num(itemLineMatch[1]);
-                    const pricePerUnit = num(itemLineMatch[3]);
-                    const lineTotal = num(itemLineMatch[4]);
-                    
+                    let pricePerUnit = num(itemLineMatch[3]);
+                    let lineTotal = itemLineMatch[4] === undefined ? null : num(itemLineMatch[4]);
+                    let skip = 1;
+
+                    // A discounted item carries its money on the following line; the unit price
+                    // then becomes what was really charged, so the lines still add up to the total.
+                    if (lineTotal === null) {
+                        const discount = (lines[i + 2] || '').match(EasyPOSOCRProcessor.DISCOUNT_LINE);
+                        if (discount) {
+                            // "280.00 (-10.00%) 252.00": believe the printed money only when it
+                            // agrees with the percentage. On this shop's receipts the scanner has
+                            // read "6.30" as "8.30" and "(" as "{", so the arithmetic is the
+                            // steadier of the two, and it is what makes the lines add up to the total.
+                            const pct = Math.abs(num(discount[2]));
+                            const printed = num(discount[3]);
+                            const expected = Math.round(pricePerUnit * (quantity || 1) * (1 - pct / 100) * 100) / 100;
+                            lineTotal = Math.abs(printed - expected) <= 0.05 ? printed : expected;
+                            if (quantity) pricePerUnit = Math.round((lineTotal / quantity) * 100) / 100;
+                            skip = 2;
+                        } else {
+                            lineTotal = pricePerUnit * (quantity || 1);   // no total printed at all
+                        }
+                    }
+
                     // Only add if we have valid data
                     if (itemName && !itemName.match(/^(NIPT|Data|Fatura|Kodi|Njesia|Menyrat|Valuta|Kursi|DETAJET)/)) {
                         items.push({
@@ -373,7 +397,7 @@ class EasyPOSOCRProcessor {
                             lineTotal: lineTotal,
                             unit: (itemLineMatch[2] || 'cope').toLowerCase()
                         });
-                        i++; // Skip the next line since we've processed it
+                        i += skip; // Skip the lines we have just consumed
                     }
                 }
             }

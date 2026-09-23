@@ -767,9 +767,18 @@ itself was still saved with its total:
 - **any unit but pieces**: `5kg X 11.00 55.00` - Repox is priced and stocked per kg. 19 lines.
 - **the scanner's own typo**: `10 cape X 1.00 10.00`, "cope" misread. 2 lines.
 
-Fixed with one definition on the class, `EasyPOSOCRProcessor.ITEM_LINE`, where the unit is optional
-(an unfamiliar one can no longer drop a line), the "X" is what makes it a quantity line, commas are
-stripped before parsing, and quantity is a decimal because half a kilo is a quantity.
+A fourth layout turned up while checking the fix: a **discounted item wraps onto three lines** -
+`STAR 3435 WDM` / `1 cope X 280.00` / `280.00 (-10.00%) 252.00` - and the old expression needed the
+money on the same line as the quantity, so a whole eight-line invoice (220/2026, EUR 961.20) had
+nothing on it, and a EUR 950 sale was missing the EUR 820 machine while keeping its two accessories.
+
+Fixed with two definitions on the class. `ITEM_LINE`: the unit is optional (an unfamiliar one can no
+longer drop a line), the "X" is what makes it a quantity line, the line total is optional, commas are
+stripped, and the quantity is a decimal because half a kilo is a quantity. `DISCOUNT_LINE`: reads the
+following line, and **checks the printed money against the printed percentage**, because on this
+shop's receipts the scanner has read "6.30" as "8.30" and "(" as "{". The arithmetic wins when the
+two disagree - which is what makes invoice 220/2026's eight lines add up to EUR 961.20 exactly rather
+than EUR 961.90.
 
 **Checked against all 296 captures the shop has printed** (`scratchpad/verify_bridgefix.cjs`, which
 runs the patched parser over each stored `_data.json` and compares with what was saved at the time):
@@ -779,8 +788,24 @@ Recovered: 19 Repox kg lines, one 10-bag line, and the machines - SGV 8/5 (EUR 4
 Three of the refunds that Finding #37 could not cost are the same bug: their credit notes carry the
 same big numbers.
 
-The bridge was restarted from its own hidden-PowerShell startup command, so the fix is live; the log
-shows it watching again from 17:07.
+Across all 296 captures, **288 now have lines that add up to their own printed total**, 6 are off by
+small amounts that predate this work (five of them by exactly EUR 2), and 2 have no readable item
+line at all.
+
+The bridge was restarted from its own hidden-PowerShell startup command, so the fix is live (log:
+watching again from 17:19).
+
+**The records were repaired, with the owner's approval and a backup** (`scratchpad/backfill_items2.cjs`,
+backup in `scratchpad/backfill-backup.json`): 22 sales and 4 refunds got their lines back, built by
+the bridge's own `buildSaleItems` so a repaired sale is exactly what a fresh import would have
+written - same product matching, same cost, same "the serial goes to the most expensive line". Today's
+EUR 6,500 sale now carries *BD 50/70 R Bp Classic*, S/N **013425** and a EUR 3,629.32 cost. EasyPOS
+sales with no items went from 22 to 1 (a EUR 0 receipt), refunds with no lines from 4 to 0, and the
+share of 12-month revenue whose cost is known rose from 89% to 91%.
+
+**Stock was deliberately not touched**: these sales are months old and the 14 Sep count set stock from
+what is on the shelf, so deducting now would take the same goods off twice. The one exception worth
+knowing: the BD 50/70 sold today still shows 1 in stock, because its sale never deducted it.
 
 ---
 

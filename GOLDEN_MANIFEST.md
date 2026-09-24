@@ -751,6 +751,66 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **49. CANCELLING AN INVOICE NOW SETTLES THE WARRANTY TOO** — ✅ **BUILT & TESTED ON A REAL CANCELLATION (September 24, 2026)**
+
+Cancelling an invoice already gave the goods back and recorded the refund. The certificate it was
+sold with was the part nobody could act on: it went on covering a machine that had come back, and a
+certificate can cover several machines, so only a person can say which one it was.
+
+**What the app does now**
+
+- A refund linked to a sale that still has a live certificate is raised in three places: Today's
+  "needs you", a banner on Service › Warranty cards, and inside the refund's own drawer in Sell.
+- It **asks which machine came back**, ticking the one whose serial matches the credit note.
+- What stays keeps the certificate, its number, its customer and **the date it was issued** - the
+  reprint is the same certificate one machine lighter, so the remaining warranty still runs from the
+  day of the sale rather than from the day of the cancellation.
+- What comes off is written onto the card (`removedItems`: name, serial, reason, when).
+- If nothing is left the certificate is **cancelled, not deleted** (`cancelledAt`, `cancelReason`),
+  reads as cancelled in Service, is excluded from the active count, and says CANCELLED on its own
+  print page. The refund is marked `warrantyHandledAt` so the app stops asking.
+- Every certificate can be edited this way at any time, from the row's own button - needed when a
+  refund covers only part of an invoice and so cannot be matched to its sale automatically.
+- The print page now fills from **every** machine still on the card, not just the first, so a
+  two-machine certificate reprints correctly after one is taken off. The sheet is unchanged.
+
+**A second fix, in the bridge.** Returned goods went back to "the first product whose name contains
+this one" - and "Filter WD3" contains "WD3", so a returned vacuum could have credited a filter. It
+now uses the same five-tier matcher a sale uses and leaves stock alone when it cannot be sure.
+
+**Tested on the real thing.** Rehearsed first on disposable records (a two-machine certificate
+issued the day before, a refund for one of them; the right machine pre-ticked, the issue date kept,
+the reprint showing only the machine that stayed, and the card cancelling when the last one came
+off - all test records deleted afterwards). Then the owner cancelled invoice **358/2026** (Alba
+Koreshi, EUR 6,500, the BD 50/70 R Bp Classic sold the day before). The log reads, in order:
+
+```
+RETURN DETECTED: Negative total amount
+-> Found the store sale it reverses: WRu1aMsr55wjW45jxCsA (Alba Koreshi, EUR 6500)
+   In-store sale marked as Returned
+   Return recorded: Ea9KUyHWz2ilxegVQHR5
+   BD 50/70 R Bp Classic: 0 + 1 back in stock
+RETURN processed successfully!
+```
+
+Every one of those lines is something that did not work before this month: the store-sale search
+(Finding #47b - it only ever looked at online orders), the item line itself (Finding #43 - the
+EUR 6,500 price's comma), the stock going back to the right product, and `processReturn` finishing
+at all rather than throwing on an undefined variable. The owner then answered the app's question,
+and the certificate ended: `items: []`, cancelled 24 Sep 10:15, `removedItems` holding
+*BD 50/70 R Bp Classic, S/N 013425, "Invoice cancelled"*, **`createdAt` still 23 Sep 2026** and
+`warrantyUntil` still 23 Sep 2028.
+
+**Two things this leaves, both stated rather than fixed:**
+
+1. **Today reads "−EUR 6,500 · -1300% of your EUR 500 goal".** The money is right - EUR 6,500 went
+   back out today - but a goal percentage on a day of refunds is nonsense to look at.
+2. **A refund is not taken off a customer's lifetime spend.** Alba Koreshi still reads EUR 6,500
+   spent in Customers, while revenue, profit and the plan all have it removed. `customerDirectory`
+   counts sales and orders and never looks at `returns`.
+
+---
+
 #### **48. A PHONE LAYOUT, AND THE ANDROID APP REBUILT FROM IT** — ✅ **BUILT & VERIFIED (September 24, 2026)**
 
 The app was drawn for the shop's PC: a 220px sidebar and four columns of figures. Measured at 375px

@@ -467,6 +467,107 @@ select.inp { appearance: auto; }
   .cols { grid-template-columns: minmax(0, 1fr); }
   .pos { grid-template-columns: minmax(0, 1fr); }
 }
+/* ---------------------------------------------------------------- PHONE LAYOUT
+   One column, thumb-sized controls, and the navigation along the bottom where a thumb reaches.
+   Nothing here changes the desktop: it all lives behind this one width. */
+@media (max-width: 760px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* Some screens set their own column split inline (Insights does), so the phone has to insist. */
+  .cols { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* The sidebar becomes the bottom bar. It scrolls sideways if the labels do not fit. */
+  .side {
+    position: fixed; inset: auto 0 0 0; height: auto; z-index: 50;
+    flex-direction: row; align-items: center; gap: 0;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+    border-right: 0; border-top: 1px solid var(--line);
+    overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  }
+  .side::-webkit-scrollbar { display: none; }
+  .brand, .pipe { display: none; }                 /* desktop furniture: the logo and the pipeline box */
+  .side .nav { grid-auto-flow: column; gap: 0; }
+  .side-foot { margin-top: 0; display: flex; }
+  .nav-link {
+    flex-direction: column; gap: 3px; padding: 6px 7px; min-width: 56px;
+    font-size: 10.5px; text-align: center; border-radius: 10px; line-height: 1.15;
+  }
+  .nav-link .ms { font-size: 22px; }
+  .nav-link[aria-current="page"] { background: var(--violet-bg); box-shadow: none; }
+  .nav-count { position: absolute; top: 0; right: 4px; margin: 0; font-size: 10px; padding: 0 5px; }
+  .flyout { display: none !important; }            /* hover menus have no meaning on a touch screen */
+
+  /* Room for the bar, and a gutter that never lets the page scroll sideways. */
+  .main { padding: 12px 14px calc(74px + env(safe-area-inset-bottom, 0px)); gap: 14px; }
+  #content { gap: 14px; }
+  .topbar .today-date, .kbd { display: none; }
+  .search-trigger { max-width: none; min-height: 42px; }
+
+  .page-head { align-items: flex-start; gap: 8px; }
+  .page-head h1 { font-size: 24px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 9px 11px; white-space: nowrap; }
+
+  /* Two figures across, not four. */
+  .kpis, .kpis-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .kpi { padding: 11px 12px; }
+  .kpi .v { font-size: 20px; }
+  .kpi small { font-size: 11.5px; }
+  .kpi .d { font-size: 11.5px; }
+  .kpi svg { height: 24px; }
+
+  /* A table scrolls inside its own card; the page never does. Capped heights are dropped so the
+     page scrolls as one thing instead of a small box inside a big one. */
+  .table-wrap { max-height: none !important; -webkit-overflow-scrolling: touch; }
+  .dt th, .dt td { padding: 8px 10px; font-size: 12.5px; white-space: nowrap; }
+  .dt td.name b, .dt td.name span { white-space: normal; }
+  .table-foot { font-size: 11.5px; padding: 10px 12px; }
+
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary { gap: 10px; font-size: 12.5px; }
+  .lines .line { padding: 11px 0; }
+
+  /* A drawer comes up from the bottom, the way a phone expects. */
+  .drawer {
+    top: auto; left: 0; right: 0; width: auto; max-height: 92vh;
+    border-left: 0; border-top: 1px solid var(--line-strong); border-radius: 16px 16px 0 0;
+  }
+  .drawer-head, .drawer-foot { padding-left: 16px; padding-right: 16px; }
+  .drawer-body { padding: 14px 16px; gap: 14px; }
+  .drawer-foot { flex-wrap: wrap; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal { border-radius: 16px 16px 0 0; }
+  .modal-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Fingers are not mouse pointers. */
+  .btn { min-height: 40px; padding: 9px 14px; }
+  .btn.small { min-height: 34px; padding: 6px 11px; }
+  /* A row of controls never widens the page: it caps itself and scrolls inside instead. */
+  .toolbar, .viz-head, .filters, .summary { max-width: 100%; }
+  .toolbar > *, .viz-head > * { min-width: 0; max-width: 100%; }
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { padding: 9px 13px; white-space: nowrap; min-height: 40px; }
+  .filter { min-height: 34px; }
+  .dt th button { min-height: 32px; }          /* sorting a column is a tap, not a click */
+  .fld input, .fld select, .fld textarea, input.inp { min-height: 42px; font-size: 16px; }
+  .field-search { padding: 12px; }
+  .field-search input, .search-trigger { font-size: 16px; }   /* under 16px, the browser zooms on focus */
+  .res { grid-template-columns: minmax(0, 1fr) auto; padding: 11px 10px; }
+  .res .stk { display: none; }
+  .cart-line { padding: 10px 0; }
+  .toast { left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 400px) {
+  /* Nine destinations do not fit with words under them, so the words go to the screen reader. */
+  .nav-link .nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav-link { min-width: 40px; padding: 8px 6px; }
+  .main { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+  .kpi .v { font-size: 18px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
 }

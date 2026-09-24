@@ -51,7 +51,7 @@ function navItem(item, active, counts) {
             ${anyClassic ? '<p class="note">Classic screens keep working until they are rebuilt.</p>' : ''}
         </div>` : '';
     return `<div class="nav-item">
-        <a class="nav-link" href="${item.href}"${current}>${icon(item.icon)}${esc(item.label)}${badge}</a>${flyout}
+        <a class="nav-link" href="${item.href}"${current}>${icon(item.icon)}<span class="nav-label">${esc(item.label)}</span>${badge}</a>${flyout}
     </div>`;
 }
 

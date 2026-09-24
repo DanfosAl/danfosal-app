@@ -787,8 +787,17 @@ Two things it makes visible, neither of them its fault:
    (at seq 15), `partsMonths: 24`, `labourMonths: 12`, `warrantyUntil`, `purchaseDate`. **Danfosal
    App's own warranty dialog (`www/app/warranty.js`) writes none of those** - only
    `{saleId, saleType, customerName, items, location, createdAt}`. That is exactly the "No number /
-   covered until: not set" row the owner deleted on 24 Sep. Any certificate issued from the till is
-   unnumbered and has no end date, so Service cannot say whether it is still active.
+   covered until: not set" row the owner deleted on 24 Sep. Any certificate issued from the till was
+   unnumbered and had no end date, so Service could not say whether it was still active.
+
+   ✅ **Fixed the same day.** `warranty.js` now takes its number from the same
+   `counters/warrantyCertNo` the Garanci app uses, in a transaction, so one series runs across both
+   apps and neither can hand out the same number. It writes `partsMonths: 24`, `labourMonths: 12`,
+   the invoice number, and **dates the cover from the day of the sale** rather than the day the card
+   was printed - a certificate written a week late still covers the machine from when it was bought.
+   Proven on a disposable sale dated 20 Sep: the till issued **GAR-2026-0016** (Garanci having
+   issued 0015 that morning), covered to 20 Sep 2028. Test records removed and the counter handed
+   back to 15, so the shop's next real certificate is 0016.
 2. **The retired classic app is still reachable.** HQ bundles a full copy of it (`danfosal/` -
    `ai-dashboard.html`, `creditors_list.html`, `albanian-invoice-scanner.html` and the rest), and
    those pages still write to the live database with the conventions Phase 5 retired. Nothing is

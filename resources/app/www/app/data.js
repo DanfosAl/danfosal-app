@@ -300,6 +300,33 @@ export function runningCostOf(m, monthStart, expenses) {
     return { oneOff: one, repeating: rep, total: one + rep };
 }
 
+// ---- warranty certificates and the invoices that get cancelled
+
+// A certificate still worth something: it has items on it and has not been cancelled.
+export const liveCard = c => !c.cancelledAt && (c.items || []).length > 0;
+
+// The certificates issued for a sale. Garanci and the till both write `saleId`; older cards from
+// the till carry only the invoice number, so both are tried.
+export function cardsForSale(m, sale) {
+    if (!sale) return [];
+    const inv = shortInvoice(saleInvoiceNumber(sale));
+    return (m.warranties || []).filter(c => liveCard(c) &&
+        (c.saleId === sale._id || (inv && shortInvoice(c.invoiceNumber) === inv)));
+}
+
+// Refunds whose sale was sold with a certificate that nobody has dealt with yet. This is what
+// makes the app ask "which machine came back" instead of leaving the paperwork wrong.
+export function refundsNeedingWarranty(m) {
+    const byId = new Map(m.sales.map(s => [s._id, s]));
+    return (m.returns || [])
+        .filter(r => r.linkedSaleId && !r.warrantyHandledAt)
+        .map(r => ({ refund: r, sale: byId.get(r.linkedSaleId) }))
+        .filter(x => x.sale)
+        .map(x => ({ ...x, cards: cardsForSale(m, x.sale) }))
+        .filter(x => x.cards.length)
+        .sort((a, b) => (toMs(b.refund.timestamp) || 0) - (toMs(a.refund.timestamp) || 0));
+}
+
 // ------------------------------------------------------------------ customers
 
 // One entry per customer: every profile, plus every named buyer who has no profile yet, with a
@@ -580,6 +607,7 @@ export function analyze(m, now = Date.now()) {
         todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
         refunds, refunds30, refunded30, refunded12m, productNames: byName, botMissing,
+        warrantyToFix: refundsNeedingWarranty(m),
         monthGross, monthRunning, monthProfit, monthMargin, breakEven,
         soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
         unmatched,

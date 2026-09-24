@@ -6,6 +6,7 @@
 // one batch, so a sale can never be saved without its stock movement (or the other way round).
 import { bootWorkspace } from './workspace.js';
 import { warrantyDialog } from './warranty.js';
+import { warrantyRemoveDialog } from './warrantyreturn.js';
 import { renderOnline, orderDetail } from './online.js';
 import { renderLeads } from './leads.js';
 import { renderImport } from './importpdf.js';
@@ -13,7 +14,7 @@ import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDo
 import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import {
     VAT, WALKIN, saleTime, orderTime, orderTotal, saleSource, saleInvoiceNumber, shortInvoice,
-    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey, realSerial
+    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey, realSerial, cardsForSale
 } from './data.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -174,7 +175,10 @@ function saleDrawer(ctx, r) {
 // the goods back on the shelf, and every total on this screen already has the money taken off.
 function refundDrawer(ctx, r) {
     const rec = r.rec, back = -r.total;
-    openDrawer({
+    // The sale this refund reverses may have been sold with a certificate; if so, say so here too.
+    const sale = rec.linkedSaleId ? ctx.model.sales.find(s => s._id === rec.linkedSaleId) : null;
+    const cards = sale ? cardsForSale(ctx.model, sale) : [];
+    const { el } = openDrawer({
         title: esc(r.doc), sub: esc(`${dateTime(r.t)} · ${rec.reason || 'credit note'}`),
         body: `
             <div class="kv"><div><small>Given back</small><b style="color:var(--bad)">− €${money2(back)}</b></div>
@@ -183,9 +187,12 @@ function refundDrawer(ctx, r) {
             <section><h3>Came back</h3>${r.items.length
                 ? `<div class="lines">${r.items.map(i => `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(i.quantity)} × €${money2(i.price)}</span></div><span class="n">− €${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`).join('')}</div>`
                 : '<p class="empty">The credit note was read without item lines – only the amount is known.</p>'}</section>
-            <p class="empty">Stock was put back when this was read. Revenue, profit and the yearly plan all have it taken off already.</p>`,
-        foot: ''
+            <p class="empty">Stock was put back when this was read. Revenue, profit and the yearly plan all have it taken off already.</p>
+            ${cards.length ? `<section><h3>Warranty</h3><p class="empty" style="margin:0">${esc(cards[0].certNo || 'A certificate')} covers ${esc((cards[0].items || []).map(i => i.name).join(', '))}. If one of those came back, take it off – what stays keeps the date it was issued.</p></section>` : ''}`,
+        foot: cards.length ? `<button class="btn" type="button" id="rd-warranty">${icon('rule')}Take a machine off ${esc(cards[0].certNo || 'the certificate')}</button>` : ''
     });
+    const wb = el.querySelector('#rd-warranty');
+    if (wb) wb.addEventListener('click', () => warrantyRemoveDialog(ctx, { card: cards[0], refund: rec }));
 }
 
 // ================================================================== new sale (till)

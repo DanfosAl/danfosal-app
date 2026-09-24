@@ -483,17 +483,22 @@
                     const snap = await getDoc(doc(db, 'warrantyCards', cardId));
                     if (!snap.exists()) return;
                     const card = snap.data();
-                    const item = (card.items || [])[0] || {};
+                    // Every machine still on the certificate, not just the first: when one is
+                    // taken off a cancelled invoice, the rest still print on their own sheet.
+                    const live = (card.items || []).filter(Boolean);
+                    const item = live[0] || {};
+                    const join = (key, alt) => live.map(x => x[key] || (alt ? x[alt] : '') || '').filter(Boolean).join(', ');
                     const ms = t => (t && t.toMillis ? t.toMillis() : t && t.seconds ? t.seconds * 1000 : t ? new Date(t).getTime() : NaN);
                     const dateOf = t => isNaN(ms(t)) ? '' : new Date(ms(t)).toLocaleDateString('en-GB');
                     const set = (id, v) => { const el = document.getElementById(id); if (el && !el.textContent.trim() && v) el.textContent = v; };
-                    set('product-name', item.name);
-                    set('catalog-number', item.modelCode || item.code);
-                    set('serial-number', item.serialNumber);
+                    set('product-name', join('name'));
+                    set('catalog-number', join('modelCode', 'code'));
+                    set('serial-number', join('serialNumber'));
                     set('buyer-name', card.customerName);
                     set('purchase-date', dateOf(card.purchaseDate) || dateOf(card.createdAt));
                     set('sale-location', card.location || 'Danfos');
                     const sub = document.getElementById('wc-sub');
+                    if (sub && card.cancelledAt) sub.textContent = 'CANCELLED · ' + sub.textContent;
                     if (sub && card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent;
                     if (typeof describe === 'function') { describe(); if (card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent; }
                     const repairs = card.repairs || [];

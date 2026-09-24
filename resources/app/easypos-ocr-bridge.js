@@ -1326,60 +1326,38 @@ class EasyPOSOCRProcessor {
      */
     async updateStockForReturn(db, admin, items) {
         if (!items || items.length === 0) return;
-        
-        log(`   📦 Returning ${items.length} item(s) to stock...`);
-        
+
+        log(`   Returning ${items.length} item(s) to stock...`);
+
+        // The same matcher a sale uses, rather than the first product whose name contains this
+        // one: "Filter WD3" contains "WD3", so a loose match can credit a filter for a vacuum.
+        let products = [];
+        try {
+            const snap = await db.collection('products').get();
+            products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (error) {
+            log(`      Could not read the catalogue: ${error.message}`, 'WARN');
+            return;
+        }
+
         for (const item of items) {
+            const itemName = item.itemName || item.name;
+            const quantity = Math.abs(Number(item.quantity) || 0);
+            if (!itemName || quantity <= 0) { log(`      Skipping a line with no name or quantity`); continue; }
+
+            const match = this.matchProduct(products, itemName);
+            if (!match || match.ambiguous) {
+                log(`      "${itemName}" ${match ? `matches ${match.count} products` : 'is not in the catalogue'} - stock left alone`, 'WARN');
+                continue;
+            }
             try {
-                const itemName = item.itemName || item.name;
-                const quantity = Math.abs(item.quantity || 0);  // ✅ Use absolute value for returns
-                
-                if (!itemName || quantity <= 0) {
-                    log(`      ⚠️  Skipping invalid item (no name or quantity)`);
-                    continue;
-                }
-                
-                // Search products collection by name (case-insensitive)
-                const normalizedName = itemName.toLowerCase().trim();
-                const productsSnapshot = await db.collection('products').get();
-                
-                let productFound = false;
-                
-                for (const productDoc of productsSnapshot.docs) {
-                    const product = productDoc.data();
-                    const productName = (product.name || '').toLowerCase().trim();
-                    
-                    // Check for exact match or partial match
-                    if (productName === normalizedName || productName.includes(normalizedName) || normalizedName.includes(productName)) {
-                        // Found matching product - increment stock
-                        const currentStock = product.stock || 0;
-                        const newStock = currentStock + quantity;
-                        
-                        await productDoc.ref.update({
-                            stock: admin.firestore.FieldValue.increment(quantity)
-                        });
-                        
-                        log(`      ✓ ${product.name}: ${currentStock} + ${quantity} = ${newStock}`);
-                        productFound = true;
-                        break; // Stop after first match
-                    }
-                }
-                
-                if (!productFound) {
-                    log(`      ⚠️  Product not found in inventory: ${itemName} (${quantity} units not returned to stock)`);
-                }
-                
+                await db.collection('products').doc(match.id).update({ stock: admin.firestore.FieldValue.increment(quantity) });
+                log(`      ${match.name}: ${Number(match.stock) || 0} + ${quantity} back in stock`);
             } catch (error) {
-                log(`      ⚠️  Failed to update stock for ${item.itemName}: ${error.message}`, 'WARN');
+                log(`      Could not put ${match.name} back: ${error.message}`, 'WARN');
             }
         }
-        
-        log(`   ✓ Stock return processing complete`);
     }
-    
-    /**
-     * Find matching online order by customer name AND item matching
-     */
     async findMatchingOnlineOrder(db, customerName, invoiceItems) {
         try {
             log(`   🔍 Searching for matching online orders...`);

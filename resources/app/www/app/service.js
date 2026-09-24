@@ -6,8 +6,9 @@
 // append to the *current* timeline. Completing a ticket records the repair on the machine's
 // warranty card, once per ticket, exactly as Garanci does.
 import { bootWorkspace } from './workspace.js';
+import { warrantyRemoveDialog } from './warrantyreturn.js';
 import { db, collection, doc, addDoc, runTransaction, writeBatch, deleteDoc, deleteField, Timestamp } from './firebase.js';
-import { esc, int, icon, plural, day, fold, toast, openDrawer, openModal } from './ui.js';
+import { esc, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import { DAY, toMs, saleTime, orderTime, customerDirectory, realSerial
 } from './data.js';
 
@@ -262,35 +263,46 @@ function newTicketDrawer(ctx, preset) {
 function renderWarranties(ctx) {
     const now = Date.now();
     const cards = ctx.model.warranties.slice().sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
-    const active = cards.filter(c => toMs(c.warrantyUntil) > now).length;
-    ctx.setSub(`${plural(cards.length, 'warranty card', 'warranty cards')} · ${int(active)} with a known end date still active`);
+    const active = cards.filter(c => !c.cancelledAt && toMs(c.warrantyUntil) > now).length;
+    const waiting = ctx.a.warrantyToFix || [];
+    ctx.setSub(`${plural(cards.length, 'warranty card', 'warranty cards')} · ${int(active)} with a known end date still active${waiting.length ? ` · ${plural(waiting.length, 'cancelled invoice needs', 'cancelled invoices need')} a certificate changed` : ''}`);
     ctx.setActions(`<a class="btn" href="sell.html#sales">${icon('receipt_long')}Issue from a sale</a>`);
     ctx.body.innerHTML = `
+        ${waiting.map((w, i) => `<div class="panel" style="padding:12px 16px;display:flex;gap:12px;align-items:center;border-color:#5a4320">${icon('warning')}
+            <span class="muted" style="flex:1">${esc(w.refund.customerName || 'A customer')} was refunded €${money2(Math.abs(Number(w.refund.total) || 0))} on ${esc(day(toMs(w.refund.timestamp)))}, and ${esc(w.cards[0].certNo || 'their certificate')} still covers ${esc((w.cards[0].items || []).map(x => x.name).join(', ') || 'nothing')}. Which machine came back?</span>
+            <button class="btn" type="button" data-fix="${i}">${icon('rule')}Take it off</button></div>`).join('')}
         <div class="table-wrap" style="max-height:calc(100vh - 250px)"><table class="dt"><thead><tr>
             <th>Certificate</th><th>Customer</th><th>Machine</th><th class="n">Issued</th><th class="n">Covered until</th><th class="n">Repairs</th><th></th></tr></thead>
             <tbody id="wc-body">${cards.map(c => {
                 const until = toMs(c.warrantyUntil);
-                return `<tr data-id="${esc(c._id)}" tabindex="0">
-                    <td class="name"><b>${esc(c.certNo || 'No number')}</b><span>${esc(c.invoiceNumber ? 'Invoice ' + c.invoiceNumber : c.saleType || '')}</span></td>
+                const dead = !!c.cancelledAt;
+                return `<tr data-id="${esc(c._id)}" tabindex="0"${dead ? ' style="opacity:.55"' : ''}>
+                    <td class="name"><b>${esc(c.certNo || 'No number')}</b><span>${dead ? '<span class="chip bad">cancelled</span> ' : ''}${esc(c.invoiceNumber ? 'Invoice ' + c.invoiceNumber : c.saleType || '')}</span></td>
                     <td>${esc(c.customerName || '–')}</td>
                     <td>${(c.items || []).map(i => `${esc(i.name || '?')}${realSerial(i.serialNumber) ? ` <span class="muted" style="font-family:var(--mono);font-size:11.5px">S/N ${esc(realSerial(i.serialNumber))}</span>` : ' <span class="muted" style="font-size:11.5px">no serial number</span>'}`).join('<br>')}</td>
                     <td class="n muted">${toMs(c.createdAt) ? esc(day(toMs(c.createdAt))) + ' ' + new Date(toMs(c.createdAt)).getFullYear() : '–'}</td>
                     <td class="n">${until ? `<span class="chip ${until > now ? 'ok' : 'bad'}">${esc(day(until))} ${new Date(until).getFullYear()}</span>` : '<span class="muted">not set</span>'}</td>
                     <td class="n">${(c.repairs || []).length || ''}</td>
-                    <td class="n"><button class="btn small ghost" type="button" data-del="${esc(c._id)}" style="color:var(--bad)" title="Delete this certificate" aria-label="Delete certificate ${esc(c.certNo || 'without a number')}">${icon('delete')}</button></td></tr>`;
+                    <td class="n" style="white-space:nowrap">${dead || !(c.items || []).length ? '' : `<button class="btn small ghost" type="button" data-remove="${esc(c._id)}" title="Take a machine off this certificate" aria-label="Take a machine off ${esc(c.certNo || 'this certificate')}">${icon('rule')}</button>`}
+                        <button class="btn small ghost" type="button" data-del="${esc(c._id)}" style="color:var(--bad)" title="Delete this certificate" aria-label="Delete certificate ${esc(c.certNo || 'without a number')}">${icon('delete')}</button></td></tr>`;
             }).join('') || '<tr><td colspan="7" class="muted" style="padding:18px">No warranty cards yet.</td></tr>'}</tbody></table>
             <div class="table-foot">Click a card to open it for printing. Cards with a certificate number come from Danfos Garanci, which sets the 24-month parts and 12-month labour term.</div></div>`;
     const openCard = e => {
-        if (e.target.closest('[data-del]')) return;          // the delete button is not "open this card"
+        if (e.target.closest('[data-del], [data-remove]')) return;   // a button in the row is not "open this card"
         const tr = e.target.closest('tr[data-id]');
         if (tr) window.open(`warranty-card.html?id=${encodeURIComponent(tr.dataset.id)}`, '_blank');
     };
     ctx.body.querySelector('#wc-body').addEventListener('click', openCard);
     ctx.body.querySelector('#wc-body').addEventListener('keydown', e => { if (e.key === 'Enter') openCard(e); });
     ctx.body.querySelector('#wc-body').addEventListener('click', e => {
-        const b = e.target.closest('[data-del]');
-        if (b) deleteCard(ctx, cards.find(c => c._id === b.dataset.del));
+        const del = e.target.closest('[data-del]'), rm = e.target.closest('[data-remove]');
+        if (del) deleteCard(ctx, cards.find(c => c._id === del.dataset.del));
+        else if (rm) warrantyRemoveDialog(ctx, { card: cards.find(c => c._id === rm.dataset.remove) });
     });
+    ctx.body.querySelectorAll('[data-fix]').forEach(b => b.addEventListener('click', () => {
+        const w = waiting[Number(b.dataset.fix)];
+        warrantyRemoveDialog(ctx, { card: w.cards[0], refund: w.refund });
+    }));
 }
 
 // Deleting a certificate. The sale it came from is not touched - only this piece of paper. A repair

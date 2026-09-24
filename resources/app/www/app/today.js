@@ -1,7 +1,8 @@
 // Today: the one home screen. It answers "what needs me now" before showing any totals, and every
 // figure on it is computed - nothing is decoration (the old dashboard had four hardcoded values).
 import { esc, eur, int, pct, icon, plural, ago, clock, sparkline, day, money2 } from './ui.js';
-import { RESTOCK_DAYS, SALES_WINDOW_DAYS, WALKIN } from './data.js';
+import { RESTOCK_DAYS, SALES_WINDOW_DAYS, WALKIN, toMs
+} from './data.js';
 
 const GOAL_KEY = 'dailyRevenueGoal';   // same setting the retired Smart Dashboard used, so the goal carries over
 
@@ -61,6 +62,13 @@ function needsYou(a) {
             why: [short.length ? `${short.length} short of stock` : '', faster.length ? `${faster.length} selling faster (order more)` : '', slower.length ? `${slower.length} selling slower (order less)` : ''].filter(Boolean).join(', ')
                 + (top ? `. Biggest: ${top.name}, ${top.pace === null ? 'no sales yet' : Math.round(top.pace * 100) + '% of plan'}.` : '.'),
             action: ['Review plan', 'stock.html#plan'] });
+    }
+    if (a.warrantyToFix && a.warrantyToFix.length) {
+        const top = a.warrantyToFix[0];
+        const machine = (top.cards[0].items || [])[0];
+        items.push({ sev: 'crit', title: `${plural(a.warrantyToFix.length, 'cancelled invoice still has', 'cancelled invoices still have')} a warranty certificate`,
+            why: `${esc(top.refund.customerName || 'A customer')} was refunded €${money2(Math.abs(Number(top.refund.total) || 0))} on ${day(toMs(top.refund.timestamp))}, and ${top.cards[0].certNo || 'their certificate'} still covers ${esc(machine ? machine.name : 'the machine')}. Take the machine that came back off it – the rest of the certificate keeps its original date.`,
+            action: ['Warranty cards', 'service.html#warranties'] });
     }
     if (a.botMissing && a.botMissing.length) {
         const top = a.botMissing[0];

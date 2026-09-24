@@ -192,90 +192,110 @@ These components are **off-limits for analysis, refactoring, or modification**:
 
 ## 📊 DATA DICTIONARY
 
-### Primary Collections (Cloud Firestore)
+**Read from the database on 24 Sep 2026** (`scratchpad/schema.cjs` lists every collection and the
+fields its documents actually carry, with how often). The previous version of this section
+described four collections with field names - `costPrice`, `salePrice`, `receiptNumber` - that the
+app had stopped using; what follows is what is really there. Where a field is optional the share of
+documents carrying it is given, because that is usually the story: `receiptNames` on 6 of 340
+products is the linking work still to do, not an unused feature.
 
-#### `products`
-**Purpose:** Inventory catalog  
-```typescript
-{
-  id: string,
-  name: string,
-  barcode?: string,
-  category?: string,
-  stock: number,              // Approximate count
-  minStock: number,           // Reorder threshold
-  costPrice: number,          // Estimated cost
-  salePrice: number,          // Selling price
-  supplier?: string,
-  lastUpdated: Timestamp
-}
-```
-**Note:** Stock numbers are estimates. Small discrepancies expected.
+**The meaning of these numbers lives in one file**, `www/app/data.js`: VAT convention, what counts
+as revenue, what a customer is, what a refund does. Screens read those definitions rather than
+computing their own, which is what ended the era of one app showing three different customer counts.
 
-#### `onlineOrders`
-**Purpose:** Customer orders from Instagram/WhatsApp  
-```typescript
-{
-  id: string,
-  orderNumber: string,
-  clientName: string,
-  clientPhone?: string,
-  items: Array<{
-    product: string,          // Denormalized name (intentional)
-    quantity: number,
-    price: number,
-    total: number
-  }>,
-  total: number,
-  status: string,
-  timestamp: Timestamp,
-  source?: "Instagram" | "WhatsApp" | "Manual"
-}
-```
+### What the app reads
+
+| Collection | Docs | What it is |
+|---|---|---|
+| `storeSales` | 1,504 | Every sale over the counter: EasyPOS receipts, PDF invoices, till sales, and the 2025 import |
+| `onlineOrders` | 310 | Instagram and WhatsApp orders |
+| `products` | 340 | The catalogue |
+| `customers` | 144 | Customer profiles (a buyer without one still counts as a customer - see `customerDirectory`) |
+| `returns` | 19 | Refunds and cancellations read off credit notes |
+| `warrantyCards` | 9 | Certificates, shared with Danfos Garanci |
+| `serviceTickets` | 2 | Repairs |
+| `debtors` + `debtors/{id}/invoices` | 6 | What customers owe |
+| `creditors` + subcollections | 0 | What the shop owes suppliers - empty today, the screen still works |
+| `expenses` | 5 | One-off costs, by date |
+| `recurringCosts` | 1 | What the shop costs every month, entered once (Finding #47) |
+| `predictions` | 4 | Yearly purchase plans; v2 documents are the ones the new plan reads |
+| `toOrder` | 24 | The order list |
+| `stockCorrections` | 1 | The 14 Sep stock reconciliation |
+| `dataFixes` | 3 | Reversible data corrections, each with its backup file |
+| `settings` | 2 | `receiptNames.services`, `customerReview.notSame` - the owner's own decisions |
+| `analytics_events` | 6,777 | The Instagram chatbot's log - the source of Sell › Instagram |
+| `analytics` | 3 | Aggregates written by the chatbot side, **not by this app** (see Finding #41) |
+| `counters` | 2 | Certificate and claim numbering for Garanci |
+
+### The fields that carry meaning
 
 #### `storeSales`
-**Purpose:** In-store POS transactions  
-```typescript
-{
-  id: string,
-  receiptNumber: string,
-  items: Array<{
-    product: string,
-    quantity: number,
-    price: number,
-    total: number
-  }>,
-  total: number,
-  timestamp: Timestamp,
-  paymentMethod: string
-}
+```
+items[] {name, quantity, price, cost, netCost?, productId?, code?, serialNumber?, isService?}
+total            what the customer paid, VAT included
+subtotal?        the printed net figure when there is one (2 of 400 sampled)
+timestamp        Timestamp, or a number on imported rows; `date` on the 2025 import
+clientName       the buyer; `customerName` on imported rows
+type             'easypos' | 'store' | absent; `source` says 'imported' or 'Manual PDF ...'
+easypos {invoiceNumber, invoiceDate, currency, customerNIPT, captureJobId, source}
+isReturn         98 old imported rows that are NOT the `returns` collection (Finding #37)
+status           'Returned' once a credit note is matched to it
+customerPhone?   asked for at the till when the customer has no number (Finding #40)
+itemsRepairedAt? the 24 Sep repair of lines the parser had dropped (Finding #43)
+```
+`cost` is VAT-inclusive, `netCost` is net - `lineNetCost()` is the only place that decides.
+
+#### `products`
+```
+name, code, producer
+price            selling price, VAT included
+cost             purchase price, VAT included;  baseCost = the same net
+stock            336 of 340 carry it
+receiptNames[]   till spellings the owner has linked to this product (6 of 340)
+costSource, costCheckedAt   set by the 22 Sep correction from the Karcher invoices (81 products)
+batches[], lastRestockDate  deliveries booked in through Receive
+stockNote?, priceNote?      why a figure was corrected by hand (Finding #43, #44)
 ```
 
-#### `creditors` (Supplier Invoices)
-**Purpose:** Purchase orders tracked via OCR  
-```typescript
-{
-  id: string,
-  invoiceNumber: string,
-  supplierName: string,
-  items: Array<{
-    product: string,
-    quantity: number,
-    unitPrice: number,
-    total: number
-  }>,
-  total: number,
-  amountPaid: number,
-  amountDue: number,
-  dueDate: Timestamp,
-  ocrScanned?: boolean       // Auto-registered via OCR
-}
+#### `returns` (a refund, read off a credit note)
+```
+type 'return'|'cancellation', reason, invoiceNumber, invoiceDate, customerName
+total            the positive amount refunded, VAT included
+items[] {itemName, quantity (negative), pricePerUnit, lineTotal, unit?, printedLineTotal?}
+timestamp
+linkedSaleId?    the sale it reverses, when the match is unambiguous (Finding #47b)
+warrantyHandledAt?, warrantyCardId?   once the certificate has been settled (Finding #49)
+itemsRepairedAt? lines recovered on 23 Sep
 ```
 
-**Data Philosophy:**
-- **Denormalization is intentional** - Faster queries, simpler code
-- **No foreign key constraints** - Speed > referential integrity
-- **Approximate totals acceptable** - This is not accounting software
+#### `warrantyCards`
+```
+certNo, customerName, items[] {name, serialNumber, modelCode?}
+saleId, saleType, invoiceNumber, location
+createdAt        **the issue date - never changed, including when a machine is taken off**
+purchaseDate?, warrantyUntil?, partsMonths?, labourMonths?   (Garanci sets these)
+removedItems[]?  {name, serialNumber, reason, removedAt} - what a cancelled invoice took off
+cancelledAt?, cancelReason?   nothing left to cover
+```
+
+#### `onlineOrders`
+```
+clientName/customerName, telephone/phoneNumber, address/deliveryAddress
+items[] {name, quantity, price, id?}
+price/total, shippingFee?, status, source, timestamp/orderDate
+stockDeducted?   only orders that took stock give it back when cancelled (7 of 310)
+activityLog[]?   status history
+```
+
+#### `recurringCosts`
+```
+description, amount, category, fromMonth 'YYYY-MM', toMonth 'YYYY-MM'|null, createdAt
+```
+A cost that stops gets `toMonth` rather than being deleted, so past months keep counting it.
+
+**Data philosophy** (unchanged, and still right for this app): denormalisation is deliberate, there
+are no foreign keys, and small rounding differences are acceptable - this is the shop's own record,
+not the fiscal one, which lives in EasyPOS.
 
 ---
 
@@ -751,6 +771,25 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **50. A SCHEDULED TASK HAS BEEN FAILING EVERY 30 MINUTES** — 🟡 **FOUND, NOT FIXED (September 24, 2026)**
+
+Turned up while working out who keeps rewriting the `analytics` collection. Windows runs two tasks
+for this shop:
+
+- **`Danfosal EasyPOS Watchdog`** - `wscript //nologo E:\DanfosalAppun-startup-hidden.vbs`, last
+  result **0**. This is the one that matters, and it is healthy.
+- **`DanfosRefreshViews`** - `node scriptsefresh_views.cjs`, working directory **`E:\danfos-ig-rag`**,
+  every 30 minutes, last result **2147942667** (`0x8007010B`, "the directory name is invalid").
+  **That folder does not exist.** The task has been failing on every run, silently, for as long as
+  the folder has been gone.
+
+Not fixed, because it belongs to the Instagram side rather than this app, and only its owner knows
+whether `refresh_views.cjs` still matters. Two honest options: point the task at wherever that
+project lives now, or delete the task so the machine stops trying. Worth noting the chatbot's own
+writing (`analytics`, `analytics_events`) carries on regardless - it happens off this machine.
+
+---
+
 #### **49. CANCELLING AN INVOICE NOW SETTLES THE WARRANTY TOO** — ✅ **BUILT & TESTED ON A REAL CANCELLATION (September 24, 2026)**
 
 Cancelling an invoice already gave the goods back and recorded the refund. The certificate it was
@@ -1072,6 +1111,15 @@ first draft of online orders, superseded by `onlineOrders`) and `suppliers` (7 �
   there when Receive delivery books an unknown product. Nothing reads it; left as it is.
 - **`analytics_events` was NOT deleted** – it looked like chatbot telemetry, but it is the only
   record of what people ask for on Instagram. It is now the source of Sell › Instagram (Finding #38).
+
+⚠️ **Correction, 24 Sep 2026: `analytics` came back the next day**, with the same three document ids
+(`dailyMetrics`, `customerInsights`, `productTracking`) and two of the three holding different
+content from the backup - so something is generating them, not restoring them. Nothing in this
+repository writes that collection; the Instagram chatbot side does, the same thing that keeps
+writing `analytics_events` (6,769 → 6,777 in a day). **Deleting it again would achieve nothing.**
+The other four - `competitor_tracking`, `instore_sales`, `storeOrders`, `suppliers` - have stayed
+deleted. Lesson for this manifest: "nothing reads it" was checked against this repository only, and
+this Firebase project has more than one writer.
 
 ---
 

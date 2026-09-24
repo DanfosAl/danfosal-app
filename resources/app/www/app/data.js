@@ -335,7 +335,7 @@ export function refundsNeedingWarranty(m) {
 export function customerDirectory(m) {
     const entries = new Map(), keyToId = new Map();
     const make = (id, name, profile) => ({ id, name: String(name || '').trim(), profile: profile || null, keys: new Set(),
-        sales: [], orders: [], warranties: [], tickets: [], debts: [],
+        sales: [], orders: [], warranties: [], tickets: [], debts: [], refunds: [],
         nipt: (profile && profile.nipt) || '', phone: (profile && profile.phone) || '', email: (profile && profile.email) || '', address: (profile && profile.address) || '' });
     const claim = (key, id) => { if (key && !keyToId.has(key)) { keyToId.set(key, id); entries.get(id).keys.add(key); } };
     const live = m.customers.filter(c => !c.mergedInto && c.name && !WALKIN.test(c.name));
@@ -364,10 +364,15 @@ export function customerDirectory(m) {
     m.warranties.forEach(w => { const e = entryFor(w.customerName); if (e) e.warranties.push(w); });
     m.tickets.forEach(t => { const e = entryFor(t.customerName); if (e) { e.tickets.push(t); if (!e.phone) e.phone = t.customerPhone || ''; } });
     m.debts.forEach(d => { const e = entryFor(d.debtor); if (e) e.debts.push(d); });
+    (m.returns || []).forEach(r => { const e = entryFor(r.customerName); if (e) e.refunds.push(r); });
     entries.forEach(e => {
         const times = e.sales.map(saleTime).concat(e.orders.map(orderTime)).filter(t => !isNaN(t));
         const bought = e.sales.filter(s => !s.isReturn);
-        e.revenue = bought.reduce((a, s) => a + (Number(s.total) || 0), 0) + e.orders.reduce((a, o) => a + orderTotal(o), 0);
+        // Money handed back is money this customer did not spend. Revenue, profit and the plan
+        // all take refunds off; "spent" used to be the one figure that did not, so a customer
+        // whose EUR 6,500 invoice was cancelled still read as having spent it.
+        e.refunded = (e.refunds || []).reduce((a, r) => a + returnTotal(r), 0);
+        e.revenue = bought.reduce((a, s) => a + (Number(s.total) || 0), 0) + e.orders.reduce((a, o) => a + orderTotal(o), 0) - e.refunded;
         e.count = bought.length + e.orders.length;
         e.first = times.length ? Math.min(...times) : null;
         e.last = times.length ? Math.max(...times) : null;
@@ -456,6 +461,11 @@ export function analyze(m, now = Date.now()) {
         + m.orders.filter(o => { const t = orderTime(o); return t >= from && t < to; }).reduce((a, o) => a + orderTotal(o), 0)
         - refunds.filter(r => r._t >= from && r._t < to).reduce((a, r) => a + returnTotal(r), 0);
     const todayRevenue = revenueOf(today0, now + DAY);
+    // The day's two halves, so a day of refunds can say what happened instead of showing a
+    // negative share of a sales goal.
+    const soldToday = sales.filter(s => { const t = saleTime(s); return t >= today0; }).reduce((a, s) => a + (Number(s.total) || 0), 0)
+        + m.orders.filter(o => orderTime(o) >= today0).reduce((a, o) => a + orderTotal(o), 0);
+    const refundedToday = refunds.filter(r => r._t >= today0).reduce((a, r) => a + returnTotal(r), 0);
     const monthRevenue = revenueOf(monthStart, now + DAY);
     const prevMonthToDate = revenueOf(prevMonthStart, prevMonthCutoff);
     const monthSalesCount = sales.filter(s => saleTime(s) >= monthStart).length + m.orders.filter(o => orderTime(o) >= monthStart).length;
@@ -604,7 +614,7 @@ export function analyze(m, now = Date.now()) {
 
     return {
         now, today0, monthStart,
-        todayRevenue, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
+        todayRevenue, soldToday, refundedToday, monthRevenue, prevMonthToDate, monthSalesCount, dailySeries,
         net30, costedNet30, cost30, margin30, count30, costedCount30,
         refunds, refunds30, refunded30, refunded12m, productNames: byName, botMissing,
         warrantyToFix: refundsNeedingWarranty(m),

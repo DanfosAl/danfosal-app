@@ -143,9 +143,13 @@ function renderKpis(a) {
     const marginNote = a.margin30 === null ? '<span class="d miss">No costed sales yet</span>'
         : `<span class="d">${eur(a.costedNet30 - a.cost30)} profit on ${eur(a.costedNet30)} net · ${pct(a.costedCount30, a.count30)} of sales costed</span>`;
     return `
-        <div class="kpi"><small>Today</small><span class="v">${eur(a.todayRevenue)}</span>
-            <span class="d ${goalShare >= 1 ? 'up' : ''}">${goalShare >= 1 ? `${eur(goal)} goal reached` : `${pct(a.todayRevenue, goal)} of your ${eur(goal)} goal`} · <button class="link" type="button" id="edit-goal">change goal</button></span>
-            <div class="goal" role="img" aria-label="${pct(a.todayRevenue, goal)} of daily goal"><i class="${goalShare >= 1 ? 'done' : ''}" style="width:${(goalShare * 100).toFixed(1)}%"></i></div></div>
+        <div class="kpi"><small>Today</small><span class="v"${a.todayRevenue < 0 ? ' style="color:var(--bad)"' : ''}>${eur(a.todayRevenue)}</span>
+            ${/* A day that gave more back than it took has no sensible share of a sales goal, so it
+                  says what actually happened instead of "-1300% of your goal". */ ''}
+            <span class="d ${a.todayRevenue < 0 ? '' : goalShare >= 1 ? 'up' : ''}">${a.todayRevenue < 0
+                ? `${eur(a.refundedToday)} refunded today${a.soldToday ? ` · ${eur(a.soldToday)} sold` : ', nothing sold yet'}`
+                : `${goalShare >= 1 ? `${eur(goal)} goal reached` : `${pct(a.todayRevenue, goal)} of your ${eur(goal)} goal`}`} · <button class="link" type="button" id="edit-goal">change goal</button></span>
+            <div class="goal" role="img" aria-label="${a.todayRevenue < 0 ? 'a day of refunds' : pct(a.todayRevenue, goal) + ' of daily goal'}"><i class="${goalShare >= 1 ? 'done' : ''}" style="width:${(Math.max(0, goalShare) * 100).toFixed(1)}%"></i></div></div>
         <div class="kpi"><small>This month</small><span class="v">${eur(a.monthRevenue)}</span>
             <span class="d ${vsLast === null ? '' : vsLast >= 0 ? 'up' : 'down'}">${plural(a.monthSalesCount, 'sale', 'sales')}${vsLast === null ? '' : ` · ${vsLast >= 0 ? '+' : ''}${Math.round(vsLast * 100)}% vs same days last month`}</span>
             ${sparkline(a.dailySeries)}</div>

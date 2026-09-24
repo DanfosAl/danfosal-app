@@ -150,7 +150,7 @@ function customerDrawer(ctx, e) {
         sub: isNew ? 'Only the name is required.' : `${e.profile ? 'Customer' : 'Buyer without a profile yet'}${e.first ? ' since ' + esc(day(e.first)) + ' ' + new Date(e.first).getFullYear() : ''}${aliases.length ? ' · also written ' + aliases.map(esc).join(', ') : ''}`,
         body: `
             ${isNew ? '' : `<div class="kv">
-                <div><small>Spent</small><b>${eur(e.revenue)}</b></div>
+                <div><small>Spent</small><b>${eur(e.revenue)}</b>${e.refunded > 0 ? `<small style="color:var(--muted)">after ${eur(e.refunded)} refunded</small>` : ''}</div>
                 <div><small>Purchases</small><b>${int(e.count)}</b></div>
                 <div><small>${e.owed > 0.005 ? 'Owes' : 'Last purchase'}</small><b>${e.owed > 0.005 ? eur(e.owed) : e.last ? esc(day(e.last)) : '–'}</b></div></div>`}
             ${missing.length ? `<p class="empty" style="margin:0">${icon('info')} Missing: ${missing.join(' and ')}. Add ${missing.length > 1 ? 'them' : 'it'} below so repair updates and invoices reach the right person.</p>` : ''}

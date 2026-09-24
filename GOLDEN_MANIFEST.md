@@ -801,13 +801,20 @@ and the certificate ended: `items: []`, cancelled 24 Sep 10:15, `removedItems` h
 *BD 50/70 R Bp Classic, S/N 013425, "Invoice cancelled"*, **`createdAt` still 23 Sep 2026** and
 `warrantyUntil` still 23 Sep 2028.
 
-**Two things this leaves, both stated rather than fixed:**
+**Two things the test exposed, both then fixed the same day:**
 
-1. **Today reads "−EUR 6,500 · -1300% of your EUR 500 goal".** The money is right - EUR 6,500 went
-   back out today - but a goal percentage on a day of refunds is nonsense to look at.
-2. **A refund is not taken off a customer's lifetime spend.** Alba Koreshi still reads EUR 6,500
-   spent in Customers, while revenue, profit and the plan all have it removed. `customerDirectory`
-   counts sales and orders and never looks at `returns`.
+1. **Today read "−EUR 6,500 · -1300% of your EUR 500 goal".** The money was right - EUR 6,500 went
+   back out - but a share of a sales goal means nothing on a day that gave more back than it took.
+   It now reads **"EUR 6,500 refunded today, nothing sold yet"**, and the goal bar stays empty
+   instead of going negative. `analyze()` returns the day's two halves (`soldToday`,
+   `refundedToday`) so the screen can say what happened rather than divide by a goal.
+2. **A refund was not taken off a customer's lifetime spend.** Alba Koreshi still read EUR 6,500
+   after her invoice was cancelled, while revenue, profit and the plan had all removed it.
+   `customerDirectory` now collects each customer's refunds (`e.refunds`, `e.refunded`) and takes
+   them off `e.revenue`, and the profile says **"after EUR 6,500 refunded"** so the lower figure
+   explains itself. Her total is now EUR 0 on one purchase, and the shop's customer total moves
+   from EUR 371,063 to EUR 359,634 - the refunds that belong to named customers. Walk-in refunds
+   stay where they are, because there is no customer to take them off.
 
 ---
 

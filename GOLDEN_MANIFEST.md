@@ -774,8 +774,11 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 #### **51. DANFOS HQ: WHAT IT IS, AND THE TWO THINGS IT REVEALS** — 🟡 **CHECKED (September 24, 2026)**
 
 **Danfos HQ** is a separate desktop companion built 21-22 Sep, living in
-`Documents\Codex6-09-21\can-x20\outputs` (OneDrive-synced; the Desktop shortcut and the running
-copy are the same files). A Python server on `127.0.0.1:17846` plus an Electron shell; it was
+`Documents\Codex6-09-21\can-x20\outputs`. **Two copies of it exist** - that path and the OneDrive
+one - as separate files that OneDrive keeps in sync; the Desktop shortcut points at the first and
+the running server had been reading the second. An earlier version of this finding called them "the
+same files" on the strength of their contents matching; editing one and seeing nothing change is how
+that was disproved. A Python server on `127.0.0.1:17846` plus an Electron shell; it was
 **running at the time of this check** (`{"app":"Danfos HQ","version":2}`). It reads `onlineOrders`
 and `storeSales` from the same Firebase project, newest 30 of each, and this week's changes do not
 affect it - fields were added, none removed.
@@ -805,6 +808,16 @@ Two things it makes visible, neither of them its fault:
 
 Also found and stopped during this check: five `serve_www.py` test servers left running from my own
 earlier sessions. Only HQ's server remains.
+
+✅ **Both faults fixed in HQ on the owner's instruction (24 Sep).** Records now read their invoice
+number (`360/2026`), taken from `easypos.invoiceNumber` as well as the top-level field and trimmed of
+the device suffix; a cancelled sale stays listed but marked *Invoice cancelled - no warranty*, and
+its detail explains that the goods went back to stock and the certificate was settled, linking to the
+certificates instead of the warranty form. The change had to go into **both `app.js` (the station
+panel) and `rooms.js` (the workbench cards)**, which hold their own copies of the same rendering, and
+into both copies of the folder. HQ's own README now records all of that, including the two traps.
+Originals kept as `*.backup-2026-09-24`. Verified live after a restart: `358/2026` no longer offers a
+warranty for the machine that came back.
 
 ---
 

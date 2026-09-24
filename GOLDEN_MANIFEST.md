@@ -751,6 +751,43 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **48. A PHONE LAYOUT, AND THE ANDROID APP REBUILT FROM IT** — ✅ **BUILT & VERIFIED (September 24, 2026)**
+
+The app was drawn for the shop's PC: a 220px sidebar and four columns of figures. Measured at 375px
+it left **43px per figure** and the page scrolled sideways - it could be opened on a phone, not used.
+
+- **Below 760px the sidebar becomes a bottom bar**, where a thumb reaches; under 400px the labels
+  go to the screen reader (`.nav-label`, visually hidden, not `display:none`) so nine destinations
+  fit as icons. Figures go two across, a drawer arrives from the bottom with rounded top corners
+  like every other Android app, modals do the same, and buttons and fields grow to 40-42px with
+  16px text so the browser does not zoom when one is tapped.
+- **Tables keep their own sideways scroll inside their card**, and capped heights are dropped so a
+  screen scrolls as one thing rather than a small box inside a big one.
+- Two things had to insist: **Insights sets its column split inline**, so the phone rule carries
+  `!important`, and a row of controls is capped (`.toolbar > * { max-width: 100% }`) so a five-button
+  period switch scrolls inside itself instead of widening the page by 56px.
+- The viewport meta on all nine pages now says `viewport-fit=cover`, and the bars pad themselves
+  with `env(safe-area-inset-bottom)`.
+
+**Checked on all 25 screens and tabs at 375px** (`scratchpad/phonesweep.mjs`, which walks each one
+and measures): every page 375px wide, **none scrolling sideways**, and no tap target under 30px.
+What still measures "past the edge" is table content inside its scrolling card and the icons of the
+tab strip - both intended.
+
+**The Android app was rebuilt from it.** `npx cap sync android` replaced its bundled copy, which was
+still the classic pages from before the redesign, and `gradlew assembleDebug` produced
+`android/app/build/outputs/apk/debug/app-debug.apk` (4 MB), copied to `Documents\Danfosal App.apk`.
+It is a debug build - installable directly on a phone, not signed for the Play Store - and it reads
+the same Firestore data as the desktop app, so the phone needs to be online.
+
+Two things to know: the desktop installer would not replace its own files on this run (the folder's
+timestamp moved, the files did not), so the fresh `app.asar` was copied into the installed app
+directly - same version, same Electron, exactly what the installer does; and Firebase Hosting was
+not redeployed because the CLI's credentials expired again, so **the web copy is one commit behind
+until `firebase login --reauth`**.
+
+---
+
 #### **47. WHAT THE SHOP COSTS TO RUN, ENTERED ONCE** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 Money's expenses screen could already show net profit; it had nothing to show it from. **Five

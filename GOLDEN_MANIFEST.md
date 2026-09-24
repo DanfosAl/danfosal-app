@@ -776,17 +776,24 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 Turned up while working out who keeps rewriting the `analytics` collection. Windows runs two tasks
 for this shop:
 
-- **`Danfosal EasyPOS Watchdog`** - `wscript //nologo E:\DanfosalAppun-startup-hidden.vbs`, last
+- **`Danfosal EasyPOS Watchdog`** - `wscript //nologo E:\DanfosalApp
+un-startup-hidden.vbs`, last
   result **0**. This is the one that matters, and it is healthy.
-- **`DanfosRefreshViews`** - `node scriptsefresh_views.cjs`, working directory **`E:\danfos-ig-rag`**,
+- **`DanfosRefreshViews`** - `node scripts
+efresh_views.cjs`, working directory **`E:\danfos-ig-rag`**,
   every 30 minutes, last result **2147942667** (`0x8007010B`, "the directory name is invalid").
   **That folder does not exist.** The task has been failing on every run, silently, for as long as
   the folder has been gone.
 
-Not fixed, because it belongs to the Instagram side rather than this app, and only its owner knows
-whether `refresh_views.cjs` still matters. Two honest options: point the task at wherever that
-project lives now, or delete the task so the machine stops trying. Worth noting the chatbot's own
-writing (`analytics`, `analytics_events`) carries on regardless - it happens off this machine.
+✅ **Deleted on the owner's instruction, same day.** Its definition was exported first to
+`Documents\Danfosal backups\DanfosRefreshViews-task-2026-09-24.xml`, so it can be recreated exactly
+with `Register-ScheduledTask -Xml (Get-Content <file> | Out-String) -TaskName DanfosRefreshViews` if
+that project comes back. Deleting it needed elevation - the task ran at "Highest" run level - so
+Windows asked for confirmation before it went.
+
+`Danfosal EasyPOS Watchdog` is untouched and healthy (last result 0). The chatbot's own writing
+(`analytics`, `analytics_events`) carries on regardless: it happens off this machine, which is why
+deleting the task changes nothing about Finding #41.
 
 ---
 

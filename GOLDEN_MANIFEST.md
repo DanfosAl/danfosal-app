@@ -787,8 +787,19 @@ same customer, same amount, the sale at or before the refund and within four mon
 candidate only** (two sales of the same amount to the same customer cannot be told apart, and
 guessing would mark the wrong one). Run against all 17 real credit notes: **7 now link to the sale
 they reverse, 2 are ambiguous and left alone**, the rest are walk-ins or partial refunds with no
-match. The existing 18 refunds are not backfilled - that is a data change, and it is offered rather
-than assumed.
+match.
+
+**The existing refunds were then linked, on the owner's say-so** (`scratchpad/backfill_returns.cjs`,
+backup in `scratchpad/returns-link-backup.json`): 7 of the 18 now carry `linkedSaleId`, and those 7
+sales are marked *Returned* with the date and reason from the credit note. Klodian Dedja EUR 1,211
+to invoice 91/2026, THE MAID EUR 274 to 112/2026, ALBSOLUTION EUR 600 to 176/2026, Maple Bear
+EUR 289 to 218/2026, Alban Muca EUR 111 to 236/2026, Emi Albion Majaci EUR 2,015 to 256/2026, Suela
+Myftari EUR 80 to 251/2026.
+
+**No money moved**, and that was checked rather than assumed: twelve-month store-sale revenue read
+EUR 149,843 across 627 sales before and after, and the refunds still total EUR 11,418. A sale's
+`status` is only ever read for online orders, so marking a store sale *Returned* records what
+happened without touching a figure - the refund was already being subtracted separately.
 
 ---
 

@@ -771,6 +771,34 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **51. DANFOS HQ: WHAT IT IS, AND THE TWO THINGS IT REVEALS** — 🟡 **CHECKED (September 24, 2026)**
+
+**Danfos HQ** is a separate desktop companion built 21-22 Sep, living in
+`Documents\Codex6-09-21\can-x20\outputs` (OneDrive-synced; the Desktop shortcut and the running
+copy are the same files). A Python server on `127.0.0.1:17846` plus an Electron shell; it was
+**running at the time of this check** (`{"app":"Danfos HQ","version":2}`). It reads `onlineOrders`
+and `storeSales` from the same Firebase project, newest 30 of each, and this week's changes do not
+affect it - fields were added, none removed.
+
+Two things it makes visible, neither of them its fault:
+
+1. **A certificate means different things depending on where it was issued.** HQ carries a snapshot
+   of the Garanci issue form, which does it properly: a number from `counters/warrantyCertNo`
+   (at seq 15), `partsMonths: 24`, `labourMonths: 12`, `warrantyUntil`, `purchaseDate`. **Danfosal
+   App's own warranty dialog (`www/app/warranty.js`) writes none of those** - only
+   `{saleId, saleType, customerName, items, location, createdAt}`. That is exactly the "No number /
+   covered until: not set" row the owner deleted on 24 Sep. Any certificate issued from the till is
+   unnumbered and has no end date, so Service cannot say whether it is still active.
+2. **The retired classic app is still reachable.** HQ bundles a full copy of it (`danfosal/` -
+   `ai-dashboard.html`, `creditors_list.html`, `albanian-invoice-scanner.html` and the rest), and
+   those pages still write to the live database with the conventions Phase 5 retired. Nothing is
+   wrong today, but a write from there lands in data the new app has to interpret.
+
+Also found and stopped during this check: five `serve_www.py` test servers left running from my own
+earlier sessions. Only HQ's server remains.
+
+---
+
 #### **50. A SCHEDULED TASK HAS BEEN FAILING EVERY 30 MINUTES** — 🟡 **FOUND, NOT FIXED (September 24, 2026)**
 
 Turned up while working out who keeps rewriting the `analytics` collection. Windows runs two tasks
@@ -1121,9 +1149,12 @@ first draft of online orders, superseded by `onlineOrders`) and `suppliers` (7 �
 
 ⚠️ **Correction, 24 Sep 2026: `analytics` came back the next day**, with the same three document ids
 (`dailyMetrics`, `customerInsights`, `productTracking`) and two of the three holding different
-content from the backup - so something is generating them, not restoring them. Nothing in this
-repository writes that collection; the Instagram chatbot side does, the same thing that keeps
-writing `analytics_events` (6,769 → 6,777 in a day). **Deleting it again would achieve nothing.**
+content from the backup - so something is generating them, not restoring them. **The writer is
+`E:\instagram-chatbot\dashboard_updater.py`**, found on 24 Sep: it calls
+`analytics_ref.document('dailyMetrics').set(...)`, `.document('productTracking').set(...)` and
+`.document('customerInsights').set(...)` every time the chatbot's dashboard refresh runs. Nothing in
+*this* repository writes that collection, which is why the first check said it was unused.
+**Deleting it again would achieve nothing.**
 The other four - `competitor_tracking`, `instore_sales`, `storeOrders`, `suppliers` - have stayed
 deleted. Lesson for this manifest: "nothing reads it" was checked against this repository only, and
 this Firebase project has more than one writer.

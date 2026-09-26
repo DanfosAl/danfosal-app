@@ -847,8 +847,12 @@ logged; only the prepaid B 50 W and the warranty-claim parts are waiting"):**
 
 **Gaps the owner can close:** no customs declaration PDFs for 2026 in the archive (two customs
 payments stand alone); 29 of the statement's 115 invoices have no PDF, so their lines can't be
-booked or costed. Other suppliers (Star, Rulopak) are filed but not linked yet. **Not shipped yet**:
-the www changes go out with the next build, Hosting deploy and `cap sync`.
+booked or costed. Other suppliers (Star, Rulopak) are filed but not linked yet.
+
+**Shipped 26 Sep 2026** (version kept at 1.4.1, as on 24 Sep): desktop installer built and installed
+(installed `app.asar` dated 16:27, contains Purchases); Hosting deployed and the five changed files
+checked live on danfosal-app.web.app; Android APK rebuilt after `cap sync` (16:29, contains
+Purchases) for the owner to install on the phone.
 
 ---
 
@@ -901,8 +905,7 @@ would file 457 PDFs into `Documents\Danfos Papers`, recycle the 77 copies and le
 `www/app/karcher-invoice.js`, a file with no imports, so the autopilot runs the same function
 under Node. `receive.js` imports it and re-exports it; behaviour is unchanged. Verified: the
 autopilot read all 122 Kärcher invoice PDFs (90 distinct invoices), and Stock > Receive delivery
-loads with no console errors and parses through the re-export. **Not shipped yet**: it goes out
-with the next desktop build, Hosting deploy and `cap sync`, like any `www` change.
+loads with no console errors and parses through the re-export. Shipped with Finding #53 on 26 Sep.
 
 Personal records (contracts, birth and criminal-record certificates, passports) are recognised
 by type and filed under their own names; nothing is extracted from them, and the plan stores no

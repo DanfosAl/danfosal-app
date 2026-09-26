@@ -8,6 +8,8 @@
 // A new order - one that arrived in the last 60 days and has no invoice yet - also goes onto the
 // order list (`toOrder`), line by line with its order number, so Stock > Order list shows it
 // waiting and, once paid, prepaid. Older orders are left for the owner to add from Purchases.
+// A warranty claim with goods coming back (a replacement machine, repair parts) goes on too,
+// at cost 0 and marked as a claim: the owner counts those as waiting as well (26 Sep 2026).
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, relative } from 'node:path';
@@ -23,6 +25,7 @@ const PLACES = [
     ['Kärcher/Orders', f => /proforma/i.test(f) ? R.readKarcherProforma : R.readKarcherOrderConfirmation],
     ['Kärcher/Invoices', () => R.readKarcherInvoice],
     ['Kärcher/Credit notes', () => R.readKarcherCreditNote],
+    ['Kärcher/Warranty claims', () => R.readKarcherWarrantyClaim],
     ['Customs', f => /Customs declaration/i.test(f) ? R.readCustoms : null],
     ['Bank/Payments', () => R.readPayment]
 ];
@@ -96,11 +99,12 @@ async function orderLinesFor(db, orders, log) {
         for (const it of o.items) {
             const p = products.find(x => x.code && norm(x.code) === norm(it.code));
             batch.set(db.collection('toOrder').doc(), clean({ name: p ? p.name : it.name, code: it.code, quantity: it.qty, supplier: 'Karcher', quantityReceived: 0,
-                smartSuggestion: false, estimatedCost: Math.round(it.total * 100) / 100, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.source, productId: p ? p._id : null }));
+                smartSuggestion: false, estimatedCost: Math.round(it.total * 100) / 100, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.source, productId: p ? p._id : null,
+                ...(o.source === 'warranty' ? { reason: `Warranty claim ${o.orderNo}${o.machine ? ` (${o.machine.name}, S/N ${o.machine.serial})` : ''}` } : {}) }));
             added++;
         }
         await batch.commit();
-        log(`  order ${o.orderNo} (${o.date}) put on the order list: ${o.items.length} line(s)`);
+        log(`  ${o.source === 'warranty' ? 'warranty claim' : 'order'} ${o.orderNo} (${o.date}) put on the order list: ${o.items.length} line(s)`);
     }
     return added;
 }

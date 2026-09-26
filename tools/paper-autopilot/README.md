@@ -111,13 +111,15 @@ keyed by the file's SHA-256 (`--resync` re-reads them all after a reader improve
 | Kärcher proforma / order confirmation | `readKarcherProforma`, `readKarcherOrderConfirmation` | order number, lines, total, cash-discount price |
 | Kärcher invoice | `readKarcherInvoice` (on the app's `parseKarcher`) | order number(s), delivery note, lines with origin, EU preference and serials |
 | Kärcher credit note | `readKarcherCreditNote` | the invoices it refunds (usually the 3% cash discount) |
+| Kärcher warranty claim ("Gewa") | `readKarcherWarrantyClaim` | the claim as an order: the replacement machine or parts coming back, and the labour credited |
 | Bank payment to a supplier or customs | `readPayment` | amount, and the order/invoice numbers written in its details, shorthand included ("7573087659, 660, 661") |
 | Customs declaration | `readCustoms` | declared invoice total, rate, duty (DOG), VAT (TVS), everything else |
 | Kärcher account statement (.xlsx) | `readKarcherStatement` | every invoice, payment and credit note, with what is still open |
 
 The app links them in `resources/app/www/app/purchasing.js` and shows them in **Stock ›
 Purchases**. A new order (under 60 days old, nothing invoiced) also goes onto the order list with
-its order number. Wages, rent and tax payments are not read.
+its order number, and so does a new warranty claim with goods coming back (at cost 0, marked as
+a claim). Wages, rent and tax payments are not read, nor the customer named on a claim.
 
 ## Still to build
 

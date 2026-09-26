@@ -56,6 +56,31 @@ export function readKarcherOrderConfirmation(lines) {
         total: amount((t.match(/Total Order Value:\s*([\d.,]+)/) || [])[1]), currency: 'EUR', items };
 }
 
+// Warranty claim (Kärcher's "Gewa" confirmation). The claim number works like an order number:
+// the replacement Kärcher sends later is invoiced (free) against it. Goods lines are what comes
+// back - a whole machine ("Machinery Replacement") or the parts used in the repair; the
+// "service hours" line (9.726-012.0) is money back for the labour, not goods. The end
+// customer's name and phone on the claim are not kept.
+export function readKarcherWarrantyClaim(lines) {
+    const t = text(lines);
+    const claimNo = (t.match(/Your Warranty Claim:\s*(757\d{7})/) || [])[1];
+    if (!claimNo) return null;
+    const d = t.match(/Repair Date:\s*(\d\d)\/(\d\d)\/(\d{4})/) || t.match(/\b\d{10}\s+(\d\d)\/(\d\d)\/(\d{4})/);
+    const machine = t.match(/Defect Machine:\s*(\S+?);\s*(.+)$/m);
+    const itemRe = new RegExp(`^(\\d{6}) (${CODE}) (.+?) ([\\d.]+) PC(?:\\s+([\\d.,]+) EUR)?$`);
+    const items = [];
+    let claimValue = 0;
+    lines.forEach(l => {
+        const x = l.match(itemRe); if (!x) return;
+        if (x[2] === '9.726-012.0') { claimValue += amount(x[5] || '0'); return; }        // service hours
+        items.push({ pos: x[1], code: x[2], name: x[3].replace(/\s*\*?EU\s*$/, '').trim(), qty: Number(x[4]), unitCost: 0, total: 0 });
+    });
+    return { kind: 'order', source: 'warranty', supplier: 'Karcher', orderNo: claimNo, date: d ? iso(d[3], d[2], d[1]) : '', total: 0, currency: 'EUR',
+        claimType: (t.match(/Warranty Type:\s*(Machinery Replacement|Warranty)/) || [])[1] || '',
+        machine: machine ? { code: machine[1], name: machine[2].replace(/\s*\*?EU\s*$/, '').trim(), serial: (t.match(/Serial No\.:\s*(\S+)/) || [])[1] || '' } : null,
+        damage: (t.match(/Damage code:\s*(.+)$/m) || [])[1] || '', claimValue: r2(claimValue), items };
+}
+
 // ------------------------------------------------------------------ Kärcher invoices and credit notes
 
 export function readKarcherInvoice(lines) {
@@ -186,5 +211,6 @@ export async function readKarcherStatement(path) {
 // Which reader fits a filed document, by the folder the filer put it in.
 export function readerFor(type) {
     return { 'karcher-proforma': readKarcherProforma, 'karcher-order': readKarcherOrderConfirmation, 'karcher-invoice': readKarcherInvoice,
+        'karcher-warranty-claim': readKarcherWarrantyClaim,
         'karcher-credit-note': readKarcherCreditNote, 'bank-advice': readPayment, 'customs-declaration': readCustoms }[type] || null;
 }

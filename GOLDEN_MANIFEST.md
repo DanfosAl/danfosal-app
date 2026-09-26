@@ -297,7 +297,8 @@ description, amount, category, fromMonth 'YYYY-MM', toMonth 'YYYY-MM'|null, crea
 ```
 kind             'order' | 'invoice' | 'creditNote' | 'payment' | 'customs' | 'statement'
 file, sha256, syncedAt       where the paper is under E:\Danfos Papers
-order            orderNo, source 'proforma'|'confirmation', date, total, cashDiscountPct/Total, items[]
+order            orderNo, source 'proforma'|'confirmation'|'warranty', date, total, cashDiscountPct/Total, items[]
+                 (warranty: claimType, machine {code, name, serial}, damage, claimValue = labour credited)
 invoice          invoiceNo, date, net, orderNos[], deliveryNotes[], paymentTerms,
                  items[] {code, name, qty, unitCost, total, origin, tariff, preference 'EU'|'none', serials[]}
 creditNote       number, date, orderNo, amount, refInvoices[], reason
@@ -829,6 +830,20 @@ without saving anything. The one open order is prepaid and on its way.
 **Guard against double stock:** deliveries that arrived before 26 Sep 2026 are history
 (`BOOK_FROM` in purchasing.js). Most were never booked through Receive but their stock is long in
 the counts, so booking one asks first.
+
+**Same day, after the owner's check ("everything showing in the order list is already cleared and
+logged; only the prepaid B 50 W and the warranty-claim parts are waiting"):**
+- The 24 order-list lines left waiting since Nov 2025 - Jan 2026 were marked received, **stock not
+  changed** (`dataFixes/order-list-received-2026-09-26`, backup in `docs/records/`).
+- **Warranty claims are read too** (`readKarcherWarrantyClaim`): the claim number works as the order
+  number the free replacement is later invoiced against. Goods coming back (a replacement machine,
+  repair parts) go on the order list at cost 0 marked "warranty claim"; the service-hours line is
+  labour Kärcher credits, not goods. Purchases shows "Warranty claim · waiting" or "Labour claim ·
+  credit due". The end customer's name and phone on a claim are not stored.
+- The order list now waits for exactly what the owner named: the B 50 W (prepaid 19 Aug), the SG 4/2
+  replacement (claim 7571148969) and five K 7 parts (claim 7571151033).
+- **Receive fix:** a line booked at 0 (a free replacement) used to set the product's cost price to 0;
+  it now adds stock and leaves the cost alone.
 
 **Gaps the owner can close:** no customs declaration PDFs for 2026 in the archive (two customs
 payments stand alone); 29 of the statement's 115 invoices have no PDF, so their lines can't be

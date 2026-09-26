@@ -146,6 +146,8 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
         if (!x.date || o.date < x.date) x.date = o.date;
         if (o.items.length >= x.items.length) { x.items = o.items; x.total = o.total; }
         if (o.cashDiscountTotal) x.cashDiscountTotal = o.cashDiscountTotal;
+        // A warranty claim: the claim number is the "order" the free replacement is invoiced against.
+        if (o.source === 'warranty') Object.assign(x, { warranty: true, machine: o.machine, claimType: o.claimType, damage: o.damage, claimValue: o.claimValue || 0 });
     });
     costed.forEach(i => (i.orderNos.length ? i.orderNos : ['(no order)']).forEach(no => { const x = order(no); x.invoices.push(i); if (!x.date || i.date < x.date) x.date = i.date; }));
     // Invoices Kärcher's statement lists but whose PDF never arrived: they count, but can't be
@@ -171,8 +173,10 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
         x.unfiled = x.invoices.filter(i => i.pdf === false);
         x.waiting = x.invoices.filter(i => i.bookable);
         // ordered / prepaid: nothing invoiced yet · arrived: an invoice to book into stock ·
-        // booked: every invoice is in stock · delivered: arrived before tracking began.
-        x.stage = !x.invoices.length ? (x.prepaid.length ? 'prepaid' : 'ordered')
+        // booked: every invoice is in stock · delivered: arrived before tracking began ·
+        // claimed: a warranty claim whose replacement hasn't come · labour: a claim for labour
+        // only, which Kärcher settles with a credit note rather than goods.
+        x.stage = !x.invoices.length ? (x.warranty ? (x.items.length ? 'claimed' : x.credits.length ? 'booked' : 'labour') : x.prepaid.length ? 'prepaid' : 'ordered')
             : x.waiting.length ? 'arrived' : x.invoices.every(i => i.booked) ? 'booked' : 'delivered';
         // What was ordered but not invoiced yet, by product code. Unknowable while an invoice's
         // PDF is missing, so then it isn't claimed.
@@ -207,5 +211,5 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
 export function orderState(p, orderNo) {
     const o = p.orders.find(x => x.orderNo === orderNo);
     if (!o) return null;
-    return { stage: o.stage, prepaid: o.prepaid.length > 0, paidOn: o.prepaid[0]?.date || '', paid: o.paidAmount, total: o.total };
+    return { stage: o.stage, prepaid: o.prepaid.length > 0, paidOn: o.prepaid[0]?.date || '', paid: o.paidAmount, total: o.total, warranty: !!o.warranty };
 }

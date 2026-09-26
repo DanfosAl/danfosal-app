@@ -337,8 +337,11 @@ async function save(ctx, toPay) {
     const batch = writeBatch(db);
     perProduct.forEach(x => {
         const unit = r2(x.value / x.qty);
-        const update = { stock: increment(x.qty), baseCost: unit, cost: r2(unit * VAT), lastRestockDate: Date.now(),
+        const update = { stock: increment(x.qty), lastRestockDate: Date.now(),
             batches: arrayUnion({ quantity: x.qty, cost: unit, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(x.inv / x.qty, x.extra / x.qty) }) };
+        // A free replacement (warranty, or a free-of-charge line) comes in at 0: it adds stock but
+        // must not make the product's cost price 0.
+        if (unit > 0) Object.assign(update, { baseCost: unit, cost: r2(unit * VAT) });
         if (!x.p.code && x.code) update.code = x.code;
         batch.update(doc(db, 'products', x.p._id), update);
     });

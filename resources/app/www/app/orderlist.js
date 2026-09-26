@@ -39,9 +39,12 @@ export async function renderOrderList(ctx) {
     }
 
     const now = ctx.a.now, products = ctx.model.products;
+    // A warranty replacement costs nothing; a line from a Kärcher order carries the order's price
+    // (estimatedCost), which counts when the product isn't in the catalogue yet.
     const rows = lines.map(l => {
-        const p = productForLine(products, l), wait = outstanding(l), net = p ? productNetCost(p) : null;
-        return { l, p, wait, net, value: wait * (net || 0), age: l.addedAt ? Math.floor((now - Number(l.addedAt)) / DAY) : null };
+        const p = productForLine(products, l), wait = outstanding(l), free = l.orderSource === 'warranty';
+        const net = free ? 0 : (p ? productNetCost(p) : null) || (l.orderNo && Number(l.quantity) ? (Number(l.estimatedCost) || 0) / Number(l.quantity) : null);
+        return { l, p, wait, net, free, value: wait * (net || 0), age: l.addedAt ? Math.floor((now - Number(l.addedAt)) / DAY) : null };
     });
     const waiting = rows.filter(r => r.wait > 0);
     const FILTERS = [['waiting', 'Waiting', r => r.wait > 0], ['stale', `Waiting over ${STALE_DAYS} days`, r => r.wait > 0 && r.age > STALE_DAYS], ['done', 'Received', r => r.wait === 0], ['all', 'All', () => true]];
@@ -73,13 +76,14 @@ export async function renderOrderList(ctx) {
             <section class="table-wrap"><table class="dt"><thead><tr><th>${esc(sup)} · ${plural(list.length, 'line', 'lines')}</th><th class="n">Ordered</th><th class="n">Received</th><th class="n">Waiting</th><th class="n">In stock</th><th class="n">Sold ${SALES_WINDOW_DAYS}d</th><th class="n">Added</th><th class="n">At cost</th><th></th></tr></thead>
             <tbody>${list.map(r => `<tr data-id="${esc(r.l._id)}" style="cursor:default">
                 <td class="name"><b>${esc(r.l.name)}</b><span>${esc([r.p?.code, r.l.smartSuggestion ? 'suggested by Reorder' : '', r.p ? '' : 'not in the catalogue'].filter(Boolean).join(' · '))}${r.l.orderNo ? (() => { const s = orderInfo(r.l.orderNo);
-                    return ` <a class="chip ${s?.prepaid ? 'ok' : 'vio'}" href="#purchases" title="Kärcher order ${esc(r.l.orderNo)}">order ${esc(r.l.orderNo)}${s?.prepaid ? ` · prepaid ${esc(s.paidOn)}` : ''}</a>`; })() : ''}</span></td>
+                    const warranty = s?.warranty || r.l.orderSource === 'warranty';
+                    return ` <a class="chip ${s?.prepaid ? 'ok' : 'vio'}" href="#purchases" title="${esc(r.l.reason || `Kärcher order ${r.l.orderNo}`)}">${warranty ? 'warranty claim' : 'order'} ${esc(r.l.orderNo)}${s?.prepaid ? ` · prepaid ${esc(s.paidOn)}` : ''}</a>`; })() : ''}</span></td>
                 <td class="n">${int(r.l.quantity)}</td><td class="n muted">${int(r.l.quantityReceived || 0)}</td>
                 <td class="n">${r.wait ? `<b>${int(r.wait)}</b>` : '<span class="chip ok">done</span>'}</td>
                 <td class="n ${r.p && Number(r.p.stock) <= 0 ? 'zero' : ''}">${r.p ? int(Number(r.p.stock) || 0) : '–'}</td>
                 <td class="n muted">${r.p ? int(ctx.a.soldUnits[r.p._id] || 0) : '–'}</td>
                 <td class="n ${r.age > STALE_DAYS && r.wait ? 'zero' : 'muted'}">${r.l.addedAt ? esc(day(Number(r.l.addedAt))) : '–'}</td>
-                <td class="n">${r.value ? eur(r.value) : r.wait ? '<span class="chip warn">no cost</span>' : ''}</td>
+                <td class="n">${r.free ? '<span class="chip vio">free</span>' : r.value ? eur(r.value) : r.wait ? '<span class="chip warn">no cost</span>' : ''}</td>
                 <td class="n" style="white-space:nowrap">${r.wait ? `<button class="btn small" type="button" data-rcv="${esc(r.l._id)}">${icon('move_to_inbox')}Receive</button>` : ''}
                     <button class="btn ghost small" type="button" data-edit="${esc(r.l._id)}" aria-label="Change quantity">${icon('edit')}</button>
                     <button class="btn ghost small" type="button" data-del="${esc(r.l._id)}" aria-label="Remove from the list">${icon('delete')}</button></td></tr>`).join('')}</tbody></table></section>`).join('')

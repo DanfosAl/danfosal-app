@@ -16,8 +16,10 @@ const pu = { filter: 'open' };
 const d8 = s => s ? new Date(s + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
 const STAGE = {
     ordered: ['Ordered', 'vio'], prepaid: ['Prepaid · on its way', 'ok'], arrived: ['Arrived · book it', 'warn'],
-    booked: ['In stock', 'ok'], delivered: ['Delivered (history)', '']
+    booked: ['In stock', 'ok'], delivered: ['Delivered (history)', ''],
+    claimed: ['Warranty claim · waiting', 'vio'], labour: ['Labour claim · credit due', '']
 };
+const OPEN = ['ordered', 'prepaid', 'arrived', 'claimed', 'labour'];
 
 export async function loadPurchasing(products) {
     const docs = (await getDocs(collection(db, 'purchaseDocs'))).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -44,7 +46,7 @@ export async function renderPurchases(ctx) {
     const importCosts = P.customs.filter(c => c.matched && c.decl.date.startsWith(year));
     const acc = P.account;
     const prepaidWaiting = P.orders.filter(o => o.stage === 'prepaid');
-    const FILTERS = [['open', 'Open', o => ['ordered', 'prepaid', 'arrived'].includes(o.stage)], ['booked', 'In stock', o => o.stage === 'booked'],
+    const FILTERS = [['open', 'Open', o => OPEN.includes(o.stage)], ['booked', 'In stock', o => o.stage === 'booked'],
         ['history', 'History', o => o.stage === 'delivered'], ['all', 'All', () => true]];
     const f = FILTERS.find(x => x[0] === pu.filter) || FILTERS[0];
     const shown = P.orders.filter(f[2]);
@@ -64,11 +66,13 @@ export async function renderPurchases(ctx) {
         <tbody id="pu-rows">${shown.map(o => {
             const inv = o.invoices, cust = [...new Set(inv.filter(i => i.customs).map(i => i.customs.number))];
             const duty = inv.reduce((s, i) => s + (i.customs ? i.customs.duty + i.customs.fees : 0), 0);
-            const what = o.items.length ? `${esc(o.items[0].name)}${o.items.length > 1 ? ` +${o.items.length - 1}` : ''}` : inv.length ? `${plural(inv.reduce((s, i) => s + (i.items || []).length, 0), 'line', 'lines')} invoiced` : '–';
-            const paid = o.prepaid.length ? `<span class="chip ok" title="${esc(o.prepaid.map(p => `${p.date}: €${money2(p.amount)} “${p.details}”`).join('\n'))}">prepaid ${esc(d8(o.prepaid[0].date))}</span>`
+            const what = o.warranty && o.machine ? `${esc(o.machine.name)} <span class="muted">S/N ${esc(o.machine.serial)}</span>${o.items.length ? ` → ${esc(o.items[0].name)}${o.items.length > 1 ? ` +${o.items.length - 1}` : ''}` : ''}`
+                : o.items.length ? `${esc(o.items[0].name)}${o.items.length > 1 ? ` +${o.items.length - 1}` : ''}` : inv.length ? `${plural(inv.reduce((s, i) => s + (i.items || []).length, 0), 'line', 'lines')} invoiced` : '–';
+            const paid = o.warranty ? `<span class="chip vio">warranty${o.claimValue ? ` · €${money2(o.claimValue)} labour` : ''}</span>`
+                : o.prepaid.length ? `<span class="chip ok" title="${esc(o.prepaid.map(p => `${p.date}: €${money2(p.amount)} “${p.details}”`).join('\n'))}">prepaid ${esc(d8(o.prepaid[0].date))}</span>`
                 : inv.length ? (inv.every(i => i.pay.status === 'paid') ? '<span class="chip ok">paid</span>' : `<span class="chip bad">${eur(o.open, 2)} open</span>`) : '<span class="chip">not paid</span>';
             const [label, tone] = STAGE[o.stage];
-            const canList = ['ordered', 'prepaid'].includes(o.stage) && o.items.length && !onList.has(o.orderNo);
+            const canList = ['ordered', 'prepaid', 'claimed'].includes(o.stage) && o.items.length && !onList.has(o.orderNo);
             return `<tr data-o="${esc(o.orderNo)}" tabindex="0">
                 <td class="name"><b>${esc(o.orderNo)}</b><span>${esc(d8(o.date))}${o.docs.length ? ` · ${esc(o.docs.map(d => d.source).filter((v, i, a) => a.indexOf(v) === i).join(' + '))}` : ''}</span></td>
                 <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${what}</td>
@@ -99,8 +103,11 @@ function orderDrawer(ctx, P, o, onList) {
     const row = (when, what, amount, extra = '') => `<div class="feed-row" style="display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">
         <span class="muted">${esc(d8(when))}</span><div>${what}${extra ? `<div class="muted" style="font-size:12px;margin-top:2px">${extra}</div>` : ''}</div><span class="amt">${amount}</span></div>`;
     const events = [];
-    o.docs.forEach(d => events.push([d.date, row(d.date, `<b>${d.source === 'proforma' ? 'Proforma' : 'Order confirmed'}</b> · ${plural(d.items.length, 'line', 'lines')}`, eur(d.total, 2),
-        `${d.cashDiscountTotal ? `€${money2(d.cashDiscountTotal)} if paid at once (${d.cashDiscountPct}% cash discount) · ` : ''}${esc(d.file || '')}`)]));
+    o.docs.forEach(d => events.push([d.date, d.source === 'warranty'
+        ? row(d.date, `<b>Warranty claim</b> · ${esc(d.claimType || 'warranty')}${d.machine ? ` · ${esc(d.machine.name)} S/N ${esc(d.machine.serial)}` : ''}`, d.claimValue ? `€${money2(d.claimValue)} labour` : '',
+            `${d.items.length ? `coming back: ${d.items.map(l => `${esc(l.name)} × ${int(l.qty)}`).join(', ')}` : 'labour only: Kärcher credits it'}${d.damage ? ` · ${esc(d.damage)}` : ''} · ${esc(d.file || '')}`)
+        : row(d.date, `<b>${d.source === 'proforma' ? 'Proforma' : 'Order confirmed'}</b> · ${plural(d.items.length, 'line', 'lines')}`, eur(d.total, 2),
+            `${d.cashDiscountTotal ? `€${money2(d.cashDiscountTotal)} if paid at once (${d.cashDiscountPct}% cash discount) · ` : ''}${esc(d.file || '')}`)]));
     o.payments.forEach(p => events.push([p.date, row(p.date, `<b>Paid</b> to Kärcher`, eur(p.amount, 2), `“${esc(p.details)}” · bank ref ${esc(p.bankRef || '–')}${o.cashDiscountTotal && Math.abs(p.amount - o.cashDiscountTotal) > 0.05 && Math.abs(p.amount - o.total) < 0.05 ? ` · <span style="color:var(--warn)">paid in full: the ${esc(String(o.docs[0]?.cashDiscountPct || 3))}% cash discount would have made it €${money2(o.cashDiscountTotal)}</span>` : ''}`)]));
     o.invoices.forEach(i => {
         const lines = (i.lines || []).map(l => `<tr><td class="name"><b>${esc(l.name)}</b><span>${esc([l.code, l.origin, l.preference === 'EU' ? 'EU origin, no duty' : l.preference === 'none' ? 'duty applies' : '', l.serials ? `${l.serials.length} serial${l.serials.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '))}</span></td>
@@ -114,9 +121,9 @@ function orderDrawer(ctx, P, o, onList) {
     o.credits.forEach(c => events.push([c.date, row(c.date, `<b>Credit note ${esc(c.number)}</b> (${esc(c.reason)})`, `−${eur(c.amount, 2)}`, esc(c.refInvoices.join(', ')))]));
     events.sort((a, b) => (a[0] || '').localeCompare(b[0] || ''));
     const waitingItems = o.outstandingKnown && o.outstanding.length ? `<p class="muted" style="margin:10px 0 0">Still to come: ${o.outstanding.map(l => `${esc(l.name)} × ${int(l.waiting)}`).join(', ')}</p>` : '';
-    const canList = ['ordered', 'prepaid'].includes(o.stage) && o.items.length && !onList.has(o.orderNo);
+    const canList = ['ordered', 'prepaid', 'claimed'].includes(o.stage) && o.items.length && !onList.has(o.orderNo);
     const { el, close } = openDrawer({
-        title: `Order ${esc(o.orderNo)}`, sub: `${esc(d8(o.date))} · ${esc(STAGE[o.stage][0])}${o.landed ? ` · landed ${eur(o.landed, 2)}` : ''}`,
+        title: `${o.warranty ? 'Warranty claim' : 'Order'} ${esc(o.orderNo)}`, sub: `${esc(d8(o.date))} · ${esc(STAGE[o.stage][0])}${o.landed ? ` · landed ${eur(o.landed, 2)}` : ''}`,
         body: `<div>${events.map(e => e[1]).join('') || '<p class="empty">No papers yet.</p>'}</div>${waitingItems}`,
         foot: canList ? `<button class="btn" type="button" id="od-list">${icon('playlist_add')}Put on the order list</button>` : ''
     });
@@ -158,7 +165,8 @@ async function putOnOrderList(ctx, o) {
     lines.forEach(l => {
         const p = ctx.model.products.find(x => x.code && norm(x.code) === norm(l.code));
         batch.set(doc(collection(db, 'toOrder')), { name: p ? p.name : l.name, code: l.code, quantity: l.qty, supplier: 'Karcher', quantityReceived: 0, smartSuggestion: false,
-            estimatedCost: Math.round((l.unitCost || 0) * l.qty * 100) / 100, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.docs[0]?.source || 'invoice', productId: p ? p._id : null });
+            estimatedCost: Math.round((l.unitCost || 0) * l.qty * 100) / 100, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.docs[0]?.source || 'invoice', productId: p ? p._id : null,
+            ...(o.warranty ? { reason: `Warranty claim ${o.orderNo}${o.machine ? ` (${o.machine.name}, S/N ${o.machine.serial})` : ''}` } : {}) });
     });
     try { await batch.commit(); toast(`Order ${o.orderNo} is on the order list`); renderPurchases(ctx); }
     catch (e) { toast(`Couldn't add it: ${e.message}`, { bad: true }); }

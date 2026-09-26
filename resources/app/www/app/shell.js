@@ -18,6 +18,7 @@ export const NAV = [
         ['Reorder', 'stock.html#reorder', 'local_shipping'],
         ['Link receipt items', 'stock.html#link', 'link'],
         ['Order list', 'stock.html#orders', 'list_alt'],
+        ['Purchases', 'stock.html#purchases', 'receipt_long'],
         ['Receive delivery', 'stock.html#receive', 'move_to_inbox'],
         ['Yearly plan', 'stock.html#plan', 'event_note']] },
     { id: 'customers', label: 'Customers', icon: 'group', href: 'customers.html', pages: [

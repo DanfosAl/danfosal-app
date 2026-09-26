@@ -14,6 +14,7 @@ all backed by one Firebase Firestore project (`danfosal-app`).
 | [`resources/app/`](resources/app/) | **Danfosal App**, the main Electron desktop app. The EasyPOS OCR bridge also runs from here. |
 | [`WarrantyApp/`](WarrantyApp/) | **Danfos Garanci**, a standalone Electron app for issuing warranties and registering claims. It uses the same Firestore project. |
 | [`tools/easypos-print-capture/`](tools/easypos-print-capture/) | A .NET Windows service that captures EasyPOS fiscal receipts for the OCR bridge. |
+| [`tools/paper-autopilot/`](tools/paper-autopilot/) | Reads the PDFs in Downloads and files each into `E:\Danfos Papers` under a readable name: dry run, apply, undo, and an unattended sweep. |
 | [`docs/`](docs/) | `guides/` (how-tos), `archive/` (historical notes), `records/` (local only, never committed) |
 | `DanfosalStartup.bat`, `run-startup-hidden.vbs` | The EasyPOS pipeline watchdog. Task Scheduler runs it silently every 30 minutes. |
 

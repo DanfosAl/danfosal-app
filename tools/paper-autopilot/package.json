@@ -1,0 +1,17 @@
+{
+  "name": "paper-autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reads the PDFs that land in Downloads, names and files them, and (later) books them into Danfosal App",
+  "type": "module",
+  "scripts": {
+    "dry-run": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON autopilot.js",
+    "apply": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON autopilot.js --apply",
+    "undo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON autopilot.js --undo",
+    "sweep": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON autopilot.js --sweep"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "pdfjs-dist": "3.11.174"
+  }
+}

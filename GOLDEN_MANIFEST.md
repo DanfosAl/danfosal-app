@@ -220,6 +220,7 @@ computing their own, which is what ended the era of one app showing three differ
 | `recurringCosts` | 1 | What the shop costs every month, entered once (Finding #47) |
 | `predictions` | 4 | Yearly purchase plans; v2 documents are the ones the new plan reads |
 | `toOrder` | 24 | The order list |
+| `purchaseDocs` | 150 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
 | `stockCorrections` | 1 | The 14 Sep stock reconciliation |
 | `dataFixes` | 3 | Reversible data corrections, each with its backup file |
 | `settings` | 2 | `receiptNames.services`, `customerReview.notSame` - the owner's own decisions |
@@ -291,6 +292,22 @@ activityLog[]?   status history
 ```
 description, amount, category, fromMonth 'YYYY-MM', toMonth 'YYYY-MM'|null, createdAt
 ```
+
+#### `purchaseDocs` (id = first 20 hex of the file's SHA-256; written only by tools/paper-autopilot)
+```
+kind             'order' | 'invoice' | 'creditNote' | 'payment' | 'customs' | 'statement'
+file, sha256, syncedAt       where the paper is under E:\Danfos Papers
+order            orderNo, source 'proforma'|'confirmation', date, total, cashDiscountPct/Total, items[]
+invoice          invoiceNo, date, net, orderNos[], deliveryNotes[], paymentTerms,
+                 items[] {code, name, qty, unitCost, total, origin, tariff, preference 'EU'|'none', serials[]}
+creditNote       number, date, orderNo, amount, refInvoices[], reason
+payment          date, amount, currency, beneficiary, details, refs[] (order/invoice numbers named), partial[], bankRef
+customs          number, date, exporter, invoiceTotal, rate, taxes {DOG, TVS, ...} in ALL, vatAll, dutyAll, extraAll
+statement        date, openTotal, lines[] {type RV|DZ|GV|AB, docNo, orderNo, date, amount, clearingDate}
+```
+`toOrder` lines made from an order also carry `orderNo, code, orderSource, productId`; a purchase
+record booked from Purchases (`products.batches[]`) also carries `invoiceCost, extraCost, orderNo,
+customs` beside its landed `cost`.
 A cost that stops gets `toMonth` rather than being deleted, so past months keep counting it.
 
 **Data philosophy** (unchanged, and still right for this app): denormalisation is deliberate, there
@@ -768,6 +785,114 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **53. STOCK › PURCHASES: EVERY KÄRCHER ORDER FROM PROFORMA TO SHELF, AT LANDED COST** — ✅ **BUILT & VERIFIED ON LIVE DATA (September 26, 2026)**
+
+The owner asked for the purchase cycle to close itself: an order logged when the proforma comes,
+marked prepaid when it is, and booked into stock at its real cost - price, customs and all -
+without a prepaid delivery ever reaching Money › You owe.
+
+**What the papers already say, and what the app now reads from them:**
+- The owner writes the order or invoice numbers into each bank transfer (`inv. 7571…`), shorthand
+  included (`7573087659, 660, 661`), so a payment names what it paid.
+- Every Kärcher invoice prints its order number, delivery note, and per line the country of
+  origin, the EU-preference mark (`P` no Albanian duty, `*` duty) and the serial numbers.
+- Kärcher's account statement (.xlsx) lists every invoice with its order number and whether and
+  when it was cleared. A transfer "Pagese faturave te mbetura" matches the statement's open total.
+- A customs declaration states the invoice total it covers, the rate, and its taxes per item:
+  duty (DOG), import VAT (TVS), fees.
+
+**Built:**
+- `tools/paper-autopilot/purchase-read.js` reads those six kinds of paper; `sync.js` writes them to
+  **`purchaseDocs`** (150 on the first run) and puts a new order on the order list. The weekly sweep
+  runs it after filing.
+- `www/app/purchasing.js` (pure, shared) links them per order and costs every invoice line:
+  **landed = what was paid (less cash discount credited back) + duty (only on lines without EU
+  preference) + fees (by value)**. Import VAT is left out: it is reclaimed on the VAT return.
+- **Stock › Purchases** (`www/app/purchases.js`): the Kärcher account, deliveries to book, prepaid
+  orders on their way, import costs this year; one row per order with its payment, invoices,
+  customs and stage; a drawer with every paper and the landed cost per line.
+- **Book into stock** hands the invoice to Receive delivery at landed cost with "Already paid"
+  chosen when the papers show it paid, so only an unpaid invoice goes to You owe. Batches keep
+  `invoiceCost` and `extraCost` beside the landed `cost`.
+- `karcher-invoice.js` also returns order numbers, delivery notes, origin, preference and serials
+  (additive; all 88 archived invoice files give the same totals as before).
+
+**Verified on the real papers and live data:** 4 of 4 Kärcher customs declarations matched their
+invoices within 0.3%; 88 of 88 invoices got a payment status (82 from the statement, 4 by named
+transfers, 2 free replacements); the account shows the 30 Jul statement settled by the 10 Aug
+transfer. The Purchases tab, drawer and the hand-off to Receive were checked in the browser
+without saving anything. The one open order is prepaid and on its way.
+
+**Guard against double stock:** deliveries that arrived before 26 Sep 2026 are history
+(`BOOK_FROM` in purchasing.js). Most were never booked through Receive but their stock is long in
+the counts, so booking one asks first.
+
+**Gaps the owner can close:** no customs declaration PDFs for 2026 in the archive (two customs
+payments stand alone); 29 of the statement's 115 invoices have no PDF, so their lines can't be
+booked or costed. Other suppliers (Star, Rulopak) are filed but not linked yet. **Not shipped yet**:
+the www changes go out with the next build, Hosting deploy and `cap sync`.
+
+---
+
+#### **52. PAPER AUTOPILOT: DOWNLOADS FILED INTO E:\DANFOS PAPERS** — ✅ **457 PDFs FILED, 77 COPIES RECYCLED, WEEKLY TASK ON (September 26, 2026)**
+
+**Finished the same afternoon.** The owner re-ran the plan: 457 already filed, 77 copies to the
+Recycle Bin (each one's twin verified intact), then emptied the bin. At the owner's request:
+scheduled task **"Danfosal Paper Autopilot"** (Mondays 09:00 with catch-up, plus every logon;
+`--weekly` does the work once per week, first start on or after Monday), and 14
+`_Archive - ….lnk` shortcuts in Downloads, one per archive folder, refreshed by every run.
+Details in `tools/paper-autopilot/README.md`.
+
+**The real run (owner, 13:23):** 457 PDFs moved to `E:\Danfos Papers`, each checked afterwards
+against the journal (`journal-2026-09-26T13-23-19.jsonl`): same SHA-256, nothing left behind.
+The 77 copies were **not** recycled, and none were harmed: `recycle.ps1` read its list with
+Windows PowerShell's `ConvertFrom-Json`, which hands a JSON array back as a single object, so all
+77 paths became one invalid path (SHFileOperation error 124). Every earlier test had one copy,
+which hid it. Fixed: the list is now plain UTF-8 lines. Apply is also resumable now (files moved
+by an earlier journal count as done, and their copies recycle against where they now are), and
+a PDF downloaded again after filing is recognised by content in its destination folder and
+recycled instead of filed as "(2)". Both tested on dummy files. A read-only check found all 77
+copies ready: each one's twin exists with the same SHA-256 (44 on E:, 33 still in Downloads).
+
+**Later the same day:** the owner chose **`E:\Danfos Papers`** as the destination (Windows keeps
+Documents in OneDrive, which the owner does not want; E: is a fixed partition of the same SSD, so
+it is tidy storage, not a backup). `apply` carries out a reviewed plan, checking each file's
+SHA-256 first, never overwriting, moving C: to E: by copy-check-remove with the date kept, and
+sending exact copies to the Recycle Bin (never deleting). Every step is journalled as it happens
+and `undo` puts moved files back. `sweep` plans and applies in one go but leaves anything
+downloaded in the last 15 minutes; `cache.json` spares it re-reading unchanged files. Tested on
+copies: a changed file and a taken name were both refused, 30 files went C: to E: with matching
+SHA-256 and dates, and undo returned all of them. A fresh plan against the real Downloads matched
+the reviewed one file for file (only the destination root differed). **The real run is the
+owner's to start**: Claude Code's safety check does not let the agent move and recycle files in
+Downloads itself. No scheduled sweep exists either; `sweep-hidden.vbs` is ready for one if the
+owner wants it.
+
+Downloads held 983 files: 507 distinct PDFs and 77 byte-for-byte copies (607 MB). The names said
+almost nothing: 63 were `Document (N).pdf`, which are Raiffeisen payment advices and account
+statements. `ReturnSheet_*` are VAT returns and `PaymentOrder_*` tax payment orders, not Kärcher
+paperwork. `GewaConfirmationReport_*` are Kärcher warranty claims, and name the machine and serial.
+
+`tools/paper-autopilot` reads each PDF's text, recognises 27 document types and plans a folder
+and a readable name for each. It **writes a plan and a report and changes nothing**. The first run
+would file 457 PDFs into `Documents\Danfos Papers`, recycle the 77 copies and leave 449 files
+(399 non-PDF, 29 scans with no text, 21 one-offs). Plan and report go to
+`C:\Danfosal\Reports\paper-autopilot\`: local only, because they name customers and amounts.
+
+**One change to the app:** `parseKarcher()` moved out of `www/app/receive.js` into
+`www/app/karcher-invoice.js`, a file with no imports, so the autopilot runs the same function
+under Node. `receive.js` imports it and re-exports it; behaviour is unchanged. Verified: the
+autopilot read all 122 Kärcher invoice PDFs (90 distinct invoices), and Stock > Receive delivery
+loads with no console errors and parses through the re-export. **Not shipped yet**: it goes out
+with the next desktop build, Hosting deploy and `cap sync`, like any `www` change.
+
+Personal records (contracts, birth and criminal-record certificates, passports) are recognised
+by type and filed under their own names; nothing is extracted from them, and the plan stores no
+fields for them. Next: `--apply` (refusing files whose SHA-256 changed since the dry run,
+copies to the Recycle Bin, never deleted), then a watcher, then booking into the app.
 
 ---
 

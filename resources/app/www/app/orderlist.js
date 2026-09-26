@@ -7,6 +7,7 @@
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, writeBatch } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, toast, openModal } from './ui.js';
 import { DAY, SALES_WINDOW_DAYS, productNetCost, rankProducts } from './data.js';
+import { buildPurchasing, orderState } from './purchasing.js';
 
 const STALE_DAYS = 60;   // an order line waiting this long has probably been forgotten
 const ol = { filter: 'waiting' };
@@ -24,6 +25,18 @@ export async function renderOrderList(ctx) {
     try { lines = await loadOrderLines(); }
     catch (e) { ctx.body.innerHTML = `<div class="error-box">${icon('error')}<div><b>Couldn't load the order list.</b><br><span>${esc(e.message)}</span></div></div>`; return; }
     if (ctx.tab !== 'orders') return;   // the owner moved on while it loaded
+
+    // Lines that came from a Kärcher order (Purchases, or the Paper Autopilot) carry orderNo: say
+    // whether that order is paid for. The papers are only read when such a line exists.
+    let orderInfo = () => null;
+    if (lines.some(l => l.orderNo)) {
+        try {
+            const docs = (await getDocs(collection(db, 'purchaseDocs'))).docs.map(d => ({ id: d.id, ...d.data() }));
+            const P = buildPurchasing(docs, { products: ctx.model.products });
+            orderInfo = no => orderState(P, no);
+        } catch { /* the chip is a nicety; the list works without it */ }
+        if (ctx.tab !== 'orders') return;
+    }
 
     const now = ctx.a.now, products = ctx.model.products;
     const rows = lines.map(l => {
@@ -59,7 +72,8 @@ export async function renderOrderList(ctx) {
         <div id="ol-list" style="display:flex;flex-direction:column;gap:16px">${shown.length ? [...bySupplier].map(([sup, list]) => `
             <section class="table-wrap"><table class="dt"><thead><tr><th>${esc(sup)} · ${plural(list.length, 'line', 'lines')}</th><th class="n">Ordered</th><th class="n">Received</th><th class="n">Waiting</th><th class="n">In stock</th><th class="n">Sold ${SALES_WINDOW_DAYS}d</th><th class="n">Added</th><th class="n">At cost</th><th></th></tr></thead>
             <tbody>${list.map(r => `<tr data-id="${esc(r.l._id)}" style="cursor:default">
-                <td class="name"><b>${esc(r.l.name)}</b><span>${esc([r.p?.code, r.l.smartSuggestion ? 'suggested by Reorder' : '', r.p ? '' : 'not in the catalogue'].filter(Boolean).join(' · '))}</span></td>
+                <td class="name"><b>${esc(r.l.name)}</b><span>${esc([r.p?.code, r.l.smartSuggestion ? 'suggested by Reorder' : '', r.p ? '' : 'not in the catalogue'].filter(Boolean).join(' · '))}${r.l.orderNo ? (() => { const s = orderInfo(r.l.orderNo);
+                    return ` <a class="chip ${s?.prepaid ? 'ok' : 'vio'}" href="#purchases" title="Kärcher order ${esc(r.l.orderNo)}">order ${esc(r.l.orderNo)}${s?.prepaid ? ` · prepaid ${esc(s.paidOn)}` : ''}</a>`; })() : ''}</span></td>
                 <td class="n">${int(r.l.quantity)}</td><td class="n muted">${int(r.l.quantityReceived || 0)}</td>
                 <td class="n">${r.wait ? `<b>${int(r.wait)}</b>` : '<span class="chip ok">done</span>'}</td>
                 <td class="n ${r.p && Number(r.p.stock) <= 0 ? 'zero' : ''}">${r.p ? int(Number(r.p.stock) || 0) : '–'}</td>

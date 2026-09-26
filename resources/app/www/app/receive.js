@@ -16,9 +16,10 @@ import { esc, eur, int, icon, plural, day, fold, money2, toast, openModal } from
 import { VAT, productNetCost, suggestProducts, rankProducts } from './data.js';
 import { loadOrderLines, outstanding, productForLine } from './orderlist.js';
 import { addSupplierInvoice } from './payables.js';
+import { parseKarcher } from './karcher-invoice.js';
+export { parseKarcher };
 
 const r2 = n => Math.round(n * 100) / 100;
-const num = s => Number(String(s).replace(/\./g, '').replace(',', '.'));     // "1.360,00" -> 1360
 const normCode = c => String(c || '').toLowerCase().replace(/[.\-\s]/g, '');
 const MARKUP = 1.4;   // classic rule for a new product's price: cost incl. VAT + 40%
 
@@ -76,33 +77,8 @@ async function ocrText(file, pdf) {
     return text;
 }
 
-// Kärcher d.o.o. invoice: "0001 1.512-600.0 SC 2 EasyFix *EU * 16 PC 85,00 1.360,00".
-// Numbers after the unit are unit price, an optional discount %, and the line total; the unit
-// cost is taken from the total, so a discount is always included.
-export function parseKarcher(lines) {
-    if (!lines.some(l => /k[aä]rcher d\.o\.o\./i.test(l))) return null;
-    const inv = { supplier: 'Karcher', invoiceNumber: '', date: '', net: 0, prepayPct: 0, prepayAmount: 0, items: [], reader: 'Kärcher invoice (exact text)' };
-    const head = lines.find(l => /^ALBANIA \d{10}\b/i.test(l)) || '';
-    inv.invoiceNumber = (head.match(/\b(\d{10})\b/) || [])[1] || (lines[0].match(/^\d{10}$/) || [])[0] || '';
-    const dateLine = lines.find(l => /^\d\d\.\d\d\.\d{4}\s+\d\d:\d\d/.test(l));
-    if (dateLine) { const [d, m, y] = dateLine.slice(0, 10).split('.'); inv.date = `${y}-${m}-${d}`; }
-    // Units seen on Kärcher invoices: PC, ZSA (set), M (metre), L, KG... A line with no prices is
-    // a free replacement (warranty), booked at cost 0.
-    const itemRe = /^(\d{4}) (\d\.\d{3}-\d{3}\.\d) (.+?) (?:[*P] )?(\d+(?:,\d+)?) ([A-Z]{1,4})(?:\s+([\d.,\s]+))?$/;
-    lines.forEach(l => {
-        const m = l.match(itemRe); if (!m) return;
-        const nums = (m[6] || '').trim().split(/\s+/).filter(Boolean).map(num);
-        const qty = num(m[4]), total = nums.length ? nums[nums.length - 1] : 0;
-        inv.items.push({ pos: m[1], code: m[2], name: m[3].replace(/\s+\*$/, '').trim(), quantity: qty, unit: m[5], listPrice: nums[0] || 0,
-            discount: nums.length > 2 ? nums[1] : 0, total, unitCost: qty ? r2(total / qty) : 0, free: !nums.length });
-    });
-    const netIdx = lines.findIndex(l => /Net Amount/.test(l));
-    if (netIdx >= 0 && lines[netIdx + 1]) { const n = lines[netIdx + 1].split(/\s+/).map(num).filter(x => !isNaN(x)); if (n.length >= 2) inv.net = n[1]; }
-    const pre = lines.find(l => /Prepayment\s+\d+%/.test(l));
-    if (pre) { const m = pre.match(/Prepayment\s+(\d+(?:,\d+)?)%\s+([\d.,]+)/); if (m) { inv.prepayPct = num(m[1]); inv.prepayAmount = num(m[2]); } }
-    if (!inv.net) inv.net = r2(inv.items.reduce((a, i) => a + i.total, 0));
-    return inv.items.length ? inv : null;
-}
+// The Kärcher invoice reader itself is parseKarcher() in karcher-invoice.js, shared with the
+// Paper Autopilot.
 
 async function genericParse(text, ctx) {
     await loadScript('smart-inventory-scanner.js', 'SmartInventoryScanner');
@@ -143,9 +119,14 @@ function matchLine(item, products) {
     return { product: null, guess: guess || null, how: 'none' };
 }
 
-const rcv = { invoice: null, lines: null, prepay: false, pay: 'paid', due: '', force: false, busy: false, status: '' };
+const rcv = { invoice: null, lines: null, prepay: false, pay: 'paid', due: '', force: false, busy: false, status: '', pending: null };
+
+// Stock > Purchases hands over an invoice it has already read, linked and costed: lines at landed
+// cost (invoiceUnit + extraUnit for customs), and inv.fromPurchase saying whether it is paid.
+export function prefillReceive(inv) { rcv.pending = inv; }
 
 export function renderReceive(ctx) {
+    if (rcv.pending) { const inv = rcv.pending; rcv.pending = null; startReview(ctx, inv); return; }
     ctx.setSub('Book a supplier delivery into stock from its invoice');
     const actions = ctx.setActions(rcv.invoice ? `<button class="btn ghost" type="button" id="rc-reset">${icon('restart_alt')}Start again</button>` : '');
     const reset = actions.querySelector('#rc-reset');
@@ -190,6 +171,9 @@ async function startReview(ctx, inv) {
     try { orderLines = (await loadOrderLines()).filter(l => outstanding(l) > 0); } catch { /* the order list is optional here */ }
     rcv.invoice = inv; rcv.orderLines = orderLines; rcv.force = false;
     rcv.prepay = false; rcv.pay = 'paid'; rcv.due = '';
+    // From Purchases the papers already say whether it's paid: an unpaid invoice goes to You owe,
+    // a paid or prepaid one doesn't.
+    if (inv.fromPurchase && !inv.fromPurchase.paid) { rcv.pay = 'later'; rcv.due = new Date().toISOString().slice(0, 10); }
     rcv.lines = inv.items.map(it => {
         const m = matchLine(it, ctx.model.products);
         return { ...it, product: m.product, how: m.how, guess: m.guess, action: m.product ? 'stock' : 'new', newName: it.name, newPrice: 0 };
@@ -245,7 +229,9 @@ function renderReview(ctx) {
                 <label class="fld">Invoice date<input id="rc-date" type="date" value="${esc(inv.date)}"></label>
                 <label class="fld">Invoice net total<input value="${inv.net ? '€' + money2(inv.net) : '–'}" disabled></label>
             </div>
-            <p class="empty" style="margin:8px 0 0">Read by: ${esc(inv.reader)}${inv.fileName ? ' · ' + esc(inv.fileName) : ''}${diff ? ` · <span style="color:var(--warn)">lines add up to €${money2(lines.reduce((a, l) => a + l.unitCost * l.quantity, 0))}, the invoice says €${money2(inv.net)}: check for a missed line</span>` : ''}</p>
+            <p class="empty" style="margin:8px 0 0">Read by: ${esc(inv.reader)}${inv.fileName ? ' · ' + esc(inv.fileName) : ''}${diff && !inv.fromPurchase ? ` · <span style="color:var(--warn)">lines add up to €${money2(lines.reduce((a, l) => a + l.unitCost * l.quantity, 0))}, the invoice says €${money2(inv.net)}: check for a missed line</span>` : ''}</p>
+            ${inv.fromPurchase ? `<p style="margin:8px 0 0">${icon('receipt_long')} Order ${esc(inv.fromPurchase.orderNo)} · ${inv.fromPurchase.paid ? `<span class="chip ok">${esc(inv.fromPurchase.payNote || 'paid')}${inv.fromPurchase.payDate ? ' ' + esc(inv.fromPurchase.payDate) : ''}</span> nothing goes to You owe` : '<span class="chip bad">not paid yet</span> it goes to You owe'}
+                · unit costs are <b style="font-weight:500">landed</b>: invoice price${inv.fromPurchase.customs ? ` + customs ${esc(inv.fromPurchase.customs)} (duty and fees; VAT is reclaimed)` : ' (no customs declaration linked yet)'}</p>` : ''}
             ${inv.prepayPct ? `<label class="check" style="margin-top:10px"><input type="checkbox" id="rc-prepay"${rcv.prepay ? ' checked' : ''}><span><b style="font-weight:500">Paid in advance: take the ${inv.prepayPct}% prepayment discount off the costs</b><br><span class="empty" style="padding:0">The invoice offers €${money2(inv.prepayAmount)} instead of €${money2(inv.net)} when paid in advance. Tick it if you paid that way, so each product's cost is what you really paid.</span></span></label>` : ''}
         </section>
         <div class="table-wrap"><table class="dt"><thead><tr><th>On the invoice</th><th class="n">Qty</th><th class="n">Unit cost</th><th>Book it as</th><th class="n">Cost change</th><th class="n">Stock after</th><th></th></tr></thead>
@@ -255,7 +241,7 @@ function renderReview(ctx) {
             return `<tr data-i="${i}" style="cursor:default${l.action === 'skip' ? ';opacity:.45' : ''}">
                 <td class="name"><b>${esc(l.name || '(no description)')}</b><span>${esc([l.code, l.discount ? `${l.discount}% discount` : '', l.free ? 'free of charge (replacement)' : ''].filter(Boolean).join(' · '))}</span></td>
                 <td class="n"><input class="inp" type="number" min="1" step="1" data-q="${i}" value="${l.quantity}" style="width:70px;text-align:right" aria-label="Quantity"></td>
-                <td class="n"><input class="inp" type="number" min="0" step="0.01" data-c="${i}" value="${l.unitCost}" style="width:96px;text-align:right" aria-label="Unit cost">${rcv.prepay && inv.prepayPct ? `<span class="muted" style="display:block;font-size:11px">€${money2(c)} after ${inv.prepayPct}%</span>` : ''}</td>
+                <td class="n"><input class="inp" type="number" min="0" step="0.01" data-c="${i}" value="${l.unitCost}" style="width:96px;text-align:right" aria-label="Unit cost">${rcv.prepay && inv.prepayPct ? `<span class="muted" style="display:block;font-size:11px">€${money2(c)} after ${inv.prepayPct}%</span>` : ''}${l.extraUnit ? `<span class="muted" style="display:block;font-size:11px">€${money2(l.invoiceUnit)} + €${money2(l.extraUnit)} customs</span>` : ''}</td>
                 <td style="min-width:260px"><select class="inp" data-a="${i}" style="width:100%">
                         <option value="stock"${l.action === 'stock' ? ' selected' : ''}>${p ? `Add to stock: ${esc(p.name)}` : 'Add to stock: pick a product…'}</option>
                         <option value="pick">Choose a different product…</option>
@@ -336,9 +322,13 @@ async function save(ctx, toPay) {
     // Two invoice lines for the same product become one update.
     const perProduct = new Map();
     use.filter(l => l.action === 'stock').forEach(l => {
-        const x = perProduct.get(l.product._id) || { p: l.product, qty: 0, value: 0, code: l.code };
+        const x = perProduct.get(l.product._id) || { p: l.product, qty: 0, value: 0, inv: 0, extra: 0, code: l.code };
         x.qty += l.quantity; x.value += lineCost(l) * l.quantity; perProduct.set(l.product._id, x);
+        x.inv += (l.invoiceUnit ?? lineCost(l)) * l.quantity; x.extra += (l.extraUnit || 0) * l.quantity;
     });
+    // From Purchases, each purchase record also says what the cost is made of.
+    const fp = inv.fromPurchase;
+    const detail = (invUnit, extraUnit) => fp ? { invoiceCost: r2(invUnit), extraCost: r2(extraUnit), orderNo: fp.orderNo, ...(fp.customs ? { customs: fp.customs } : {}) } : {};
     const ok = await openModal({
         title: `Book invoice ${inv.invoiceNumber} into stock?`, confirmLabel: 'Book into stock', confirmClass: 'money',
         body: `<p>${[perProduct.size ? `${plural(perProduct.size, 'product gets', 'products get')} more stock` : '', use.some(l => l.action === 'new') ? `${plural(use.filter(l => l.action === 'new').length, 'new product is', 'new products are')} created` : ''].filter(Boolean).join(' and ')}; each keeps this delivery as a purchase record with its cost.${rcv.pay === 'later' ? ` €${money2(toPay)} is added to what you owe ${esc(inv.supplier)}.` : ''}</p>`
@@ -348,14 +338,14 @@ async function save(ctx, toPay) {
     perProduct.forEach(x => {
         const unit = r2(x.value / x.qty);
         const update = { stock: increment(x.qty), baseCost: unit, cost: r2(unit * VAT), lastRestockDate: Date.now(),
-            batches: arrayUnion({ quantity: x.qty, cost: unit, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber }) };
+            batches: arrayUnion({ quantity: x.qty, cost: unit, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(x.inv / x.qty, x.extra / x.qty) }) };
         if (!x.p.code && x.code) update.code = x.code;
         batch.update(doc(db, 'products', x.p._id), update);
     });
     use.filter(l => l.action === 'new').forEach(l => {
         const c = lineCost(l);
         batch.set(doc(collection(db, 'products')), { code: l.code || '', name: l.newName, producer: inv.supplier, baseCost: c, cost: r2(c * VAT),
-            price: l.newPrice || r2(c * VAT * MARKUP), stock: l.quantity, image: '', batches: [{ quantity: l.quantity, cost: c, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber }], createdAt: Date.now() });
+            price: l.newPrice || r2(c * VAT * MARKUP), stock: l.quantity, image: '', batches: [{ quantity: l.quantity, cost: c, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(l.invoiceUnit ?? c, l.extraUnit || 0) }], createdAt: Date.now() });
     });
     // Tick off the order list: oldest waiting line first, never beyond what was ordered.
     let ticked = 0;

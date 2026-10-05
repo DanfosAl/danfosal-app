@@ -791,7 +791,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **57. A CANCELLED ONLINE ORDER NO LONGER COUNTS AS A SALE; "DELETE ORDER" CAN BE SEEN** — ✅ **FIXED, CHECKED ON MADE-UP RECORDS (October 5, 2026)**
+#### **57. A CANCELLED ONLINE ORDER NO LONGER COUNTS AS A SALE; "DELETE ORDER" CAN BE SEEN** — ✅ **FIXED, CHECKED ON MADE-UP RECORDS, SHIPPED TO DESKTOP, WEB AND ANDROID (October 5, 2026)**
 
 The owner cancelled an online order and it still showed in Sales, and found no way to delete it.
 
@@ -812,7 +812,7 @@ The owner cancelled an online order and it still showed in Sales, and found no w
 
 ---
 
-#### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — 🟡 **BUILT, DRY RUN PASSED; FIRST REAL RUN WAITS FOR THE FIRESTORE QUOTA (October 5, 2026)**
+#### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — 🟡 **BUILT, DRY RUN PASSED, SHIPPED; FIRST REAL RUN WAITS FOR THE FIRESTORE QUOTA (October 5, 2026)**
 
 The owner: an e-invoice saved from the Platforma Qendrore is already filed into `Sales invoices`
 correctly - it should also reach Sales, without Sell › Import invoice by hand.

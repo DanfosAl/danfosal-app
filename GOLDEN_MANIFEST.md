@@ -823,9 +823,11 @@ console errors. One test request (`from: 'web'`, done) is left in `autopilotRuns
 requires it at start); Android APK rebuilt after `cap sync` (11:05, contains the button; the phone
 app runs its own copy of www, so it doesn't need Hosting). **Hosting deploy refused**: HTTP 429,
 the project's Hosting storage quota is full. The site is ~1 MB and only the `live` channel exists,
-so it is years of stored release history; the fix is a retention limit (console › Hosting ›
-Release history › Release storage settings), which only the owner can set. Hosting still serves the
-26 Sep version until then.
+so it is stored release history: 230 versions, ~200 GB, almost all from Oct-Nov 2025 builds that
+carried multi-GB files (up to 5.4 GB a version); the newest 10 are 2 MB. The owner set Release
+storage settings to keep 10 (site config `maxVersions: 10`, confirmed through the API), after
+which the deploy went through and the five changed files were checked live. Firebase removes the
+older versions in the background.
 
 ---
 

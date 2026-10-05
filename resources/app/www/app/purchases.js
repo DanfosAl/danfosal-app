@@ -11,6 +11,7 @@ import { esc, eur, int, icon, plural, money2, toast, openDrawer, openModal } fro
 import { buildPurchasing } from './purchasing.js';
 import { loadOrderLines } from './orderlist.js';
 import { prefillReceive } from './receive.js';
+import { checkButton, wireCheckButton } from './autopilot-run.js';
 
 const pu = { filter: 'open' };
 const d8 = s => s ? new Date(s + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
@@ -40,6 +41,8 @@ export async function renderPurchases(ctx) {
     try { [P, lines] = await Promise.all([loadPurchasing(ctx.model.products), loadOrderLines()]); }
     catch (e) { ctx.body.innerHTML = `<div class="error-box">${icon('error')}<div><b>Couldn't load the purchases.</b><br><span>${esc(e.message)}</span></div></div>`; return; }
     if (ctx.tab !== 'purchases') return;
+    // Goods came mid-week: file Downloads now instead of waiting for Monday, then show the result.
+    wireCheckButton(ctx.setActions(checkButton()), () => { if (ctx.tab === 'purchases') renderPurchases(ctx); });
 
     const onList = new Set(lines.map(l => l.orderNo).filter(Boolean));
     const year = String(new Date().getFullYear());
@@ -83,7 +86,7 @@ export async function renderPurchases(ctx) {
                 <td><span class="chip ${tone}">${esc(label)}</span>${onList.has(o.orderNo) ? ' <span class="chip vio">on the list</span>' : ''}</td>
                 <td class="n" style="white-space:nowrap">${o.waiting.length ? `<button class="btn small money" type="button" data-book="${esc(o.orderNo)}">${icon('move_to_inbox')}Book into stock</button>` : ''}
                     ${canList ? `<button class="btn small" type="button" data-list="${esc(o.orderNo)}">${icon('playlist_add')}Order list</button>` : ''}</td></tr>`;
-        }).join('') || `<tr><td colspan="8"><div class="all-clear">${icon('check_circle')}<div><b>${pu.filter === 'open' ? 'No order is waiting on anything.' : 'Nothing here.'}</b><br><span>New Kärcher papers are read when the Paper Autopilot files Downloads (Mondays).</span></div></div></td></tr>`}</tbody></table>
+        }).join('') || `<tr><td colspan="8"><div class="all-clear">${icon('check_circle')}<div><b>${pu.filter === 'open' ? 'No order is waiting on anything.' : 'Nothing here.'}</b><br><span>New Kärcher papers are read when Downloads is filed: on Mondays, or now with “Check Downloads now”.</span></div></div></td></tr>`}</tbody></table>
         <div class="table-foot">Read from the papers in E:\\Danfos Papers. Landed cost = what you paid Kärcher (less any cash discount credited back) + customs duty and fees; import VAT is left out because it is reclaimed.</div></div>`;
 
     ctx.body.querySelector('#pu-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { pu.filter = b.dataset.f; renderPurchases(ctx); } });

@@ -4,7 +4,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: (updateInfo) => ipcRenderer.invoke('download-update', updateInfo),
   fetchURL: (url) => ipcRenderer.invoke('fetch-url', url),
-  savePagePDF: (name) => ipcRenderer.invoke('save-page-pdf', name)
+  savePagePDF: (name) => ipcRenderer.invoke('save-page-pdf', name),
+  runPaperAutopilot: () => ipcRenderer.invoke('paper-autopilot-run')
 });
 
 // Receipt Watcher IPC Bridge

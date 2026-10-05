@@ -16,6 +16,7 @@ import { esc, eur, int, icon, plural, day, fold, money2, toast, openModal } from
 import { VAT, productNetCost, suggestProducts, rankProducts } from './data.js';
 import { loadOrderLines, outstanding, productForLine } from './orderlist.js';
 import { addSupplierInvoice } from './payables.js';
+import { checkButton, wireCheckButton } from './autopilot-run.js';
 import { parseKarcher } from './karcher-invoice.js';
 export { parseKarcher };
 
@@ -144,8 +145,11 @@ function renderPick(ctx) {
             <input type="file" id="rc-file" accept="application/pdf,image/*" hidden>
         </label>
         <p class="empty" id="rc-status" style="margin:0">${esc(rcv.status || '')}</p>
+        <div class="panel" style="padding:12px 16px;display:flex;align-items:center;gap:12px">${icon('download')}<span style="flex:1" class="muted">Kärcher invoice just downloaded? File Downloads now: it's read, linked to its order and costed in Purchases, ready to book.</span>
+            ${checkButton()}</div>
         <div class="panel" style="padding:12px 16px;display:flex;align-items:center;gap:12px">${icon('edit_note')}<span style="flex:1" class="muted">No invoice file? Enter the delivery by hand.</span>
             <button class="btn" type="button" id="rc-manual">Enter manually</button></div>`;
+    wireCheckButton(ctx.body, (r, go) => { if (go) window.location.hash = '#purchases'; });
     const drop = ctx.body.querySelector('#rc-drop'), input = ctx.body.querySelector('#rc-file'), status = ctx.body.querySelector('#rc-status');
     const take = async file => {
         if (!file || rcv.busy) return;

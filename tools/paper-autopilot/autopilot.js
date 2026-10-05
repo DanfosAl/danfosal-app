@@ -7,6 +7,8 @@
 //                                      Leaves anything downloaded in the last --settle minutes
 //   --sweep --weekly                   the same, at most once a week: the first time it is started
 //                                      on or after a Monday ("Danfosal Paper Autopilot" task)
+//   --now                              the same work as the sweep, at once and with no waiting
+//                                      period; prints a JSON summary (the app's "Check Downloads now")
 //   --shortcuts                        refresh the "_Archive - ..." shortcuts in Downloads
 //   --sync                             put the filed purchase papers into the app (purchaseDocs),
 //                                      and new orders onto the order list (the sweep does this too)
@@ -29,8 +31,8 @@ import { syncPurchases } from './sync.js';
 
 // The owner's choice (26 Sep 2026): the E: drive, not Documents, which Windows syncs to OneDrive.
 const { values: opt, positionals } = parseArgs({ allowPositionals: true, options: {
-    apply: { type: 'boolean' }, undo: { type: 'boolean' }, sweep: { type: 'boolean' },
-    weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' },
+    apply: { type: 'boolean' }, undo: { type: 'boolean' }, sweep: { type: 'boolean' }, now: { type: 'boolean' },
+    weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' }, 'no-sync': { type: 'boolean' },
     source: { type: 'string', default: join(homedir(), 'Downloads') },
     dest: { type: 'string', default: 'E:\\Danfos Papers' },
     out: { type: 'string', default: 'C:\\Danfosal\\Reports\\paper-autopilot' },
@@ -59,6 +61,46 @@ function refreshShortcuts() {
 function thisMonday() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7).getTime();
+}
+
+// One sweep: file what is new in Downloads, refresh the shortcuts, read the purchase papers into the
+// app. Shared by the Monday task and the app's button, so both always do the same thing. One run at
+// a time: a lock younger than an hour means another sweep is still going. Every run is a line in
+// sweep.log; the summary returned is what the app shows.
+async function sweep({ settleMinutes, who }) {
+    const lock = join(opt.out, 'sweep.lock'), logFile = join(opt.out, 'sweep.log');
+    const line = s => appendFileSync(logFile, `${new Date().toISOString()} ${who === 'manual' ? '[button] ' : ''}${s}\n`);
+    const result = { ok: false, at: new Date().toISOString(), filed: [], recycled: [], skipped: [], left: {}, synced: 0, syncedKinds: {}, orderLines: 0 };
+    if (existsSync(lock) && Date.now() - statSync(lock).mtimeMs < 3600000) return { ...result, busy: true };
+    if (!existsSync(opt.dest.slice(0, 3))) { line(`skipped: ${opt.dest.slice(0, 2)} is not available`); return { ...result, error: `${opt.dest.slice(0, 2)} is not available` }; }
+    writeFileSync(lock, String(process.pid));
+    try {
+        const plan = await makePlan({ source: opt.source, dest: opt.dest, settleMinutes, cachePath: join(opt.out, 'cache.json') });
+        plan.actions.filter(a => a.action === 'leave').forEach(a => { result.left[a.type] = (result.left[a.type] || 0) + 1; });
+        if (!plan.summary.move && !plan.summary.recycle) line('nothing new');
+        else {
+            const journal = join(opt.out, `journal-${stamp()}.jsonl`);
+            const r = await applyPlan(plan, { journal });
+            const skipped = new Set(r.skipped.map(s => s.file));
+            result.filed = plan.actions.filter(a => a.action === 'move' && !skipped.has(a.file))
+                .map(a => ({ file: a.file, to: a.to.slice(opt.dest.length + 1), label: a.label, type: a.type }));
+            result.recycled = plan.actions.filter(a => a.action === 'recycle' && !skipped.has(a.file)).map(a => a.file);
+            result.skipped = r.skipped;
+            result.journal = journal;
+            line(`filed ${r.moved}, recycled ${r.recycled}, skipped ${r.skipped.length} (${journal})`);
+        }
+        refreshShortcuts().forEach(s => line(`Downloads: ${s}`));
+        // The purchase papers just filed, into the app. A failure here doesn't undo the filing.
+        // --no-sync is for tests on a copy of Downloads: their papers must not reach the live data.
+        if (!opt['no-sync']) try {
+            const s = await syncPurchases({ dest: opt.dest, downloads: opt.source, out: opt.out, log: line });
+            Object.assign(result, { synced: s.synced, syncedKinds: s.byKind, orderLines: s.orderLines });
+            if (s.synced) line(`synced ${s.synced} purchase papers ${JSON.stringify(s.byKind)}, ${s.orderLines} order-list lines added`);
+        } catch (e) { result.syncError = e.message; line(`purchase sync failed: ${e.message}`); }
+        result.ok = true;
+    } catch (e) { result.error = String(e.message || e); line(`failed: ${e.stack || e}`); }
+    finally { try { unlinkSync(lock); } catch { } }
+    return result;
 }
 
 if (opt.apply) {
@@ -92,36 +134,26 @@ if (opt.apply) {
 
 } else if (opt.sweep) {
     // ------------------------------------------------------------ unattended, from Task Scheduler
-    // One run at a time: a lock younger than an hour means another sweep is still going.
     // --weekly: the task starts it at every logon and on Monday morning; only the first start on
     // or after Monday does the work, so a PC that stays off on Monday is swept the next time it
     // is turned on that week.
-    const lock = join(opt.out, 'sweep.lock'), logFile = join(opt.out, 'sweep.log'), state = join(opt.out, 'sweep-state.json');
-    const line = s => appendFileSync(logFile, `${new Date().toISOString()} ${s}\n`);
+    const state = join(opt.out, 'sweep-state.json');
     let last = 0;
     try { last = Date.parse(JSON.parse(readFileSync(state, 'utf8')).lastSweep) || 0; } catch { }
     if (opt.weekly && last >= thisMonday()) process.exit(0);
-    if (existsSync(lock) && Date.now() - statSync(lock).mtimeMs < 3600000) process.exit(0);
-    if (!existsSync(opt.dest.slice(0, 3))) { line(`skipped: ${opt.dest.slice(0, 2)} is not available`); process.exit(0); }
-    writeFileSync(lock, String(process.pid));
-    try {
-        const settle = Number(opt.settle);
-        const plan = await makePlan({ source: opt.source, dest: opt.dest, settleMinutes: Number.isFinite(settle) ? settle : 15, cachePath: join(opt.out, 'cache.json') });
-        if (!plan.summary.move && !plan.summary.recycle) line('nothing new');
-        else {
-            const journal = join(opt.out, `journal-${stamp()}.jsonl`);
-            const r = await applyPlan(plan, { journal });
-            line(`filed ${r.moved}, recycled ${r.recycled}, skipped ${r.skipped.length} (${journal})`);
-        }
-        refreshShortcuts().forEach(s => line(`Downloads: ${s}`));
-        // The purchase papers just filed, into the app. A failure here doesn't undo the filing.
-        try {
-            const s = await syncPurchases({ dest: opt.dest, downloads: opt.source, out: opt.out, log: line });
-            if (s.synced) line(`synced ${s.synced} purchase papers ${JSON.stringify(s.byKind)}, ${s.orderLines} order-list lines added`);
-        } catch (e) { line(`purchase sync failed: ${e.message}`); }
-        writeFileSync(state, JSON.stringify({ lastSweep: new Date().toISOString() }));
-    } catch (e) { line(`failed: ${e.stack || e}`); process.exitCode = 1; }
-    finally { try { unlinkSync(lock); } catch { } }
+    const settle = Number(opt.settle);
+    const r = await sweep({ settleMinutes: Number.isFinite(settle) ? settle : 15, who: 'weekly' });
+    if (r.ok) writeFileSync(state, JSON.stringify({ lastSweep: new Date().toISOString() }));
+    else if (r.error) process.exitCode = 1;
+
+} else if (opt.now) {
+    // ------------------------------------------------------------ the app's "Check Downloads now"
+    // The same work as the Monday sweep, at once and including what was downloaded a moment ago
+    // (the owner pressed the button for exactly that). Unfinished downloads are still skipped.
+    // Prints one JSON line, which the desktop app shows. The weekly run still happens on Monday.
+    const r = await sweep({ settleMinutes: 0, who: 'manual' });
+    process.stdout.write(JSON.stringify(r) + '\n');
+    if (r.error) process.exitCode = 1;
 
 } else {
     // ------------------------------------------------------------ the dry run

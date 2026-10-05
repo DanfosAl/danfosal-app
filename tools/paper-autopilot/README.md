@@ -92,6 +92,25 @@ next time the PC is turned on that week. Each run is one line in `sweep.log`; th
 last one is in `sweep-state.json`. The task runs as the logged-on user (it needs their Downloads
 and Recycle Bin) and skips the week's run if E: is not there.
 
+## Any day: "Check Downloads now"
+
+The app has a **Check Downloads now** button (Stock › Purchases, and Receive delivery) for goods
+that arrive mid-week. It does exactly the Monday work at once - `autopilot.js --now` - but with no
+15-minute waiting period, since pressing it means "file what I just downloaded" (unfinished
+`.crdownload`/`.part` downloads are still skipped). It prints a JSON summary the app shows: what
+was filed where, copies recycled, purchase papers read, order-list lines added.
+
+- **Desktop app:** `resources/app/autopilot-runner.js` (main process) runs the tool on the PC's
+  Node and returns the summary; a second press while one runs joins it.
+- **Phone or web:** the button writes a request to Firestore `autopilotRuns`; the desktop app on
+  the shop PC, whenever it is open, claims every waiting request, runs one check for all of them
+  and writes the result back, which the phone shows. If the PC doesn't take it within 90 seconds,
+  the phone says so and the request waits until the app is opened there.
+- One sweep at a time for all three (button, phone, Monday task): the `sweep.lock`.
+
+`--no-sync` skips the purchase reading; it's for tests on a copy of Downloads, whose papers must
+not reach the live data.
+
 ## Shortcuts in Downloads
 
 `shortcuts.ps1` keeps a `_Archive - <folder>.lnk` in Downloads for every top-level archive

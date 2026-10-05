@@ -4,6 +4,7 @@
 // sidebar and Analytics' own sidebar). Until each workspace is rebuilt, its entries open the
 // existing "classic" screens, which is why every flyout says so.
 import { esc, icon, eur, int, ago, day } from './ui.js';
+import { serveRemoteRequests } from './autopilot-run.js';
 import { saleTime, saleInvoiceNumber, shortInvoice, WALKIN, customerKey, orderTotal, orderTime, productIdOfLine } from './data.js';
 
 export const NAV = [
@@ -77,6 +78,8 @@ export function mountShell({ active = 'today', counts = {} } = {}) {
         </div>
     </div>`;
     document.getElementById('open-search').addEventListener('click', openPalette);
+    // On the shop PC, every screen answers "Check Downloads now" requests from the phone.
+    serveRemoteRequests().catch(() => {});
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
     });

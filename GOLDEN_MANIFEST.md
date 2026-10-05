@@ -221,6 +221,7 @@ computing their own, which is what ended the era of one app showing three differ
 | `predictions` | 4 | Yearly purchase plans; v2 documents are the ones the new plan reads |
 | `toOrder` | 24 | The order list |
 | `purchaseDocs` | 150 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
+| `autopilotRuns` | 1 | "Check Downloads now" requests from the phone, answered by the desktop app on the shop PC - Finding #54 |
 | `stockCorrections` | 1 | The 14 Sep stock reconciliation |
 | `dataFixes` | 3 | Reversible data corrections, each with its backup file |
 | `settings` | 2 | `receiptNames.services`, `customerReview.notSame` - the owner's own decisions |
@@ -786,6 +787,37 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **54. "CHECK DOWNLOADS NOW": THE MONDAY FILING ON DEMAND, FROM THE PC OR THE PHONE** — ✅ **BUILT & VERIFIED (October 5, 2026)**
+
+The owner: goods arrive mid-week, and logging them shouldn't wait for Monday's filing. Stock ›
+Purchases and Receive delivery now have a **Check Downloads now** button that does the Monday
+sweep at once and says what it did.
+
+- **One sweep for everything.** `autopilot.js` now has a single `sweep()` used by the Monday task
+  and by `--now`, so the button can never do something the schedule doesn't. `--now` has no
+  15-minute waiting period (pressing it means "file what I just downloaded"; `.crdownload`/`.part`
+  are still skipped), doesn't touch the weekly state, and prints a JSON summary. Every run is a
+  line in `sweep.log`, the button's marked `[button]`; `sweep.lock` keeps all of them to one at a time.
+- **Desktop:** `ipcMain` `paper-autopilot-run` → `autopilot-runner.js` (new, packaged via `build.files`)
+  spawns the tool on the PC's Node (Electron's own as a fallback), joins a run already going, and
+  returns the summary, or the line of a crash that says what failed.
+- **Phone / web:** the button writes `autopilotRuns/{id} {status: 'requested'}`. Every screen of the
+  desktop app listens (`serveRemoteRequests`, started by `mountShell`), claims all waiting requests
+  in transactions, runs one check for them and writes `{status: 'done'|'failed', result}`, which the
+  phone is watching. No answer in 90 s: the phone says the PC's app isn't open, and the request
+  waits for it. A request left "running" over 20 minutes is marked cut off.
+- `www/app/autopilot-run.js` holds the button, the request/serve logic and the result dialog
+  ("2 papers filed … Read into Purchases: 1 invoice, 1 customs declaration" → Open Purchases).
+
+**Verified:** the runner with plain Node on a sandbox copy - a normal run, two presses sharing one
+run, a press while locked (`busy`), a missing tool, chatter before the JSON, a crash (6/6). The
+phone → database → PC → phone loop through live Firestore with a stand-in PC returning a canned
+result (no real sweep): the phone showed "Asking the shop PC…", "The shop PC is checking…", then
+the result; the PC ran once. The desktop path with a stand-in handler; the Receive panel; no
+console errors. One test request (`from: 'web'`, done) is left in `autopilotRuns`.
 
 ---
 

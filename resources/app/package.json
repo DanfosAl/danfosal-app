@@ -94,6 +94,7 @@
             "www/**/*",
             "main.js",
             "preload.js",
+            "autopilot-runner.js",
             "package.json",
             "node_modules/**/*",
             "!node_modules/@capacitor/android/**",

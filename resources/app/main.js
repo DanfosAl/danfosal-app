@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const { runAutopilot } = require('./autopilot-runner');
 
 // Fix ICU data path issue for packaged apps
 if (process.env.NODE_ENV !== 'development') {
@@ -111,6 +112,10 @@ ipcMain.handle('save-page-pdf', async (event, suggestedName) => {
   shell.openPath(filePath);
   return { saved: true, filePath };
 });
+
+// "Check Downloads now" (Stock > Purchases, Receive delivery): the Paper Autopilot's sweep at once
+// instead of waiting for Monday. See autopilot-runner.js.
+ipcMain.handle('paper-autopilot-run', () => runAutopilot());
 
 // Fetch URL without CORS restrictions (for fiscal invoice pages)
 // Uses a hidden BrowserWindow to handle SPA rendering (Angular/React apps)

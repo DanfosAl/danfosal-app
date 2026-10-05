@@ -7,20 +7,22 @@ import { createReadStream, existsSync, readFileSync, readdirSync, statSync, writ
 import { createHash } from 'node:crypto';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pdfLines } from './pdftext.js';
-import { classify, clean } from './classify.js';
+import { pdfLines, pdfjs } from './pdftext.js';
+import { classify, classifyFile, classifyScan, classifyBankExport, isArchiveRecord, clean, baseName } from './classify.js';
 import { readKarcherStatement } from './purchase-read.js';
+import { kindOf, isSecret, docxLines, bankStatement, xlsxLabels } from './formats.js';
+import { ocrFirstPage, closeOcr } from './ocr.js';
 
-// Unfinished downloads, Windows' own files, and the shortcuts to the archive that live here.
-const SKIP = /^(desktop\.ini|thumbs\.db)$|\.(crdownload|part|tmp|lnk)$/i;
+// Unfinished downloads, Windows' own files, Office's lock files ("~$name.xlsx" while it's open),
+// and the shortcuts to the archive that live here.
+const SKIP = /^(desktop\.ini|thumbs\.db)$|^~\$|\.(crdownload|part|tmp|lnk)$/i;
 
 // What was learnt about a file last time, keyed by name, size and date, so a scheduled run does
 // not re-read 3 GB of installers every half hour. A PDF's "not recognised" answer is only reused
 // while the rules that gave it are unchanged.
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RULES_VERSION = createHash('sha256')
-    .update(readFileSync(join(HERE, 'classify.js'))).update(readFileSync(join(HERE, '../../resources/app/www/app/karcher-invoice.js')))
-    .digest('hex').slice(0, 16);
+const RULES_VERSION = ['classify.js', 'formats.js', 'ocr.js', '../../resources/app/www/app/karcher-invoice.js']
+    .reduce((h, f) => h.update(readFileSync(join(HERE, f))), createHash('sha256')).digest('hex').slice(0, 16);
 function loadCache(path) {
     try { const c = JSON.parse(readFileSync(path, 'utf8')); return c.rules === RULES_VERSION ? c : { files: c.files || {}, rules: RULES_VERSION, stale: true }; }
     catch { return { files: {}, rules: RULES_VERSION }; }
@@ -44,11 +46,17 @@ const base = f => ({ file: f.name, size: f.size, modified: new Date(f.mtime).toI
 // never files a PDF the owner has just downloaded and is about to open or send.
 export async function makePlan({ source, dest, settleMinutes = 0, cachePath = '', log = () => {} }) {
     const now = Date.now();
-    const files = readdirSync(source, { withFileTypes: true })
+    let files = readdirSync(source, { withFileTypes: true })
         .filter(d => d.isFile() && !SKIP.test(d.name))
         .map(d => { const path = join(source, d.name), s = statSync(path); return { name: d.name, path, size: s.size, mtime: s.mtimeMs, arrived: Math.max(s.birthtimeMs || 0, s.mtimeMs) }; })
         .sort((a, b) => a.mtime - b.mtime);
     const settling = f => settleMinutes > 0 && now - f.arrived < settleMinutes * 60000;
+    const actions = [];
+
+    // Keys and recovery codes: named, never opened (not even hashed), never moved.
+    for (const f of files.filter(f => isSecret(f.name)))
+        actions.push({ file: f.name, size: f.size, modified: new Date(f.mtime).toISOString(), action: 'leave', type: 'secret', label: 'Key or recovery codes: belongs in a password manager' });
+    files = files.filter(f => !isSecret(f.name));
 
     const cache = cachePath ? loadCache(cachePath) : { files: {} }, seen = {};
     for (const f of files) {
@@ -60,7 +68,7 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
     }
 
     // Exact copies. A group with a file still settling is left whole until it settles.
-    const actions = [], keepers = [], byHash = new Map();
+    const keepers = [], byHash = new Map();
     files.forEach(f => byHash.set(f.sha256, [...(byHash.get(f.sha256) || []), f]));
     for (const group of byHash.values()) {
         if (group.some(settling)) { group.forEach(f => actions.push({ ...base(f), action: 'leave', type: 'settling', label: 'Just downloaded' })); continue; }
@@ -69,41 +77,61 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
         group.filter(f => f !== keep).forEach(f => actions.push({ ...base(f), action: 'recycle', type: 'duplicate', label: 'Exact copy', duplicateOf: keep.name }));
     }
 
-    // What each PDF is.
-    const pdfs = keepers.filter(f => /\.pdf$/i.test(f.name));
+    // What each file is: by what it really is, not by its extension ("PDF (3)" is a PDF).
+    const leave = (f, verdict, cacheIt = false) => { actions.push({ ...base(f), action: 'leave', ...verdict }); if (cacheIt) seen[f.key].verdict = verdict; };
+    const pdfs = keepers.filter(f => kindOf(f.path, f.name) === '.pdf');
     let done = 0;
-    for (const f of keepers) {
-        // Kärcher's account statement arrives as a spreadsheet, not a PDF.
-        if (/\.xlsx$/i.test(f.name) && /balance|statement|kartel/i.test(f.name)) {
-            const st = await readKarcherStatement(f.path).catch(() => null);
-            if (st) {
-                const d = f.name.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/), date = d ? `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}` : st.date;
-                actions.push({ ...base(f), action: 'move', type: 'karcher-statement', label: 'Kärcher account statement', folder: `Kärcher/Statements/${date.slice(0, 4)}`,
-                    newName: `${date} Kärcher statement.xlsx`, fields: { date, open: st.openTotal, lines: st.lines.length } });
+    try {
+        for (const f of keepers) {
+            const ext = kindOf(f.path, f.name);
+            // Kärcher's account statement arrives as a spreadsheet, not a PDF.
+            if (ext === '.xlsx' && /balance|statement|kartel/i.test(f.name)) {
+                const st = await readKarcherStatement(f.path).catch(() => null);
+                if (st) {
+                    const d = f.name.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/), date = d ? `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}` : st.date;
+                    actions.push({ ...base(f), action: 'move', type: 'karcher-statement', label: 'Kärcher account statement', folder: `Kärcher/Statements/${date.slice(0, 4)}`,
+                        newName: `${date} Kärcher statement.xlsx`, fields: { date, open: st.openTotal, lines: st.lines.length } });
+                    continue;
+                }
+            }
+            if (ext !== '.pdf') {
+                let hit = null;
+                try {
+                    if (ext === '.xml' || ext === '.csv') {
+                        const b = bankStatement(f.path, ext);
+                        if (b) hit = classifyBankExport(b, ext);
+                        else if (ext === '.xml' && isArchiveRecord(readFileSync(f.path, 'utf8').slice(0, 3000)))
+                            hit = { type: 'research', label: 'Book / research (ADI)', folder: 'ADI', newName: f.name, fields: {}, sensitive: false, versions: false, undated: false };
+                    }
+                    else if (ext === '.docx') hit = classifyFile({ name: f.name, ext, lines: await docxLines(f.path) });
+                    else if (ext === '.xlsx') hit = classifyFile({ name: f.name, ext }) || classifyFile({ name: f.name, ext, labels: await xlsxLabels(f.path, f.size) });
+                    else if (['.xls', '.doc', '.pptx', '.epub', '.eml', '.tif'].includes(ext)) hit = classifyFile({ name: f.name, ext });
+                } catch { /* an unreadable file simply stays */ }
+                if (hit) actions.push({ ...base(f), action: 'move', ...hit });
+                else leave(f, { type: 'not-pdf', label: `${ext || '(no extension)'} file` });
                 continue;
             }
+            if (++done % 50 === 0) log(`  read ${done} of ${pdfs.length} PDFs`);
+            if (f.verdict) { leave(f, f.verdict, true); continue; }
+            let read;
+            try {
+                read = await pdfLines(f.path, { maxPages: 4 });
+                // A Kärcher invoice's totals are on its last page.
+                if (read.pages > 4 && /k[aä]rcher d\.o\.o\./i.test(read.lines.join(' '))) read = await pdfLines(f.path, { maxPages: 60 });
+            } catch (e) {
+                leave(f, { type: 'unreadable', label: 'Could not be opened', note: String(e.message || e).slice(0, 120) });
+                continue;
+            }
+            const hit = classify({ name: f.name, lines: read.lines, pages: read.pages, ext: '.pdf' });
+            if (hit) { actions.push({ ...base(f), action: 'move', ...hit }); continue; }
+            if (read.lines.join('').replace(/\s/g, '').length >= 40) { leave(f, { type: 'unknown', label: 'Not recognised' }, true); continue; }
+            // A scan: read the picture of its first page, and place it by whose paper it is.
+            const seenText = await ocrFirstPage(f.path, pdfjs).catch(() => []);
+            const scan = seenText.length ? classifyScan({ name: f.name, lines: seenText, pages: read.pages }) : null;
+            if (scan) actions.push({ ...base(f), action: 'move', ...scan });
+            else leave(f, { type: 'scan', label: 'Scan: not recognisable' }, true);
         }
-        if (!/\.pdf$/i.test(f.name)) {
-            actions.push({ ...base(f), action: 'leave', type: 'not-pdf', label: `${(extname(f.name) || '(no extension)').toLowerCase()} file` });
-            continue;
-        }
-        if (++done % 50 === 0) log(`  read ${done} of ${pdfs.length} PDFs`);
-        if (f.verdict) { actions.push({ ...base(f), action: 'leave', ...f.verdict }); seen[f.key].verdict = f.verdict; continue; }
-        let read;
-        try {
-            read = await pdfLines(f.path, { maxPages: 4 });
-            // A Kärcher invoice's totals are on its last page.
-            if (read.pages > 4 && /k[aä]rcher d\.o\.o\./i.test(read.lines.join(' '))) read = await pdfLines(f.path, { maxPages: 60 });
-        } catch (e) {
-            actions.push({ ...base(f), action: 'leave', type: 'unreadable', label: 'Could not be opened', note: String(e.message || e).slice(0, 120) });
-            continue;
-        }
-        const hit = classify({ name: f.name, lines: read.lines, pages: read.pages });
-        if (hit) { actions.push({ ...base(f), action: 'move', ...hit }); continue; }
-        const verdict = read.lines.join('').replace(/\s/g, '').length < 40 ? { type: 'scan', label: 'Scan with no text' } : { type: 'unknown', label: 'Not recognised' };
-        actions.push({ ...base(f), action: 'leave', ...verdict });
-        seen[f.key].verdict = verdict;
-    }
+    } finally { await closeOcr(); }
     if (cachePath) writeFileSync(cachePath, JSON.stringify({ rules: RULES_VERSION, files: seen }));
 
     // Where each one goes. Oldest first, so when two different files earn the same name (an
@@ -131,7 +159,7 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
             continue;
         }
         const plain = join(dir, a.newName), ext = extname(a.newName), stem = a.newName.slice(0, a.newName.length - ext.length);
-        const versioned = join(dir, `${stem} (${clean(a.file.replace(/(\.pdf)+$/i, ''), 70)})${ext}`);
+        const versioned = join(dir, `${stem} (${clean(baseName(a.file), 70)})${ext}`);
         function* names() {
             yield plain;
             if (a.versions) yield versioned;

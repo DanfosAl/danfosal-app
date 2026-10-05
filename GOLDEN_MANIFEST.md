@@ -790,6 +790,31 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **55. THE ARCHIVER READS THE REST: WORD, SPREADSHEETS, BANK EXPORTS, SCANS** — ✅ **BUILT, CHECKED BY DRY RUN (October 5, 2026)**
+
+After the first filing, 448 files were still in Downloads: 93 spreadsheets, 17 Word files, 29 scans,
+21 unrecognised PDFs, 12 PDFs without ".pdf", 19 bank exports, plus photos, installers and music.
+The archiver now places **183 more papers** (dry run, real Downloads, nothing moved) with no change
+to what it already knew: all 457 papers filed on 26 Sep re-classify to the same type under their
+original names.
+
+- `formats.js`: real type from the first bytes (12 extension-less PDFs, among them **10 Kärcher
+  invoices of 27 Nov 2025** that Purchases lacked, e.g. 7573108773 €8,312.42); Word text; Raiffeisen
+  XML/CSV statements (account, period); spreadsheet column labels (files under 3 MB, labels only).
+- `ocr.js`: scans read with pdf.js (page picture, any encoding) + the app's Tesseract and English
+  data. Placed by whose paper it is and its kind: 9 scanned Kärcher bundles, 8 Turkish export /
+  origin papers, a Bayersan e-invoice, leaflets and a certificate.
+- `classify.js`: Bayersan proformas (INV. NO 724 = the €1,578 transfer), Kosovo supplier invoices,
+  contracts, tenders (before contracts: "njoftim për dhënie të kontratës"), reports, vehicle papers,
+  warranty letters, shop signs, marketing, manuals/MSDS; name and label rules for spreadsheets.
+- **Never touched:** key and recovery-code files (four Firebase Admin SDK keys and three
+  recovery-code files sit in Downloads; they are not opened, hashed, moved or copied, only
+  reported) and a 530,000-row spreadsheet of plates and owners' names (left as it is).
+- Still left: photos, installers, music, and 21 odd files (project JSONs, a script, handwritten
+  scans, an unreadable sheet). The next button press or Monday run files the 183.
+
+---
+
 #### **54. "CHECK DOWNLOADS NOW": THE MONDAY FILING ON DEMAND, FROM THE PC OR THE PHONE** — ✅ **BUILT & VERIFIED (October 5, 2026)**
 
 The owner: goods arrive mid-week, and logging them shouldn't wait for Monday's filing. Stock ›

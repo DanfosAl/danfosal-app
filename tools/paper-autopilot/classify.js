@@ -59,7 +59,7 @@ const pick = (text, re) => (text.match(re) || [])[1] || '';
 const lineAfter = (lines, re) => { const i = lines.findIndex(l => re.test(l)); return i >= 0 ? lines[i + 1] || '' : ''; };
 const dmy = (text, re) => { const m = text.match(re); return m ? iso(m[3], m[2], m[1]) : ''; };
 // What a person typed into a file name, minus the words every file of its kind carries.
-const stemWords = (name, noise) => name.replace(/(\.pdf)+$/i, '').replace(/\([^)]*\)/g, ' ').replace(/[_.\-]+/g, ' ')
+const stemWords = (name, noise) => baseName(name).replace(/\([^)]*\)/g, ' ').replace(/[_.\-]+/g, ' ')
     .replace(noise, ' ').replace(/\s+/g, ' ').trim();
 // A date written into the file name: "(19.08.2026)", "(18.08.26)", "_18-12-2025".
 const nameDate = name => { const m = name.match(/(\d{1,2})[._-](\d{1,2})[._-](\d{4}|\d{2})(?!\d)/); return m ? iso(m[3], m[2], m[1]) : ''; };
@@ -233,6 +233,35 @@ const RULES = [
         }
     },
     {
+        // A Turkish supplier's proforma (Bayersan): "PROFORMA INVOICE", "INV. NO 724", "DATE 24.07.2025",
+        // "TOTAL EXWORKS € 1.578,00", and the supplier's name on the first line.
+        type: 'supplier-proforma-tr', label: 'Supplier proforma', folder: byYear('Purchase invoices'),
+        test: c => /PROFORMA INVOICE/.test(c.head) && /INV\.\s*NO\s+\d+/.test(c.head),
+        read(c) {
+            const number = pick(c.text, /INV\.\s*NO\s+(\d+)/);
+            const date = dmy(c.text, /DATE\s+(\d\d)\.(\d\d)\.(\d{4})/);
+            const seller = words((c.lines[0] || '').replace(/[^\p{L}\s&-]/gu, ' '), 1);
+            const total = amount(pick(c.text, /^TOTAL[^\d\n]*?([\d.,]+)\s*$/m));
+            return { date, number, party: seller, amount: total, currency: 'EUR', name: `${date} Supplier proforma ${number} ${seller} ${money('EUR', total)}` };
+        }
+    },
+    {
+        // Other suppliers' invoices to Danfos. Edifloor (Kosovo): "F A T U R Ë", the number on the next
+        // line, "Subjekti : <seller> Subjekti : DANFOS". Chili House: "INVOICE", "Nr. Faturës INV-000027",
+        // "Data e Faturimit 24 Sep 2025", the seller on the first line.
+        type: 'purchase-invoice', label: 'Supplier invoice', folder: byYear('Purchase invoices'),
+        test: c => (/^F\s?A\s?T\s?U\s?R\s?[ËE]$/m.test(c.head) && /Subjekti\s*:\s*DANFOS/i.test(c.text)) || (/^INVOICE\b/m.test(c.head) && /Nr\. Faturës/.test(c.head)),
+        read(c) {
+            const edif = /Subjekti\s*:\s*(.+?)\s+Subjekti\s*:\s*DANFOS/i.exec(c.text);
+            const seller = words(edif ? edif[1] : c.lines[0], 3);
+            const number = (edif ? lineAfter(c.lines, /^F\s?A\s?T\s?U\s?R\s?[ËE]$/) : pick(c.text, /Nr\. Faturës\s+(\S+)/)).trim();
+            const m = c.text.match(/Data e Faturimit\s+(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})/);
+            const date = m ? iso(m[3], monthEn(m[2]), m[1]) : dmy(c.text, /Data[^\d\n]{0,20}(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+            const total = lastNumber(pick(c.text, /^Total\s+(.+)$/m));
+            return { date, number, party: seller, amount: total, currency: 'EUR', name: `${date} Purchase invoice ${number} ${seller} ${money('EUR', total)}` };
+        }
+    },
+    {
         // A haulier's invoice for bringing a supplier's goods in. The supplier is only in the file
         // name ("Danfos - Rulopak Fature Transporti"), and it is what ties the cost to a shipment.
         type: 'transport-invoice', label: 'Transport invoice', folder: byYear('Purchase invoices'),
@@ -336,7 +365,7 @@ const RULES = [
             if (!party) party = stemWords(c.name, /\b(danfos|shpk|ofert[aeë]?|propozim|profesionale|teknike|financiare|final|clean|v\d+|pdf|\d+)\b/gi);
             const m = c.text.match(/^(?:Data|Date):\s*(\d{1,2})\s+([A-Za-zËë]+)\s+(\d{4})/m);
             const date = (m && iso(m[3], monthSq(m[2]), m[1])) || dmy(c.text, /Data:\s*(\d\d)\/(\d\d)\/(\d{4})/) || nameDate(c.name);
-            if (!party) return { date, name: `${date} ${c.name.replace(/(\.pdf)+$/i, '')}` };
+            if (!party) return { date, name: `${date} ${c.base}` };
             return { date, party, name: `${date} Offer ${words(party, 6)}` };
         }
     },
@@ -347,13 +376,52 @@ const RULES = [
         read: () => ({})
     },
     {
+        // Before contracts: a notice of contract award ("Njoftim për dhënie të kontratës") is a tender paper.
+        type: 'tender', label: 'Tender notice', folder: () => 'Tenders', keepName: true,
+        test: c => /NJOFTIM PËR DHËNIE TË KONTRATËS|Numri i Prokurimit/i.test(c.head) || /tender|prokurim|njoftim per dhenie/i.test(c.name),
+        read: () => ({})
+    },
+    {
+        // Contracts with customers or partners. Employment contracts are personal (above).
+        type: 'contract', label: 'Contract', folder: () => 'Contracts', keepName: true,
+        test: c => /^\s*(DRAFT )?(KONTRAT[ËE]|MARRËVESHJE|CONTRACT)\b/im.test(c.head) || /kontrat|contract|marr[eë]veshje/i.test(c.name),
+        read: () => ({})
+    },
+    {
+        type: 'report', label: 'Report', folder: () => 'Reports', keepName: true,
+        test: c => /raport|report|manifest/i.test(c.name) || /Advertising Report|Board \/ Investor|GOLDEN MANIFEST/i.test(c.head),
+        read: () => ({})
+    },
+    {
+        // A car's papers: an export clearance, a registration, plates.
+        type: 'vehicle', label: 'Vehicle papers', folder: () => 'Vehicles', keepName: true,
+        test: c => /clearance|targ[ëe]|vehicle|leje qarkullimi/i.test(c.name) || /차량|VEHICLE REGISTRATION/i.test(c.head),
+        read: () => ({})
+    },
+    {
+        type: 'warranty-letter', label: 'Warranty letter to a customer', folder: () => 'Warranty letters', keepName: true,
+        test: c => /garancion/i.test(c.name) || /ka garancion/i.test(c.text),
+        read: () => ({})
+    },
+    {
+        // A notice printed for the shop door: one page, a line or two, no figures but a time.
+        type: 'sign', label: 'Shop sign / notice', folder: () => 'Marketing/Shop signs', keepName: true,
+        test: c => c.pages === 1 && c.lines.length > 0 && c.lines.length <= 4 && c.text.length < 90 && !/\d{3,}/.test(c.text.replace(/\d{1,2}:\d{2}/g, '')),
+        read: () => ({})
+    },
+    {
+        type: 'marketing', label: 'Marketing / promotion', folder: () => 'Marketing', keepName: true,
+        test: c => /black ?friday|promo|fushat|reklam/i.test(c.name),
+        read: () => ({})
+    },
+    {
         type: 'research', label: 'Book / research (ADI)', folder: () => 'ADI',
         test: c => /Anna[’']s Archiv|isbn|gallica|btv1b|journal/i.test(c.name)
-            || /Source gallica|ISSN|doi\.org|DOI: ?10\.|Doktora Tez|DOKTORA TEZ|Yüksek Lisans|YÜKSEK L|Thesis|Tesis para|ÜN\s?[İI]\s?VERS|STUDIME HISTORIKE|Journal of/i.test(c.head)
+            || /Source gallica|ISSN|doi\.org|DOI: ?10\.|Doktora Tez|DOKTORA TEZ|Yüksek Lisans|YÜKSEK L|Thesis|Tesis para|ÜN\s?[İI]\s?VERS|STUDIME HISTORIKE|Journal of|Libra Online/i.test(c.head)
             || c.pages >= 80,
         read(c) {
             // Anna's Archive names: "Title _ Subtitle -- Author -- ... -- <md5> -- Anna's Archive.pdf".
-            const parts = c.name.replace(/\.pdf$/i, '').split(' -- ');
+            const parts = c.base.split(' -- ');
             if (parts.length >= 3 && /Anna/.test(parts[parts.length - 1])) {
                 const title = parts[0].replace(/ _ /g, ' - ').replace(/_/g, ' ');
                 const author = parts[1].split(/[;,]/)[0].replace(/_/g, '.').trim();
@@ -374,23 +442,128 @@ const RULES = [
     },
     {
         type: 'product-info', label: 'Product sheet / certificate', folder: () => 'Suppliers/Product info', keepName: true,
-        test: c => /Fletë Produkti|^Technical data$|Technical Information Explanation|DECLARATION OF PERFORMANCE|Informacione mbi Produktet/im.test(c.head),
+        test: c => /Fletë Produkti|^T\s?echnical data$|Technical Information Explanation|DECLARATION OF PERFORMANCE|Informacione mbi Produktet|SAFETY DATA SHEET/im.test(c.head)
+            || /msds|\bsds\b|specifikat|manual|udh[eë]zues/i.test(c.name)
+            || (/\bDeutsch\s+\d+$/m.test(c.head) && /^English\s+\d+$/m.test(c.head)),     // a multilingual manual's contents
         read: () => ({})
     }
 ];
 
-// c = { name, lines, pages }. Returns null when nothing is sure enough to act on.
+// ------------------------------------------------------------------ files that aren't read as text
+
+// Spreadsheets, old Word files, slides, e-books: by what the file name says. Names are kept.
+const BY_NAME = [
+    [/dergesat/i, 'shipments', 'Courier shipments export', 'Exports/Shipments'],
+    [/^(Order|OrderItem|Invoice)_CustomerNo_/i, 'karcher-export', 'Kärcher portal export', 'Kärcher/Portal exports'],
+    [/raport.?analitik|raport.?vleresim|^shitjet_|^artikujt|t_articles_sale_purchase|te_ardhurat_dhe_shpenzimet|template_fature_blerje|template_import/i, 'easybooks', 'EasyBooks export / template', 'Exports/EasyBooks'],
+    [/doganor|perdogan/i, 'customs-list', 'Customs product list', 'Customs/Product lists'],
+    [/redovni|gratis.?tablica|ponuda/i, 'karcher-pricelist', 'Kärcher price list / offer', 'Kärcher/Price lists'],
+    [/product.?list|assortment|local.?products|^(bayersan|rulopak|fersan)\b/i, 'price-list', 'Supplier price list', 'Suppliers/Price lists'],
+    [/ofert|kalkulim/i, 'offer', 'Offer (ofertë)', 'Offers'],
+    [/^shitje|cmime_konvertuar/i, 'sales-analysis', 'Sales analysis', 'Exports/Sales'],
+    [/pasqyr|bilanc/i, 'financial-statements', 'Financial statements', 'Tax/Financial statements'],
+    [/payment.?plan/i, 'payment-plan', 'Payment plan', 'Bank/Payment plans'],
+    [/kontrat|contract|marr[eë]veshje/i, 'contract', 'Contract', 'Contracts'],
+    [/msds|\bsds\b|specifikat|technical/i, 'product-info', 'Product sheet', 'Suppliers/Product info'],
+    [/katalog|catalog/i, 'catalogue', 'Danfos catalogue', 'Catalogues'],
+    [/raport|report|manifest/i, 'report', 'Report', 'Reports'],
+    [/Anna[’']s Archiv|isbn/i, 'research', 'Book / research (ADI)', 'ADI'],
+    [/targ[ëe]\b|targë prove|clearance/i, 'vehicle', 'Vehicle papers', 'Vehicles'],
+    [/regjistrime|qkb/i, 'qkb-extract', 'Business register paper (QKB)', 'Companies (QKB extracts)']
+];
+
+// When the name says nothing: a spreadsheet's column labels.
+const BY_LABELS = [
+    [/KODI TARIFOR/i, /PESHA|ORIGJINA/i, 'customs-list', 'Customs product list', 'Customs/Product lists'],
+    [/Material ?No|MatNo/i, /Gross ?Weight|Net ?Value/i, 'karcher-packing', 'Kärcher packing list', 'Kärcher/Packing lists'],
+    [/PROFAKTUR|PROFORMA/i, /.*/, 'proforma', 'Proforma / draft invoice', 'Proformas and drafts'],
+    [/kodi artikullit/i, /cmimi|tvsh/i, 'easybooks', 'EasyBooks item list', 'Exports/EasyBooks'],
+    [/P[ëe]rshkrimi/i, /Sasia/i, 'sales-analysis', 'Sales / invoice export', 'Exports/Sales']
+];
+
+// A non-PDF file. A Word document's text goes through the same rules as a PDF's first; anything
+// else is filed by its name, under that name.
+export function classifyFile({ name, ext, lines = [], labels = [] }) {
+    if (lines.length) { const hit = classify({ name, lines, pages: 1, ext }); if (hit) return hit; }
+    const byName = BY_NAME.find(([re]) => re.test(name));
+    const all = labels.join(' | '), byLabels = !byName && labels.length ? BY_LABELS.find(([a, b]) => a.test(all) && b.test(all)) : null;
+    const rule = byName || (byLabels && [null, ...byLabels.slice(2)]);
+    if (!rule) return null;
+    return { type: rule[1], label: rule[2], folder: rule[3], newName: `${clean(baseName(name))}${ext}`, fields: {}, sensitive: false, versions: false, undated: false };
+}
+
+// An archival finding aid (EAD XML) - a record from a manuscript catalogue, for ADI's research.
+export const isArchiveRecord = head => /<(ead|eadheader)\b|<filedesc>|<titlestmt>/.test(head);
+
+// ------------------------------------------------------------------ scans
+
+// Recognised text is rough ("Katcher d.0.0.", "FFRSANI"), so a scan is only told by whose it is and
+// what kind of paper it is, never read for figures. Whose: the supplier's name, spelled loosely.
+const SCAN_PARTIES = [
+    [/k[aä]rcher|katcher|karshet|samoborska/i, 'Kärcher'], [/bayersan|^BYI20\d{2}/i, 'Bayersan'], [/rulopak/i, 'Rulopak'],
+    [/ff?[ei]?rsan/i, 'Fersan'], [/sonuk|[s8]tar\s*(tekn|makina|servis)|^star\b/i, 'Star'], [/edifloor/i, 'Edifloor']
+];
+// The date: the scanner's file name ("20250508142223.pdf", "4780_250228123345_001.pdf",
+// "Scan2025-04-10_151452"), else the first real date in the text ("06.03.2025", "20092025").
+function scanDate(name, text) {
+    let m = name.match(/^(20\d{2})(\d{2})(\d{2})\d{6}/) || name.match(/Scan(20\d{2})-(\d{2})-(\d{2})/);
+    if (m && iso(m[1], m[2], m[3])) return iso(m[1], m[2], m[3]);
+    m = name.match(/_(\d{2})(\d{2})(\d{2})\d{6}_/);
+    if (m && iso('20' + m[1], m[2], m[3])) return iso('20' + m[1], m[2], m[3]);
+    for (const x of text.matchAll(/\b(\d{2})[./]?(\d{2})[./]?(20\d{2})\b/g)) { const d = iso(x[3], x[2], x[1]); if (d) return d; }
+    return '';
+}
+
+// A scan: its recognised first-page lines. Null when it can't be placed with confidence.
+export function classifyScan({ name, lines, pages }) {
+    const text = lines.join('\n'), all = `${name}\n${text}`;
+    const party = (SCAN_PARTIES.find(([re]) => re.test(name) || re.test(text)) || [])[1] || '';
+    const date = scanDate(name, text), year = date.slice(0, 4) || 'Undated';
+    const out = (type, label, folder, stem) => ({ type, label, folder, newName: `${clean(stem)}.pdf`, fields: { date, party, scan: true }, sensitive: false, versions: false, undated: !date });
+    // Checked strongest first. A Turkish e-invoice is named by its number ("BYI2025000000156").
+    const eInvoice = /^[A-Z]{3}20\d{2}\d{9}/.test(name);
+    if (party && eInvoice)
+        return out('supplier-invoice-scan', 'Supplier invoice (scan)', `Purchase invoices/${year}`, `${date} Supplier invoice ${party} ${name.slice(0, 16)} (scan)`);
+    // Export papers: a Turkish export declaration number ("25341300EX00709943"), the customs office,
+    // an origin certificate ("Consignor … ORIGINAL", EUR.1).
+    if (/\d{2}34\d{4}EX\d{6,}|G[UÜ]MR[UÜ]K|Consignor|Ihracat|EUR\.?\s?1\b/i.test(all))
+        return out('customs-scan', 'Customs / export papers (scan)', `Customs/${year}`, `${date} Customs papers${party ? ' ' + party : ''} (scan)`);
+    if (/certificate of conformity|conformity|typenschild|street sweeper|blancus|makinesi/i.test(all) && !/fatura|invoice/i.test(text))
+        return out('product-info', 'Product sheet / certificate (scan)', 'Suppliers/Product info', baseName(name));     // a leaflet keeps its name
+    if (/DEKLARAT|DECLARATION/i.test(all) || /^901\b/.test(name))
+        return out('customs-scan', 'Customs / export papers (scan)', `Customs/${year}`, `${date} Customs papers${party ? ' ' + party : ''} (scan)`);
+    if (party === 'Kärcher')
+        return out('karcher-scan', 'Kärcher papers (scan)', `Kärcher/Scans/${year}`, `${date} Kärcher papers (scan${pages > 1 ? `, ${pages} pages` : ''})`);
+    if (party && /e-?fatura|fatura|invoice/i.test(text))
+        return out('supplier-invoice-scan', 'Supplier invoice (scan)', `Purchase invoices/${year}`, `${date} Supplier invoice ${party} (scan)`);
+    if (party)
+        return out('supplier-scan', 'Supplier papers (scan)', `Suppliers/Scans/${year}`, `${date} ${party} papers (scan)`);
+    return null;
+}
+
+// A Raiffeisen statement exported as XML or CSV, filed beside the PDF ones.
+export function classifyBankExport({ account, from, to }, ext) {
+    return { type: 'bank-statement', label: 'Bank statement (data export)', folder: `Bank/Statements/${(to || '').slice(0, 4) || 'Undated'}`,
+        newName: `${clean(`Bank statement ${account} ${from} to ${to}`)}${ext}`, fields: { account, period: `${from} to ${to}` }, sensitive: false, versions: false, undated: !to };
+}
+
+// A file's name without its extension ("Oferte.docx" -> "Oferte"; "PDF (3)" stays "PDF (3)").
+export const baseName = name => name.replace(/(\.pdf)+$/i, '').replace(/\.(docx?|xlsx?|pptx?|csv|xml|epub|txt|tiff?|eml|md|json)$/i, '');
+
+// c = { name, lines, pages, ext }. ext is what the filed copy ends in: its own extension, or ".pdf"
+// for a PDF that came without one. Returns null when nothing is sure enough to act on.
 export function classify(c) {
-    const ctx = { ...c, text: c.lines.join('\n'), head: c.lines.slice(0, 14).join('\n') };
+    const ext = c.ext || '.pdf';
+    const ctx = { ...c, base: baseName(c.name), text: c.lines.join('\n'), head: c.lines.slice(0, 14).join('\n') };
     for (const rule of RULES) {
         if (!rule.test(ctx)) continue;
         const facts = rule.read(ctx);
         if (!facts) continue;
         const keepName = rule.keepName || facts.keepName;
-        const stem = clean(keepName ? c.name.replace(/\.pdf$/i, '') : facts.name);
+        const stem = clean(keepName ? ctx.base : facts.name);
         const folder = rule.folder(facts.date || facts.period || '', facts);
         const { name, keepName: _k, ...fields } = facts;
-        return { type: rule.type, label: rule.label, folder, newName: `${stem || clean(c.name.replace(/\.pdf$/i, ''))}.pdf`,
+        return { type: rule.type, label: rule.label, folder, newName: `${stem || clean(ctx.base)}${ext}`,
             fields: rule.sensitive ? {} : fields, sensitive: !!rule.sensitive, versions: !!rule.versions,
             undated: !keepName && !facts.date && /\bUndated\b/.test(folder) };
     }

@@ -65,7 +65,25 @@ research.
 Personal records (contracts, birth and criminal-record certificates, passports) are recognised
 by type and filed under their own names. Nothing is read out of them.
 
-Scans with no text layer, non-PDF files, and anything it isn't sure of stay in Downloads.
+Since 5 Oct 2026 it also reads what isn't a plain PDF:
+
+- **PDFs without ".pdf"** ("PDF (3)", "piramida") are recognised by their first bytes and filed
+  with the extension added.
+- **Word (.docx)** text goes through the same rules as a PDF's (offers, contracts, data sheets);
+  **spreadsheets** by name ("dergesat", "raport_analitik", "Order_CustomerNo_", "redovni",
+  "doganore"…) or, failing that, by their column labels (KODI TARIFOR → customs list, MaterialNo +
+  GrossWeight → Kärcher packing list…); .doc, .pptx, .epub, .eml, .tif by name.
+- **Bank statement exports** (Raiffeisen XML/CSV) are named by account and period, beside the PDFs.
+- **Scans** are read with text recognition (`ocr.js`: pdf.js decodes the page picture, Tesseract
+  from the app reads it) and placed by whose paper it is and what kind: Kärcher papers, Turkish
+  export declarations, supplier e-invoices, leaflets. Dates come from the scanner's file name.
+- New PDF rules: Turkish and Kosovo supplier invoices and proformas, contracts, tenders, reports,
+  vehicle papers, warranty letters, shop signs, marketing, manuals and data sheets.
+- **Key and recovery-code files** (Firebase admin keys, recovery codes) are never opened, hashed,
+  moved or copied: they are left where they are and reported, because they belong in a password
+  manager.
+
+Photos, installers and music stay in Downloads, and so does anything it isn't sure of.
 
 ## How it decides
 

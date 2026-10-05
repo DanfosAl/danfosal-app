@@ -165,7 +165,7 @@ if (opt.apply) {
     writeFileSync(reportPath, renderReport(plan, planPath));
     const s = plan.summary;
     say(`
-Would file ${s.move} PDFs (${mbs(s.moveBytes)}) into ${opt.dest}
+Would file ${s.move} papers (${mbs(s.moveBytes)}) into ${opt.dest}
 Would send ${s.recycle} exact copies to the Recycle Bin (${mbs(s.recycleBytes)})
 Would leave ${s.leave} files where they are
 Nothing was changed.

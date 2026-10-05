@@ -10,6 +10,7 @@ console.log = console.warn = () => {};
 const { default: pdfjs } = await import('pdfjs-dist/legacy/build/pdf.js');
 [console.log, console.warn] = say;
 const QUIET = pdfjs.VerbosityLevel.ERRORS;
+export { pdfjs };          // ocr.js decodes scanned pages with the same library
 
 export async function pdfLines(path, { maxPages = 6 } = {}) {
     const data = new Uint8Array(await readFile(path));

@@ -293,10 +293,17 @@ class EasyPOSOCRProcessor {
     }
 
     findInvoiceNumber(lines) {
+        // EasyPOS format: "Fatura Nr: 68/2026/mv200vz195". Every line is searched for it before
+        // anything looser is tried. A credit note prints "Korrigjuese - Note Krediti" above its
+        // Fatura Nr line, and the loose pattern, tried line by line, read the "No" in "Note" as a
+        // label and returned "te": every credit note since at least Feb 2026 was saved that way.
         for (const line of lines) {
-            // EasyPOS format: "Fatura Nr: 68/2026/mv200vz195"
-            const match = line.match(/Fatura\s+Nr[:\s]+([\w\/]+)/i) || 
-                          line.match(/(?:invoice|receipt|no|#)\s*:?\s*([\w\/]+)/i);
+            const match = line.match(/Fatura\s+Nr[:\s]+([\w\/]+)/i);
+            if (match) return match[1];
+        }
+        // Not an EasyPOS layout. Whole words only, so "no" cannot come out of Note, Nota, Konferenca.
+        for (const line of lines) {
+            const match = line.match(/(?:\b(?:invoice|receipt|no)\b|#)\s*:?\s*([\w\/]+)/i);
             if (match) return match[1];
         }
         return null;
@@ -850,6 +857,13 @@ class EasyPOSOCRProcessor {
         }
     }
     
+    static CREDIT_NOTE_KEYWORDS = ['NOTE KREDITI', 'NOTA KREDITI', 'KORRIGJUESE', 'KREDITORE'];
+
+    isCreditNote(invoiceData) {
+        const text = (invoiceData.rawText || '').toUpperCase();
+        return EasyPOSOCRProcessor.CREDIT_NOTE_KEYWORDS.some(keyword => text.includes(keyword));
+    }
+
     /**
      * Detect if this is a return or cancellation based on:
      * - Negative total values
@@ -868,8 +882,7 @@ class EasyPOSOCRProcessor {
         }
         
         // Check 2: Albanian credit note keywords (most common in EasyPOS)
-        const creditNoteKeywords = ['NOTE KREDITI', 'NOTA KREDITI', 'KORRIGJUESE', 'KREDITORE'];
-        for (const keyword of creditNoteKeywords) {
+        for (const keyword of EasyPOSOCRProcessor.CREDIT_NOTE_KEYWORDS) {
             if (rawText.toUpperCase().includes(keyword)) {
                 return { isReturn: true, reason: `Albanian credit note detected: ${keyword}`, returnType: 'return' };
             }
@@ -1004,8 +1017,16 @@ class EasyPOSOCRProcessor {
         try {
             log(`   🔍 Searching for original transaction (online order or in-store sale) for invoice ${invoiceNumber}...`);
             
+            // A credit note prints its own number, the next one in the same series as the sales,
+            // and nothing that names the sale it reverses. Looking that number up can only find
+            // a sale that OCR or coincidence gave the same number, which would then be marked
+            // Returned in place of the real one. Credit notes are linked by customer and amount
+            // below; until their numbers were read correctly, that was all they ever got.
+            const creditNote = this.isCreditNote(invoiceData);
+            if (creditNote) log(`   → Credit note: its number is its own, not the sale's - matching by customer and amount`);
+
             // Strategy 1: Search storeSales for this invoice
-            if (invoiceNumber && invoiceNumber.length > 2) {  // Skip if invoice number is too short (OCR error)
+            if (invoiceNumber && invoiceNumber.length > 2 && !creditNote) {  // Skip if invoice number is too short (OCR error)
                 const salesSnapshot = await db.collection('storeSales')
                     .where('easypos.invoiceNumber', '==', invoiceNumber)
                     .limit(1)

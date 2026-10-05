@@ -42,7 +42,10 @@ export async function renderPurchases(ctx) {
     catch (e) { ctx.body.innerHTML = `<div class="error-box">${icon('error')}<div><b>Couldn't load the purchases.</b><br><span>${esc(e.message)}</span></div></div>`; return; }
     if (ctx.tab !== 'purchases') return;
     // Goods came mid-week: file Downloads now instead of waiting for Monday, then show the result.
-    wireCheckButton(ctx.setActions(checkButton()), () => { if (ctx.tab === 'purchases') renderPurchases(ctx); });
+    wireCheckButton(ctx.setActions(checkButton()), (r, go) => {
+        if (go === 'import') window.location.href = 'sell.html#import';
+        else if (ctx.tab === 'purchases') renderPurchases(ctx);
+    });
 
     const onList = new Set(lines.map(l => l.orderNo).filter(Boolean));
     const year = String(new Date().getFullYear());

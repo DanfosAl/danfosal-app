@@ -22,6 +22,7 @@ node autopilot.js                                    # plan + report, changes no
 node autopilot.js --apply "<plan.json>"              # carry out a reviewed plan; run it again to finish a partial run
 node autopilot.js --undo "<journal.jsonl>"           # put back everything that run moved
 node autopilot.js --sweep                            # plan + apply in one go, for a schedule
+node autopilot.js --sales --dry                      # which new e-invoices would go into Sales
 ```
 
 Add `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON` after `node` to hide a harmless warning
@@ -163,6 +164,21 @@ The app links them in `resources/app/www/app/purchasing.js` and shows them in **
 Purchases**. A new order (under 60 days old, nothing invoiced) also goes onto the order list with
 its order number, and so does a new warranty claim with goods coming back (at cost 0, marked as
 a claim). Wages, rent and tax payments are not read, nor the customer named on a claim.
+
+## Sales: new e-invoices
+
+Every sweep, after filing, `sales-import.js` adds the new Danfos e-invoices (from the Platforma
+Qendrore, filed into `Sales invoices`, dated 1 Oct 2026 or later) to Sales, as Sell › Import
+invoice would by hand: it uses the app's own reading and product matching
+(`www/app/invoice-text.js`, `www/manual-pdf-processor.js`), so stock and the customer change
+exactly as with a manual import. `node autopilot.js --sales --dry` shows what it would do.
+
+It saves an invoice only when nothing needs a person: not a sale already (same number AND an
+invoice-type sale or the same total, since till receipts share the "N/2026" numbers), every line
+matched to a product, the lines adding up, a buyer and a euro total. Anything else waits, already
+read, in Sell › Import invoice with the reason. Each outcome is a record in Firestore
+`salesImports`; `sales-import.json` in the reports folder remembers which files were handled.
+Older e-invoices are left alone: many were recorded another way (a till sale, lek amounts).
 
 ## Still to build
 

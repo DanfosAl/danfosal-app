@@ -28,11 +28,13 @@ import { makePlan } from './plan.js';
 import { applyPlan, undoJournal } from './apply.js';
 import { renderReport } from './report.js';
 import { syncPurchases } from './sync.js';
+import { importSales } from './sales-import.js';
 
 // The owner's choice (26 Sep 2026): the E: drive, not Documents, which Windows syncs to OneDrive.
 const { values: opt, positionals } = parseArgs({ allowPositionals: true, options: {
     apply: { type: 'boolean' }, undo: { type: 'boolean' }, sweep: { type: 'boolean' }, now: { type: 'boolean' },
     weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' }, 'no-sync': { type: 'boolean' },
+    sales: { type: 'boolean' }, dry: { type: 'boolean' },
     source: { type: 'string', default: join(homedir(), 'Downloads') },
     dest: { type: 'string', default: 'E:\\Danfos Papers' },
     out: { type: 'string', default: 'C:\\Danfosal\\Reports\\paper-autopilot' },
@@ -98,6 +100,13 @@ async function sweep({ settleMinutes, who }) {
             Object.assign(result, { synced: s.synced, syncedKinds: s.byKind, orderLines: s.orderLines });
             if (s.synced) line(`synced ${s.synced} purchase papers ${JSON.stringify(s.byKind)}, ${s.orderLines} order-list lines added`);
         } catch (e) { result.syncError = e.message; line(`purchase sync failed: ${e.message}`); }
+        // New Danfos e-invoices into Sales, when nothing about them needs a person.
+        if (!opt['no-sync']) try {
+            const s = await importSales({ dest: opt.dest, out: opt.out, log: line });
+            Object.assign(result, { salesAdded: s.added.map(x => ({ invoiceNumber: x.invoiceNumber, customerName: x.customerName, total: x.total })),
+                salesReview: s.review.map(x => ({ invoiceNumber: x.invoiceNumber, customerName: x.customerName, total: x.total, reason: x.reason })) });
+            if (s.review.length) line(`${s.review.length} e-invoice(s) wait for a look in Sell > Import invoice`);
+        } catch (e) { result.salesError = e.message; line(`sales import failed: ${e.message}`); }
         result.ok = true;
     } catch (e) { result.error = String(e.message || e); line(`failed: ${e.stack || e}`); }
     finally { try { unlinkSync(lock); } catch { } }
@@ -114,6 +123,12 @@ if (opt.apply) {
     const journal = join(opt.out, `journal-${stamp()}.jsonl`);
     printResult(await applyPlan(plan, { journal, log: say }), journal);
     refreshShortcuts().forEach(s => say(`Downloads: ${s}`));
+
+} else if (opt.sales) {
+    // ------------------------------------------------------------ new e-invoices into Sales
+    // --dry says what would be added or wait for review, and writes nothing.
+    const r = await importSales({ dest: opt.dest, out: opt.out, dry: !!opt.dry, log: say });
+    say(JSON.stringify(r, null, 1));
 
 } else if (opt.sync || opt.resync) {
     // ------------------------------------------------------------ purchase papers to the app

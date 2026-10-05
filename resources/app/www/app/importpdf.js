@@ -7,9 +7,12 @@
 //  - a line set to "don't take from stock" really isn't (the processor used to fall back to a
 //    loose name match and deduct stock anyway).
 // Product matching is the classic page's findBestProductMatch, with its model-number guard.
-import { db, collection, doc, getDocs, getDoc, addDoc, updateDoc, Timestamp } from './firebase.js';
+import { db, collection, doc, getDocs, getDoc, addDoc, updateDoc, Timestamp, query, where } from './firebase.js';
 import { esc, eur, int, icon, money2, fold, toast, openModal } from './ui.js';
 import { customerKey, customerDirectory, saleInvoiceNumber, shortInvoice, rankProducts } from './data.js';
+// The line builder and product matching are shared with the Paper Autopilot, which adds new
+// e-invoices to sales on its own (tools/paper-autopilot/sales-import.js).
+import { textItemsToLines, pageText, cleanItemName, findBestProductMatch } from './invoice-text.js';
 
 function loadScript(src, globalName) {
     if (window[globalName]) return Promise.resolve(window[globalName]);
@@ -19,25 +22,6 @@ function loadScript(src, globalName) {
         s.onerror = () => reject(new Error(`Couldn't load ${src.split('/').pop()}. Check the internet connection.`));
         document.head.appendChild(s);
     });
-}
-
-// Same line builder as the classic page: a gap wider than 3pt is a column break, not a word break.
-function textItemsToLines(items) {
-    const rows = [];
-    for (const item of items) {
-        const str = item.str || ''; if (!str.trim()) continue;
-        const x = item.transform[4], y = item.transform[5];
-        let row = rows.find(r => Math.abs(r.y - y) <= 2);
-        if (!row) { row = { y, cells: [] }; rows.push(row); }
-        row.cells.push({ x, str, width: item.width || 0 });
-    }
-    rows.sort((a, b) => b.y - a.y);
-    return rows.map(row => {
-        row.cells.sort((a, b) => a.x - b.x);
-        let line = '', prevEnd = null;
-        for (const c of row.cells) { if (prevEnd !== null && c.x - prevEnd > 3) line += ' '; line += c.str; prevEnd = c.x + c.width; }
-        return line.replace(/\s+/g, ' ').trim();
-    }).filter(Boolean).join('\n');
 }
 
 async function pdfText(file, status) {
@@ -59,42 +43,15 @@ async function pdfText(file, status) {
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
             t = (await T.recognize(canvas.toDataURL('image/png'), 'eng')).data.text;
         }
-        text += `\n\n=== PAGE ${n} ===\n\n` + t;
+        text += pageText(n, t);
     }
     return { text, ocr, pages: pdf.numPages };
 }
 
-// ------------------------------------------------------------------ matching (classic rules)
-
-const modelNumbers = name => (name.match(/\d+(?:[/\-.,]\d+)*/g) || []).join(' ');
-const stripProducer = name => name.replace(/^(k[aä]rcher|karcher|kaercher)\s+/i, '').trim();
-function findBestProductMatch(products, searchName) {
-    if (!searchName) return null;
-    const bare = stripProducer(searchName.toLowerCase().trim()), model = modelNumbers(bare);
-    let best = null, bestScore = 0;
-    products.forEach(p => {
-        const pb = stripProducer((p.name || '').toLowerCase().trim()); if (!pb) return;
-        const pm = modelNumbers(pb);
-        if (model && pm && model !== pm) return;
-        let score = 0;
-        if (pb === bare) score = 100;
-        else if (pb.startsWith(bare)) score = 90;
-        else if (bare.startsWith(pb)) score = 85;
-        else if (pb.includes(bare)) score = 45;
-        else if (bare.includes(pb)) score = 70;
-        else {
-            const sw = bare.split(/\s+/).filter(w => w.length >= 2), pw = pb.split(/\s+/).filter(w => w.length >= 2);
-            const hit = sw.filter(w => pw.some(x => x === w || (w.length >= 4 && x.includes(w)) || (x.length >= 4 && w.includes(x))));
-            if (hit.length && sw.length) score = (hit.length / sw.length) * 85 - Math.min((pw.length - hit.length) * 2, 10);
-        }
-        if (score > bestScore) { bestScore = score; best = p; }
-    });
-    return bestScore >= 50 ? best : null;
-}
-
 // ------------------------------------------------------------------ screen
 
-const im = { data: null, confidence: 0, force: false, busy: false, status: '', fileName: '', text: '' };
+// fromImport: the salesImports record being reviewed, when the invoice came from Downloads.
+const im = { data: null, confidence: 0, force: false, busy: false, status: '', fileName: '', text: '', fromImport: null };
 let processor = null;
 
 async function getProcessor() {
@@ -108,7 +65,7 @@ export function renderImport(ctx) {
     ctx.setSub('Turn a PDF sales invoice into a sale: stock, customer and profit in one step');
     const actions = ctx.setActions(im.data ? `<button class="btn ghost" type="button" id="im-reset">${icon('restart_alt')}Start again</button>` : '');
     const reset = actions.querySelector('#im-reset');
-    if (reset) reset.addEventListener('click', () => { Object.assign(im, { data: null, force: false }); renderImport(ctx); });
+    if (reset) reset.addEventListener('click', () => { Object.assign(im, { data: null, force: false, fromImport: null }); renderImport(ctx); });
     if (!im.data) return renderPick(ctx);
     renderReview(ctx);
 }
@@ -119,7 +76,9 @@ function renderPick(ctx) {
             <b>Drop the invoice PDF here, or click to choose it</b>
             <span>Invoices from the Platforma Qendrore e Faturave are read from their exact text. You check every line before the sale is saved.</span>
             <input type="file" id="im-file" accept="application/pdf" hidden></label>
-        <p class="empty" id="im-status" style="margin:0">${esc(im.status)}</p>`;
+        <p class="empty" id="im-status" style="margin:0">${esc(im.status)}</p>
+        <div id="im-waiting"></div>`;
+    renderWaiting(ctx);
     const drop = ctx.body.querySelector('#im-drop'), input = ctx.body.querySelector('#im-file'), status = ctx.body.querySelector('#im-status');
     const take = async file => {
         if (!file || im.busy) return;
@@ -139,7 +98,7 @@ function renderPick(ctx) {
             if (!result.success) throw new Error(result.error || 'The invoice could not be read.');
             const d = result.data;
             d.items = (d.items || []).map(it => {
-                const clean = String(it.itemName || it.name || '').replace(/\s*\d{1,5}[.,]\d{2}\s*$/g, '').trim();
+                const clean = cleanItemName(it.itemName || it.name);
                 const p = findBestProductMatch(ctx.model.products, clean);
                 return { ...it, itemName: clean || it.itemName, productId: p ? p._id : undefined, linkedProductName: p ? p.name : undefined, matchedBy: p ? 'auto' : null };
             });
@@ -154,6 +113,44 @@ function renderPick(ctx) {
     drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
     drop.addEventListener('dragleave', () => drop.classList.remove('over'));
     drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); take(e.dataTransfer.files[0]); });
+}
+
+// E-invoices the Paper Autopilot found in Downloads: the ones that need a look (already read, with
+// the reason), and the ones it added to Sales by itself in the last two weeks.
+async function renderWaiting(ctx) {
+    const box = ctx.body.querySelector('#im-waiting'); if (!box) return;
+    let rows = [];
+    try { rows = (await getDocs(query(collection(db, 'salesImports'), where('status', 'in', ['needs-review', 'imported'])))).docs.map(d => ({ _id: d.id, ...d.data() })); }
+    catch { return; }
+    if (!ctx.body.contains(box)) return;
+    const waiting = rows.filter(r => r.status === 'needs-review').sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const recent = rows.filter(r => r.status === 'imported' && r.saleId && Date.now() - Date.parse(r.at || 0) < 14 * 86400000).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    if (!waiting.length && !recent.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<section class="panel" style="display:flex;flex-direction:column;gap:8px">
+        <b style="font-weight:500">${icon('download')} From Downloads</b>
+        ${waiting.map(r => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span style="flex:1;min-width:220px"><b>${esc(shortInvoice(r.invoiceNumber) || '?')}</b> ${esc(r.customerName || '')} · €${money2(r.total)} · ${esc(r.date || '')}
+                <span class="muted" style="display:block;font-size:12px;color:var(--warn)">Needs a look: ${esc(r.reason || '')}</span></span>
+            <button class="btn small money" type="button" data-rv="${esc(r._id)}">${icon('rate_review')}Review</button>
+            <button class="btn small ghost" type="button" data-dm="${esc(r._id)}" title="Already recorded another way, or not a sale">Dismiss</button></div>`).join('')}
+        ${recent.length ? `<p class="muted" style="margin:0;font-size:12.5px">${icon('check_circle')} Added to Sales automatically: ${recent.slice(0, 8).map(r => `${esc(shortInvoice(r.invoiceNumber))} ${esc(r.customerName || '')} €${money2(r.total)}`).join(' · ')}</p>` : ''}</section>`;
+    box.addEventListener('click', async e => {
+        const rv = e.target.closest('[data-rv]'), dm = e.target.closest('[data-dm]');
+        const r = rows.find(x => x._id === (rv?.dataset.rv || dm?.dataset.dm)); if (!r) return;
+        if (rv) {
+            if (!r.data) { toast('This record has no invoice data: import the PDF by hand.', { bad: true }); return; }
+            Object.assign(im, { data: r.data, confidence: r.confidence || 0, force: false, fileName: r.file || '', ocr: 0, text: '', fromImport: r._id });
+            im.data.items = (im.data.items || []).map(it => ({ ...it, productId: it.productId || undefined }));
+            renderImport(ctx);
+        }
+        if (dm) {
+            const ok = await openModal({ title: `Dismiss invoice ${shortInvoice(r.invoiceNumber)}?`, confirmLabel: 'Dismiss',
+                body: '<p>Use this when the sale is already recorded another way (a till sale, the 2025 import) or the paper isn’t a sale. The PDF stays in the archive.</p>' });
+            if (!ok) return;
+            try { await updateDoc(doc(db, 'salesImports', r._id), { status: 'dismissed', dismissedAt: Date.now() }); renderWaiting(ctx); }
+            catch (x) { toast(`Couldn't dismiss: ${x.message}`, { bad: true }); }
+        }
+    });
 }
 
 function renderReview(ctx) {
@@ -260,7 +257,9 @@ async function save(ctx) {
         const result = await (await getProcessor()).saveToDatabase({ ...d });
         if (!result || result.success === false) throw new Error((result && result.error) || 'Save failed');
         toast(`Invoice ${shortInvoice(d.invoiceNumber)} saved as a sale`);
-        Object.assign(im, { data: null, force: false, status: `Last saved: invoice ${shortInvoice(d.invoiceNumber)} for ${d.customerName}.` });
+        // An invoice reviewed from Downloads leaves the waiting list.
+        if (im.fromImport) await updateDoc(doc(db, 'salesImports', im.fromImport), { status: 'imported', saleId: result.saleId || null, importedBy: 'owner', importedAt: Date.now() }).catch(() => {});
+        Object.assign(im, { data: null, force: false, fromImport: null, status: `Last saved: invoice ${shortInvoice(d.invoiceNumber)} for ${d.customerName}.` });
         await ctx.reload();
     } catch (e) { if (btn) btn.disabled = false; toast(`Couldn't save: ${e.message}`, { bad: true }); }
 }

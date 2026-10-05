@@ -222,6 +222,7 @@ computing their own, which is what ended the era of one app showing three differ
 | `toOrder` | 24 | The order list |
 | `purchaseDocs` | 150 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
 | `autopilotRuns` | 1 | "Check Downloads now" requests from the phone, answered by the desktop app on the shop PC - Finding #54 |
+| `salesImports` | 1 | What became of each new e-invoice in the archive: added to Sales, waiting for a look in Sell › Import invoice, already a sale, or dismissed - Finding #56 |
 | `stockCorrections` | 1 | The 14 Sep stock reconciliation |
 | `dataFixes` | 3 | Reversible data corrections, each with its backup file |
 | `settings` | 2 | `receiptNames.services`, `customerReview.notSame` - the owner's own decisions |
@@ -787,6 +788,38 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — 🟡 **BUILT, DRY RUN PASSED; FIRST REAL RUN WAITS FOR THE FIRESTORE QUOTA (October 5, 2026)**
+
+The owner: an e-invoice saved from the Platforma Qendrore is already filed into `Sales invoices`
+correctly - it should also reach Sales, without Sell › Import invoice by hand.
+
+- `tools/paper-autopilot/sales-import.js` runs after filing in every sweep (Monday, the button,
+  the phone) and alone as `node autopilot.js --sales [--dry]`. It reads each Danfos e-invoice dated
+  **1 Oct 2026 or later** with the app's own code: the text builder and product matcher, now shared
+  in `www/app/invoice-text.js` (Sell › Import invoice imports the same functions), and
+  `www/manual-pdf-processor.js`, whose `saveToDatabase` writes the sale, the stock and the customer
+  exactly as a manual import does (through a small Admin SDK adapter).
+- **Saved only when nothing needs a person.** Otherwise the invoice waits, already read, in Sell ›
+  Import invoice under "Waiting for a look" with the reason (Review opens it filled in; Dismiss
+  drops it). Reasons: lek total (needs the day's rate), a line not matched to a product, lines not
+  adding up to the subtotal, no buyer, no total.
+- **No double sales:** an e-invoice and a till receipt can share a number ("63/2026"), so a sale
+  counts as the same only with the same number AND (an invoice-type sale or the same total).
+- **Older e-invoices are left alone:** 40 of the 45 archived ones aren't in Sales by number, but
+  many were recorded another way (a till sale; amounts in lek), so only the owner can tell.
+- Each outcome is a record in Firestore **`salesImports`** (`imported` with the sale id,
+  `needs-review` with the read invoice, `already`, `dismissed`); `sales-import.json` in the reports
+  folder remembers which files were handled. The button's result says "Added to Sales: …" or how
+  many invoices wait, and offers **Review invoices**.
+- **Checked:** dry run on the owner's example, e-invoice 63/2026 (one Kärcher trigger gun, €55):
+  buyer, NIPT, total and the catalogue product all read correctly, confidence 80. The waiting list,
+  Review prefill and Dismiss were tried in the preview with a marked test record (now dismissed).
+- **Open:** the real run stopped at its first read with Firestore "Quota exceeded" (the Spark plan's
+  50,000 reads a day, used up on 5 Oct). Nothing was written. It runs on the next sweep after the
+  quota resets (09:00 Albania time).
 
 ---
 

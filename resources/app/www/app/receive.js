@@ -149,7 +149,10 @@ function renderPick(ctx) {
             ${checkButton()}</div>
         <div class="panel" style="padding:12px 16px;display:flex;align-items:center;gap:12px">${icon('edit_note')}<span style="flex:1" class="muted">No invoice file? Enter the delivery by hand.</span>
             <button class="btn" type="button" id="rc-manual">Enter manually</button></div>`;
-    wireCheckButton(ctx.body, (r, go) => { if (go) window.location.hash = '#purchases'; });
+    wireCheckButton(ctx.body, (r, go) => {
+        if (go === 'import') window.location.href = 'sell.html#import';
+        else if (go === 'purchases') window.location.hash = '#purchases';
+    });
     const drop = ctx.body.querySelector('#rc-drop'), input = ctx.body.querySelector('#rc-file'), status = ctx.body.querySelector('#rc-status');
     const take = async file => {
         if (!file || rcv.busy) return;

@@ -15,8 +15,9 @@ function slim(r) {
     return {
         ok: !!r.ok, busy: !!r.busy, error: r.error || '', at: r.at || new Date().toISOString(),
         filed: (r.filed || []).slice(0, 40).map(f => ({ to: f.to, label: f.label, type: f.type })),
-        filedCount: (r.filed || []).length, recycled: (r.recycled || []).length, skipped: (r.skipped || []).slice(0, 10),
-        left: r.left || {}, synced: r.synced || 0, syncedKinds: r.syncedKinds || {}, orderLines: r.orderLines || 0, syncError: r.syncError || ''
+        filedCount: (r.filed || []).length, recycled: Array.isArray(r.recycled) ? r.recycled.length : (r.recycled || 0), skipped: (r.skipped || []).slice(0, 10),
+        left: r.left || {}, synced: r.synced || 0, syncedKinds: r.syncedKinds || {}, orderLines: r.orderLines || 0, syncError: r.syncError || '',
+        salesAdded: (r.salesAdded || []).slice(0, 20), salesReview: (r.salesReview || []).slice(0, 20), salesError: r.salesError || ''
     };
 }
 
@@ -73,7 +74,8 @@ export async function serveRemoteRequests() {
     }, () => { window.__autopilotServing = false; });
 }
 
-// The result, said plainly. Resolves true when the owner asks to go to Purchases.
+// The result, said plainly. Resolves to where the owner asked to go next: 'import' (invoices
+// waiting for a look), 'purchases', or false.
 export async function showCheckResult(r) {
     if (r.queued) {
         await openModal({ title: 'The shop PC didn’t answer', confirmLabel: 'OK',
@@ -92,20 +94,25 @@ export async function showCheckResult(r) {
     const read = Object.entries(r.syncedKinds || {}).map(([k, n]) => plural(n, ...(kinds[k] || [k, k]))).join(', ');
     const leftN = Object.entries(r.left || {}).filter(([k]) => k !== 'not-pdf' && k !== 'settling').reduce((s, [, n]) => s + n, 0);
     const purchases = (r.synced || 0) + (r.orderLines || 0) > 0 || (r.filed || []).some(f => /^karcher|customs|bank/.test(f.type || ''));
-    const nothing = !r.filedCount && !r.recycled && !r.synced;
+    const added = r.salesAdded || [], review = r.salesReview || [];
+    const next = review.length ? 'import' : purchases ? 'purchases' : '';
+    const nothing = !r.filedCount && !r.recycled && !r.synced && !added.length && !review.length;
     const ok = await openModal({
         title: nothing ? 'Nothing new in Downloads' : 'Downloads checked',
-        confirmLabel: purchases ? 'Open Purchases' : 'OK', confirmClass: purchases ? 'money' : 'primary', cancelLabel: 'Close',
+        confirmLabel: next === 'import' ? 'Review invoices' : next ? 'Open Purchases' : 'OK', confirmClass: next ? 'money' : 'primary', cancelLabel: 'Close',
         body: nothing ? `<p>Every paper in Downloads is already filed.${leftN ? ` ${plural(leftN, 'PDF stays', 'PDFs stay')} there because it isn’t one the autopilot recognises.` : ''}</p>` : `
             ${r.filedCount ? `<p><b>${plural(r.filedCount, 'paper filed', 'papers filed')}</b> into E:\\Danfos Papers:</p>
                 <ul style="margin:4px 0 10px;padding-left:18px;max-height:220px;overflow:auto">${r.filed.map(f => `<li>${esc(f.to.split('\\').pop())} <span class="muted">· ${esc(f.label)}</span></li>`).join('')}</ul>` : ''}
             ${r.recycled ? `<p>${icon('delete')} ${plural(r.recycled, 'exact copy', 'exact copies')} sent to the Recycle Bin.</p>` : ''}
             ${r.synced ? `<p>${icon('receipt_long')} Read into Purchases: ${esc(read)}.</p>` : ''}
             ${r.orderLines ? `<p>${icon('playlist_add')} ${plural(r.orderLines, 'line', 'lines')} added to the order list.</p>` : ''}
+            ${added.length ? `<p>${icon('point_of_sale')} <b>Added to Sales:</b> ${added.map(s => `invoice ${esc(s.invoiceNumber)} ${esc(s.customerName)} €${Number(s.total).toFixed(2)}`).join(', ')}.</p>` : ''}
+            ${review.length ? `<p style="color:var(--warn)">${icon('rate_review')} ${plural(review.length, 'invoice waits', 'invoices wait')} for a look in Sell › Import invoice: ${review.map(s => `${esc(s.invoiceNumber || '?')} (${esc(s.reason)})`).join('; ')}.</p>` : ''}
+            ${r.salesError ? `<p style="color:var(--warn)">Adding invoices to Sales failed: ${esc(r.salesError)}</p>` : ''}
             ${r.skipped?.length ? `<p class="muted">Left in Downloads: ${r.skipped.map(s => `${esc(s.file)} (${esc(s.why)})`).join('; ')}.</p>` : ''}
             ${r.syncError ? `<p style="color:var(--warn)">The papers are filed, but reading them into the app failed: ${esc(r.syncError)}</p>` : ''}`
     });
-    return !!(ok && purchases);
+    return ok ? next || false : false;
 }
 
 // A "Check Downloads now" button wired to all of the above. after(result) runs once it's done.

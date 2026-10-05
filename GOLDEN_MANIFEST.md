@@ -263,6 +263,7 @@ stockNote?, priceNote?      why a figure was corrected by hand (Finding #43, #44
 #### `returns` (a refund, read off a credit note)
 ```
 type 'return'|'cancellation', reason, invoiceNumber, invoiceDate, customerName
+invoiceNumber    the credit note's own number, not the sale's; "te" on those saved before 5 Oct (Finding #58)
 total            the positive amount refunded, VAT included
 items[] {itemName, quantity (negative), pricePerUnit, lineTotal, unit?, printedLineTotal?}
 timestamp
@@ -788,6 +789,45 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **58. EVERY CREDIT NOTE WAS SAVED WITH INVOICE NUMBER "te"** — 🟡 **FIXED, TESTED, BRIDGE RESTARTED; THE 17 STORED RECORDS ARE CORRECTED AT 09:30 ON 6 OCT (October 5, 2026)**
+
+The bridge log said "for invoice te..." on every return. `findInvoiceNumber` tried two patterns on
+each line in turn: `Fatura Nr`, then a loose fallback (`invoice|receipt|no|#`). A credit note prints
+"Korrigjuese - Note Krediti" above its Fatura Nr line, so the fallback took the "No" in "Note" and
+returned "te". Every credit note since at least February was stored in `returns` that way, and any
+sale or online order one of them marked Returned got `cancelledInvoiceNumber: "te"`.
+
+- **Fixed:** every line is searched for `Fatura Nr` first. The fallback only runs when no line has
+  it, and only on whole words, so "no" cannot come out of Note, Nota or Konferenca.
+- **The number never linked a refund, and now must not.** A credit note prints its own number, the
+  next in the same series as the sales, and nothing that names the sale it reverses.
+  `findOriginalTransaction` skipped its number lookup for "te" (too short), so every credit note was
+  linked by customer and amount (Finding #47b), the only way that can work. Reading the real number
+  would have switched the lookup back on. There it can only find a sale that OCR gave the same
+  number, and mark that sale Returned: in the stored captures, one credit note would have done
+  exactly that, to a later sale with a different customer and amount. Credit notes now skip the
+  number lookup (`isCreditNote()`, which shares `CREDIT_NOTE_KEYWORDS` with
+  `detectReturnOrCancellation`). Other returns still look their number up.
+- **The app was not misled:** it ties refunds to sales by `linkedSaleId` and customer, never by
+  number, and the warranty "Invoice cancelled (…)" note already hid numbers of 3 characters or fewer.
+- **Checked:** `resources/app/tests/easypos-ocr-bridge.cjs` is the bridge's first test, on made-up
+  receipts only. A credit note reads its own number. A normal sale still parses (number, date,
+  currency, total, lines). The fallback works on whole words. With a stand-in Firestore, a credit
+  note links by customer and amount even when an unrelated sale carries its number. The test fails
+  on the old parser (`'te'`) and without the guard (it links the unrelated sale). Run it from
+  `resources/app` with `node tests\easypos-ocr-bridge.cjs`. Over all 300 stored captures, the 17
+  credit notes now read their own numbers and no other receipt changes.
+- **Shipped:** commit `2d8128a`, pushed. The bridge was restarted on the fixed code at 17:03 on 5 Oct.
+- **Open:** the 17 stored `returns`, and the `cancelledInvoiceNumber` on whatever they marked
+  Returned, still say "te". The owner approved the correction. `C:\Danfosal\Backups\fix-te-returns.cjs`
+  (outside the repo) matches each return to its capture by `easypos.captureJobId`, checks date and
+  amount, backs up to `C:\Danfosal\Backups\returns-te-fix-2026-10-05.json` and writes in one
+  transaction. Its first run stopped at Firestore "Quota exceeded" (nothing read or written; the
+  same 5 Oct quota as Finding #56). The one-time scheduled task `fix-te-returns-firestore` runs it
+  at 09:30 on 6 Oct.
 
 ---
 

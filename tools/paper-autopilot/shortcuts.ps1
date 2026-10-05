@@ -7,7 +7,8 @@
 # you delete it). Prints what it made.
 param(
     [string]$Source = (Join-Path $env:USERPROFILE 'Downloads'),
-    [string]$Dest = 'E:\Danfos Papers'
+    [string]$Dest = 'E:\Danfos Papers',
+    [string]$Installers = ''          # the installers' folder beside the archive, once it exists
 )
 
 [Console]::OutputEncoding = [Text.Encoding]::UTF8     # so "Kärcher" reaches the log intact
@@ -33,3 +34,4 @@ Set-Link 'All papers' $Dest
 foreach ($dir in Get-ChildItem -LiteralPath $Dest -Directory | Sort-Object Name) {
     Set-Link $dir.Name $dir.FullName
 }
+if ($Installers -and (Test-Path -LiteralPath $Installers)) { Set-Link 'Installers' ([IO.Path]::GetFullPath($Installers).TrimEnd('\')) }

@@ -42,9 +42,23 @@ const keeperOf = group => group.slice().sort((a, b) => isCopyName(a.name) - isCo
 
 const base = f => ({ file: f.name, size: f.size, modified: new Date(f.mtime).toISOString(), sha256: f.sha256 });
 
+// Photos and installers (the owner's choice, 5 Oct 2026): photos to Photos/<year-month> in the
+// archive, installers to an Installers folder beside it (E:\Installers), which frees C:. Only once
+// they are a week old, so an installer downloaded to run, or a photo to send, is still there.
+const PHOTO = /^\.(jpe?g|png|heic|webp|gif)$/, INSTALLER = /^\.(exe|msi|msix|msixbundle|appx|apk)$/;
+const MEDIA_MIN_DAYS = 7;
+function mediaPlace(f, ext, now, installersDir) {
+    if (!PHOTO.test(ext) && !INSTALLER.test(ext)) return null;
+    const what = PHOTO.test(ext) ? 'photo' : 'installer';
+    if (now - f.arrived < MEDIA_MIN_DAYS * 86400000) return { leave: { type: `recent-${what}`, label: `${what === 'photo' ? 'Photo' : 'Installer'} under a week old` } };
+    if (what === 'installer') return { type: 'installer', label: 'Installer', folder: 'Installers', root: installersDir, newName: f.name, fields: {} };
+    const d = f.name.match(/(20\d{2})-(\d{2})-\d{2}/), ym = d ? `${d[1]}-${d[2]}` : new Date(f.mtime).toISOString().slice(0, 7);
+    return { type: 'photo', label: 'Photo', folder: `Photos/${ym}`, newName: f.name, fields: {} };
+}
+
 // settleMinutes: a file that arrived more recently than this is left alone, so a scheduled run
 // never files a PDF the owner has just downloaded and is about to open or send.
-export async function makePlan({ source, dest, settleMinutes = 0, cachePath = '', log = () => {} }) {
+export async function makePlan({ source, dest, settleMinutes = 0, cachePath = '', installersDir = join(dirname(dest), 'Installers'), log = () => {} }) {
     const now = Date.now();
     let files = readdirSync(source, { withFileTypes: true })
         .filter(d => d.isFile() && !SKIP.test(d.name))
@@ -84,6 +98,8 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
     try {
         for (const f of keepers) {
             const ext = kindOf(f.path, f.name);
+            const media = mediaPlace(f, ext, now, installersDir);
+            if (media) { if (media.leave) leave(f, media.leave); else actions.push({ ...base(f), action: 'move', ...media }); continue; }
             // Kärcher's account statement arrives as a spreadsheet, not a PDF.
             if (ext === '.xlsx' && /balance|statement|kartel/i.test(f.name)) {
                 const st = await readKarcherStatement(f.path).catch(() => null);
@@ -152,7 +168,7 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
         return '';
     };
     for (const a of actions.filter(x => x.action === 'move').sort((x, y) => x.modified.localeCompare(y.modified))) {
-        const dir = join(dest, ...a.folder.split('/'));
+        const dir = a.root || join(dest, ...a.folder.split('/'));          // installers go beside the archive
         const twin = await twinIn(dir, a);
         if (twin) {
             Object.assign(a, { action: 'recycle', type: 'duplicate', label: 'Already filed', duplicateOf: twin, keptAt: twin });

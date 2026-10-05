@@ -810,8 +810,11 @@ original names.
 - **Never touched:** key and recovery-code files (four Firebase Admin SDK keys and three
   recovery-code files sit in Downloads; they are not opened, hashed, moved or copied, only
   reported) and a 530,000-row spreadsheet of plates and owners' names (left as it is).
-- Still left: photos, installers, music, and 21 odd files (project JSONs, a script, handwritten
-  scans, an unreadable sheet). The next button press or Monday run files the 183.
+- **Photos and installers too, at the owner's word:** once a week old, photos to `Photos/<year-month>`
+  and installers to `E:\Installers` (beside the archive; frees ~2.9 GB on C:). Tested on a sandbox
+  (old files moved, new ones kept, shortcut made). Real dry run: 379 files to file - 183 papers, 31
+  installers (2.9 GB), 165 photos - and 68 left (music, zips, keys, the plates sheet, odd files).
+  The next button press or Monday run files them.
 
 ---
 

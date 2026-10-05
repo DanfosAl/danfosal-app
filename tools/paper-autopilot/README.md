@@ -83,7 +83,13 @@ Since 5 Oct 2026 it also reads what isn't a plain PDF:
   moved or copied: they are left where they are and reported, because they belong in a password
   manager.
 
-Photos, installers and music stay in Downloads, and so does anything it isn't sure of.
+**Photos and installers** (the owner's choice, 5 Oct 2026), once they are a week old - so one
+downloaded to send or to run is still there: photos to `Photos\<year-month>` in the archive (the
+month from a WhatsApp name, else the file date), installers (.exe, .msi, .msix, .apk) to
+**E:\Installers** beside the archive, which takes ~3 GB off C:. Downloads gets an
+`_Archive - Installers` shortcut too.
+
+Music, zip files and anything it isn't sure of stay in Downloads.
 
 ## How it decides
 

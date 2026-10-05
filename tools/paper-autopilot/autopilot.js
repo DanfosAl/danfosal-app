@@ -21,7 +21,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync, appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { makePlan } from './plan.js';
@@ -52,7 +52,8 @@ const printResult = (r, journal) => {
 // "_Archive - ..." shortcuts in Downloads, one per archive folder (shortcuts.ps1). Returns what it made.
 function refreshShortcuts() {
     const script = join(dirname(fileURLToPath(import.meta.url)), 'shortcuts.ps1');
-    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Source', opt.source, '-Dest', opt.dest],
+    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Source', opt.source, '-Dest', opt.dest,
+        '-Installers', join(dirname(opt.dest), 'Installers')],
         { encoding: 'utf8', windowsHide: true });
     return (r.stdout || '').split(/\r?\n/).filter(Boolean);
 }
@@ -83,7 +84,7 @@ async function sweep({ settleMinutes, who }) {
             const r = await applyPlan(plan, { journal });
             const skipped = new Set(r.skipped.map(s => s.file));
             result.filed = plan.actions.filter(a => a.action === 'move' && !skipped.has(a.file))
-                .map(a => ({ file: a.file, to: a.to.slice(opt.dest.length + 1), label: a.label, type: a.type }));
+                .map(a => ({ file: a.file, to: relative(opt.dest, a.to), label: a.label, type: a.type }));
             result.recycled = plan.actions.filter(a => a.action === 'recycle' && !skipped.has(a.file)).map(a => a.file);
             result.skipped = r.skipped;
             result.journal = journal;
@@ -165,7 +166,7 @@ if (opt.apply) {
     writeFileSync(reportPath, renderReport(plan, planPath));
     const s = plan.summary;
     say(`
-Would file ${s.move} papers (${mbs(s.moveBytes)}) into ${opt.dest}
+Would file ${s.move} files (${mbs(s.moveBytes)}) into ${opt.dest}
 Would send ${s.recycle} exact copies to the Recycle Bin (${mbs(s.recycleBytes)})
 Would leave ${s.leave} files where they are
 Nothing was changed.

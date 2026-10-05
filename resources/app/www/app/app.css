@@ -327,7 +327,7 @@ table.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .drawer-head h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 20px; line-height: 1.2; }
 .drawer-head p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
 .drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 18px; }
-.drawer-foot { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); align-items: center; }
+.drawer-foot { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); align-items: center; }
 .drawer h3 { margin: 0 0 8px; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .kv div { background: var(--panel-2); border-radius: 9px; padding: 9px 11px; }

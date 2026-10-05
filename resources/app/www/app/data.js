@@ -13,6 +13,9 @@ export const MIN_UNITS_FOR_TREND = 2;    // one sale in 90 days is not a trend
 export const DAY = 86400000;
 const CLOSED_TICKET = new Set(['completed', 'cancelled', 'rejected', 'delivered', 'closed']);
 const CLOSED_ORDER = new Set(['Paid', 'Returned', 'Cancelled']);
+// An online order that was cancelled or sent back sold nothing: it stays in Online orders, with
+// its status, but no total, count or "bought" list takes it.
+export const soldOrder = o => o.status !== 'Returned' && o.status !== 'Cancelled';
 
 // ------------------------------------------------------------------ time and names
 
@@ -366,14 +369,15 @@ export function customerDirectory(m) {
     m.debts.forEach(d => { const e = entryFor(d.debtor); if (e) e.debts.push(d); });
     (m.returns || []).forEach(r => { const e = entryFor(r.customerName); if (e) e.refunds.push(r); });
     entries.forEach(e => {
-        const times = e.sales.map(saleTime).concat(e.orders.map(orderTime)).filter(t => !isNaN(t));
+        const sold = e.orders.filter(soldOrder);
+        const times = e.sales.map(saleTime).concat(sold.map(orderTime)).filter(t => !isNaN(t));
         const bought = e.sales.filter(s => !s.isReturn);
         // Money handed back is money this customer did not spend. Revenue, profit and the plan
         // all take refunds off; "spent" used to be the one figure that did not, so a customer
         // whose EUR 6,500 invoice was cancelled still read as having spent it.
         e.refunded = (e.refunds || []).reduce((a, r) => a + returnTotal(r), 0);
-        e.revenue = bought.reduce((a, s) => a + (Number(s.total) || 0), 0) + e.orders.reduce((a, o) => a + orderTotal(o), 0) - e.refunded;
-        e.count = bought.length + e.orders.length;
+        e.revenue = bought.reduce((a, s) => a + (Number(s.total) || 0), 0) + sold.reduce((a, o) => a + orderTotal(o), 0) - e.refunded;
+        e.count = bought.length + sold.length;
         e.first = times.length ? Math.min(...times) : null;
         e.last = times.length ? Math.max(...times) : null;
         e.owed = e.debts.reduce((a, d) => a + Math.max(0, Number(d.remainingBalance) || 0), 0);
@@ -451,6 +455,7 @@ export function analyze(m, now = Date.now()) {
     const productById = new Map(m.products.map(p => [p._id, p]));
     const knownIds = new Set(productById.keys());
     const sales = m.sales.filter(s => !s.isReturn);
+    const orders = m.orders.filter(soldOrder);
     const refunds = (m.returns || []).map(r => ({ ...r, _t: returnTime(r) })).filter(r => !isNaN(r._t));
     const byName = productNameIndex(m.products);
 
@@ -458,17 +463,17 @@ export function analyze(m, now = Date.now()) {
     // Money handed back comes off the day it was handed back - the sale itself stays as it was.
     const revenueOf = (from, to) =>
         sales.filter(s => { const t = saleTime(s); return t >= from && t < to; }).reduce((a, s) => a + (Number(s.total) || 0), 0)
-        + m.orders.filter(o => { const t = orderTime(o); return t >= from && t < to; }).reduce((a, o) => a + orderTotal(o), 0)
+        + orders.filter(o => { const t = orderTime(o); return t >= from && t < to; }).reduce((a, o) => a + orderTotal(o), 0)
         - refunds.filter(r => r._t >= from && r._t < to).reduce((a, r) => a + returnTotal(r), 0);
     const todayRevenue = revenueOf(today0, now + DAY);
     // The day's two halves, so a day of refunds can say what happened instead of showing a
     // negative share of a sales goal.
     const soldToday = sales.filter(s => { const t = saleTime(s); return t >= today0; }).reduce((a, s) => a + (Number(s.total) || 0), 0)
-        + m.orders.filter(o => orderTime(o) >= today0).reduce((a, o) => a + orderTotal(o), 0);
+        + orders.filter(o => orderTime(o) >= today0).reduce((a, o) => a + orderTotal(o), 0);
     const refundedToday = refunds.filter(r => r._t >= today0).reduce((a, r) => a + returnTotal(r), 0);
     const monthRevenue = revenueOf(monthStart, now + DAY);
     const prevMonthToDate = revenueOf(prevMonthStart, prevMonthCutoff);
-    const monthSalesCount = sales.filter(s => saleTime(s) >= monthStart).length + m.orders.filter(o => orderTime(o) >= monthStart).length;
+    const monthSalesCount = sales.filter(s => saleTime(s) >= monthStart).length + orders.filter(o => orderTime(o) >= monthStart).length;
     const dailySeries = [];
     for (let d = 0; d < dayOfMonth; d++) {
         const from = monthStart + d * DAY;
@@ -506,7 +511,7 @@ export function analyze(m, now = Date.now()) {
         });
     });
     countLines(sales, saleTime);
-    countLines(m.orders, orderTime);
+    countLines(orders, orderTime);
     // Units that came back are not units sold. Never below zero: the sale itself may be older
     // than the 90-day window while the refund falls inside it.
     refunds.forEach(r => { if (r._t >= sinceWindow) returnLines(r, byName).forEach(l => {
@@ -547,7 +552,7 @@ export function analyze(m, now = Date.now()) {
         const when = isNaN(t) ? Infinity : t;
         if (!firstSeen.has(key) || when < firstSeen.get(key).t) firstSeen.set(key, { t: when, name: String(name).trim() });
     };
-    m.orders.forEach(o => note(o.clientName || o.customerName, orderTime(o)));
+    orders.forEach(o => note(o.clientName || o.customerName, orderTime(o)));
     m.sales.forEach(s => note(s.clientName || s.customerName, saleTime(s)));
     m.customers.forEach(c => note(c.name, toMs(c.createdAt)));
     const newCustomers30 = [...firstSeen.values()].filter(v => v.t >= since30).length;
@@ -605,7 +610,7 @@ export function analyze(m, now = Date.now()) {
         const inv = shortInvoice(saleInvoiceNumber(s));
         activity.push({ t, what: `${inv ? (s.type === 'easypos' ? 'Receipt ' : 'Invoice ') + inv + ' · ' : 'Sale · '}${WALKIN.test(who) ? 'walk-in' : who}`, chip: saleSource(s), amount: Number(s.total) || 0 });
     });
-    m.orders.forEach(o => { const t = orderTime(o); if (t >= today0) activity.push({ t, what: `Online order · ${o.clientName || o.customerName || '?'}`, chip: 'Online', amount: orderTotal(o) }); });
+    orders.forEach(o => { const t = orderTime(o); if (t >= today0) activity.push({ t, what: `Online order · ${o.clientName || o.customerName || '?'}`, chip: 'Online', amount: orderTotal(o) }); });
     refunds.forEach(r => { if (r._t >= today0) activity.push({ t: r._t, what: `Refund · ${WALKIN.test(r.customerName || '') ? 'walk-in' : (r.customerName || '?')}`, chip: 'Refund', amount: -returnTotal(r) }); });
     m.warranties.forEach(w => { const t = toMs(w.createdAt); if (t >= today0) activity.push({ t, what: `Warranty issued · ${w.customerName || ''}`, chip: 'Garanci', amount: null }); });
     m.tickets.forEach(tk => { const t = toMs(tk.createdAt); if (t >= today0) activity.push({ t, what: `Repair ticket · ${tk.customerName || ''}`, chip: 'Service', amount: null }); });

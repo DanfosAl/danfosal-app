@@ -9,7 +9,7 @@
 import { bootWorkspace } from './workspace.js';
 import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs, realSerial
+import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs, realSerial, soldOrder
 } from './data.js';
 
 const directoryOf = m => m._directory || (m._directory = customerDirectory(m));
@@ -111,7 +111,7 @@ function historyOf(e) {
             sub: (s.items || []).map(i => `${Number(i.quantity) > 1 ? i.quantity + ' × ' : ''}${i.name || i.productName || '?'}`).join(', '),
             href: inv ? `sell.html?q=${encodeURIComponent(inv)}#sales` : '' });
     });
-    e.orders.forEach(o => rows.push({ t: orderTime(o), icon: 'shopping_bag', amount: orderTotal(o), title: `Online order · ${o.status || 'open'}`,
+    e.orders.forEach(o => rows.push({ t: orderTime(o), icon: 'shopping_bag', amount: soldOrder(o) ? orderTotal(o) : null, title: `Online order · ${o.status || 'open'}`,
         sub: (o.items || []).map(i => i.name || i.productName || '?').join(', ') || o.productName || '', href: 'sell.html#online' }));
     e.warranties.forEach(w => rows.push({ t: toMs(w.createdAt), icon: 'verified', amount: null, title: `Warranty ${w.certNo || 'card'} issued`,
         sub: (w.items || []).map(i => `${i.name}${realSerial(i.serialNumber) ? ' · S/N ' + realSerial(i.serialNumber) : ''}`).join(', '), href: `warranty-card.html?id=${encodeURIComponent(w._id)}`, external: true }));
@@ -131,7 +131,7 @@ function machinesOf(e) {
         m.qty += qty; m.last = Math.max(m.last, t || 0); if (serial) m.serials.add(serial); byName.set(k, m);
     };
     e.sales.filter(s => !s.isReturn).forEach(s => (s.items || []).filter(i => !i.isService).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, saleTime(s), realSerial(i.serialNumber))));
-    e.orders.forEach(o => (o.items || []).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, orderTime(o), realSerial(i.serialNumber))));
+    e.orders.filter(soldOrder).forEach(o => (o.items || []).forEach(i => add(i.name || i.productName, Number(i.quantity) || 1, orderTime(o), realSerial(i.serialNumber))));
     e.warranties.forEach(w => (w.items || []).forEach(i => { const m = byName.get(fold(i.name)); if (m && realSerial(i.serialNumber)) m.serials.add(realSerial(i.serialNumber)); }));
     return [...byName.values()].sort((a, b) => b.last - a.last);
 }

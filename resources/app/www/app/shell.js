@@ -5,7 +5,7 @@
 // existing "classic" screens, which is why every flyout says so.
 import { esc, icon, eur, int, ago, day } from './ui.js';
 import { serveRemoteRequests } from './autopilot-run.js';
-import { saleTime, saleInvoiceNumber, shortInvoice, WALKIN, customerKey, orderTotal, orderTime, productIdOfLine } from './data.js';
+import { saleTime, saleInvoiceNumber, shortInvoice, WALKIN, customerKey, orderTotal, orderTime, productIdOfLine, soldOrder } from './data.js';
 
 export const NAV = [
     { id: 'today', label: 'Today', icon: 'sunny', href: 'index.html' },
@@ -168,8 +168,10 @@ export function setSearchData(model) {
         if (!prev || t > prev.t) lastBuy.set(k, { name: String(name).trim(), t, amount });
     };
     model.sales.forEach(s => remember(s.clientName || s.customerName, saleTime(s), Number(s.total) || 0));
-    model.orders.forEach(o => remember(o.clientName || o.customerName, orderTime(o), orderTotal(o)));
-    model.customers.forEach(c => { const k = customerKey(c.name); if (c.name && !lastBuy.has(k) && !WALKIN.test(c.name)) lastBuy.set(k, { name: c.name, t: NaN, amount: 0 }); });
+    model.orders.filter(soldOrder).forEach(o => remember(o.clientName || o.customerName, orderTime(o), orderTotal(o)));
+    // Profiles and people whose only order was cancelled stay findable, as "no purchases yet".
+    model.customers.map(c => c.name).concat(model.orders.map(o => o.clientName || o.customerName))
+        .forEach(name => { const k = customerKey(name); if (name && k && !lastBuy.has(k) && !WALKIN.test(name)) lastBuy.set(k, { name: String(name).trim(), t: NaN, amount: 0 }); });
     const customers = [...lastBuy.values()].map(c => ({
         group: 'Customers', label: c.name, ic: 'person',
         sub: isNaN(c.t) ? 'No purchases yet' : `Last purchase ${day(c.t)}`,

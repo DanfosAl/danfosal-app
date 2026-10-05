@@ -10,7 +10,7 @@ import { esc, eur, int, icon, plural, fold, toast } from './ui.js';
 import {
     DAY, RESTOCK_DAYS, SALES_WINDOW_DAYS, saleTime, orderTime, orderTotal, netRevenue, lineNetCost, lineNetRevenues,
     productFamily, productIdOfLine, productNetCost, saleSource, VAT,
-    productNameIndex, returnTime, returnNet, returnLines
+    productNameIndex, returnTime, returnNet, returnLines, soldOrder
 } from './data.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -45,7 +45,7 @@ function prepare(m) {
         });
         sales.push({ t, net: netRevenue(s), cost: costed ? cost : null, src: saleSource(s), easypos: s.type === 'easypos' });
     });
-    m.orders.forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT }); });
+    m.orders.filter(soldOrder).forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT }); });
 
     // Refunds are negative sales, entered in the same lists so every chart below takes the money
     // off the month it went back out, and the units off the product that came back.

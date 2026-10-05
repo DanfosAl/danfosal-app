@@ -105,7 +105,7 @@ export function orderDetail(ctx, o) {
             ${!o.stockDeducted && !CLOSED.has(status) && (o.items || []).length ? `<button class="btn" type="button" id="od-take">${icon('inventory_2')}Take from stock</button>` : ''}
             <button class="btn" type="button" id="od-edit">${icon('edit')}Edit</button>
             <button class="btn" type="button" id="od-warranty">${icon('verified')}Warranty</button>
-            <button class="btn ghost" type="button" id="od-del" style="margin-left:auto;color:var(--bad)" aria-label="Delete order">${icon('delete')}</button>`
+            <button class="btn ghost" type="button" id="od-del" style="margin-left:auto;color:var(--bad)">${icon('delete')}Delete order</button>`
     });
 
     el.querySelector('#od-save').addEventListener('click', async () => {

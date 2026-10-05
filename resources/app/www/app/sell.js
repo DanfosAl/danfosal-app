@@ -14,7 +14,7 @@ import { db, collection, doc, writeBatch, increment, Timestamp, addDoc, updateDo
 import { esc, eur, int, pct, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import {
     VAT, WALKIN, saleTime, orderTime, orderTotal, saleSource, saleInvoiceNumber, shortInvoice,
-    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey, realSerial, cardsForSale
+    netRevenue, saleNetCost, lineNetCost, productNetCost, productIdOfLine, rankProducts, productNameIndex, returnTime, returnTotal, returnLines, customerDirectory, customerKey, realSerial, cardsForSale, soldOrder
 } from './data.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -38,7 +38,8 @@ function allRecords(model) {
             margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn
         };
     });
-    const orders = model.orders.map(o => ({
+    // A cancelled or returned order sold nothing: it stays under Online orders, not here.
+    const orders = model.orders.filter(soldOrder).map(o => ({
         kind: 'order', id: o._id, rec: o, t: orderTime(o), src: 'Online', total: orderTotal(o),
         doc: 'Online order', who: o.clientName || o.customerName || '', items: o.items || [], margin: null, status: o.status
     }));

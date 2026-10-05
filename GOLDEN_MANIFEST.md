@@ -791,6 +791,27 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **57. A CANCELLED ONLINE ORDER NO LONGER COUNTS AS A SALE; "DELETE ORDER" CAN BE SEEN** — ✅ **FIXED, CHECKED ON MADE-UP RECORDS (October 5, 2026)**
+
+The owner cancelled an online order and it still showed in Sales, and found no way to delete it.
+
+- **Cancelled and Returned orders counted everywhere.** Sell › All sales listed every online order
+  whatever its status, and Today's revenue (day, month, last month to date, the daily chart, the
+  sales count, new customers, the activity list), Insights, units sold for reorder advice, each
+  customer's spent / purchases / last purchase / machines owned, Service's "bought by" list and
+  Ctrl K's "Last purchase" all added them in. Only Money and the yearly plan left them out.
+  Now one rule, `soldOrder()` in `data.js`, is used by all of them. The order itself stays in
+  Online orders under its status, and in the customer's history without an amount.
+- **The delete button was off the edge.** The order drawer's delete was an unlabelled bin icon;
+  with "Take from stock" also shown, the footer didn't wrap and pushed it 26 px past the drawer's
+  edge on the desktop. It is now **Delete order**, and drawer footers wrap on every screen size.
+- **Checked:** `analyze()` and `customerDirectory()` run in the browser on made-up records (a €100
+  sale, a €50 paid order, a €70 cancelled one): revenue €150, 2 sales, 1 new customer, the
+  cancelled buyer at €0 with the order kept in their history. The drawer measured with an open
+  and a cancelled order: Delete order inside the drawer both times.
+
+---
+
 #### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — 🟡 **BUILT, DRY RUN PASSED; FIRST REAL RUN WAITS FOR THE FIRESTORE QUOTA (October 5, 2026)**
 
 The owner: an e-invoice saved from the Platforma Qendrore is already filed into `Sales invoices`

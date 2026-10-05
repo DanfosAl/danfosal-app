@@ -819,6 +819,14 @@ result (no real sweep): the phone showed "Asking the shop PC…", "The shop PC i
 the result; the PC ran once. The desktop path with a stand-in handler; the Receive panel; no
 console errors. One test request (`from: 'web'`, done) is left in `autopilotRuns`.
 
+**Shipped 5 Oct 2026:** desktop installer installed (app.asar 11:03, the runner packaged - main.js
+requires it at start); Android APK rebuilt after `cap sync` (11:05, contains the button; the phone
+app runs its own copy of www, so it doesn't need Hosting). **Hosting deploy refused**: HTTP 429,
+the project's Hosting storage quota is full. The site is ~1 MB and only the `live` channel exists,
+so it is years of stored release history; the fix is a retention limit (console › Hosting ›
+Release history › Release storage settings), which only the owner can set. Hosting still serves the
+26 Sep version until then.
+
 ---
 
 #### **53. STOCK › PURCHASES: EVERY KÄRCHER ORDER FROM PROFORMA TO SHELF, AT LANDED COST** — ✅ **BUILT & VERIFIED ON LIVE DATA (September 26, 2026)**

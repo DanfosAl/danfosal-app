@@ -4,7 +4,7 @@ import { toMillis } from './garanci-data.js';
 import { findSimilarClaims } from './garanci-similarity.js';
 import { getWarrantyMatches } from './garanci-workspace.js';
 import { db,ready,showError } from './garanci-app.js';
-import { STATUS_LABELS,changedFields,assertNoConflicts,normalizeParts,normalizeCosts,customerDraft } from './service-model.js';
+import { STATUS_LABELS,repairDescription,changedFields,assertNoConflicts,normalizeParts,normalizeCosts,customerDraft } from './service-model.js';
 const $=id=>document.getElementById(id), ticketId=new URLSearchParams(location.search).get('id');
 let ticket,card=null,parts=[],photos=[],busy=false,invoiceLabel='—',sourceItems=[];
 $('header-slot').outerHTML=renderHeader('pending');$('app-root').insertAdjacentHTML('afterbegin',renderAuroraBackground());
@@ -68,7 +68,7 @@ async function save(event){
             const repairSnap=repairRef?await tx.get(repairRef):null;
             if(isCompleting){assertNoConflicts(ticket,current,Object.fromEntries(['warrantyCardId','warrantyCardItemIndex','linkedSaleId','linkedSaleType','linkedItemIndex','serialNumber','productName'].map(k=>[k,current[k]])));if(repairSnap.exists()&&!candidateCard([{...repairSnap.data(),id:repairRef.id}],current))throw new Error('Lidhja me garancinë ka ndryshuar. Rifreskoni faqen para përfundimit.');}
             const update={...changes,updatedAt:Timestamp.now(),timeline:[...(current.timeline||[]),entry('U përditësua servisi: '+Object.keys(changes).map(k=>({status:'statusi',tech:'tekniku',parts:'pjesët',repairCosts:'kostot',scheduledAt:'takimi',promisedBy:'afati',intake:'pranimi',notes:'shënimet',priority:'prioriteti',mode:'trajtimi'}[k]||k)).join(', '))]};
-            if(isCompleting){update.completedAt=Timestamp.now();update.warrantyCardId=repairRef.id;update.warrantyCardItemIndex=repairSnap.exists()?candidateMatch([{...repairSnap.data(),id:repairRef.id}],current)?.itemIndex??null:0;const repair={ticketId,createdAt:Timestamp.now(),date:new Date().toLocaleDateString('en-GB'),description:[current.issueDescription,changes.notes??current.notes].filter(Boolean).join(' — '),serialNumber:current.serialNumber||'',productName:current.productName||''};
+            if(isCompleting){update.completedAt=Timestamp.now();update.warrantyCardId=repairRef.id;update.warrantyCardItemIndex=repairSnap.exists()?candidateMatch([{...repairSnap.data(),id:repairRef.id}],current)?.itemIndex??null:0;const repair={ticketId,createdAt:Timestamp.now(),date:new Date().toLocaleDateString('en-GB'),description:repairDescription({...current,...(changes.parts?{parts:changes.parts}:{})},changes.notes??current.notes),serialNumber:current.serialNumber||'',productName:current.productName||''};
                 if(repairSnap.exists()){const old=repairSnap.data().repairs||[];if(!old.some(r=>r.ticketId===ticketId))tx.update(repairRef,{repairs:[...old,repair]});}
                 else tx.set(repairRef,{saleId:current.linkedSaleId||'',saleType:current.linkedSaleType||'manual',customerName:current.customerName||'',items:[{name:current.productName||'',serialNumber:current.serialNumber||'',...(Number.isInteger(current.linkedItemIndex)?{sourceItemIndex:current.linkedItemIndex}:{})}],location:'Danfos',createdAt:Timestamp.now(),repairs:[repair]});
             }

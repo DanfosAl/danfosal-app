@@ -324,6 +324,9 @@ body{background:#090b10;color:#f3f4fa}
 .gn-page .dg-column-head .dg-dot{width:6px;height:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--dg-accent) 10%,transparent);background:var(--dg-accent)}
 .gn-page .dg-dot.dg-dot-1{background:var(--dg-cyan)}
 .gn-page .dg-dot.dg-dot-2{background:var(--dg-gold)}
+.gn-page .dg-dot.dg-dot-3{background:#3fb98a}
+/* Parts received is a fourth open column; the closed view keeps three. */
+@media(min-width:961px){.gn-page .dg-board:has(> .dg-column:nth-child(4)){grid-template-columns:repeat(4,minmax(0,1fr))}}
 .gn-page .dg-count{display:inline-grid;place-items:center;min-width:24px;padding:2px 6px;border-radius:6px;background:#222b3a;color:#bdc8db;font-size:10px}
 .gn-page .dg-job{display:block;margin:0;padding:16px;background:linear-gradient(135deg,#1c2332,#161c28);color:var(--dg-text);min-width:0;overflow-wrap:anywhere}
 .gn-page .dg-job:hover{color:var(--dg-text)}

@@ -3,7 +3,7 @@ import { renderHeader, renderAuroraBackground, escapeHtml as esc, formatDateAlb,
 import { db, ready, showError } from './garanci-app.js';
 import { buildMachineDirectory, getWarrantyMatches, ticketMatchesMachine, timestampMillis, saleTypeOf, isOpenTicket, repairMillis } from './garanci-workspace.js';
 const $ = id => document.getElementById(id), normalize = value => String(value || '').trim().toLocaleLowerCase();
-const STATUS = { received: 'Pa caktuar', in_progress: 'Në shqyrtim', waiting_parts: 'Në pritje të pjesëve', completed: 'Përfunduar', rejected: 'Refuzuar', cancelled: 'Anuluar' };
+const STATUS = { received: 'Pa caktuar', in_progress: 'Në shqyrtim', waiting_parts: 'Në pritje të pjesëve', parts_received: 'Pjesët mbërritën', completed: 'Përfunduar', rejected: 'Refuzuar', cancelled: 'Anuluar' };
 const sources = { storeSales: [], onlineOrders: [], warrantyCards: [], serviceTickets: [] }, loaded = new Set();
 let machines = [], page = 0, filter = 'all', search = new URLSearchParams(location.search).get('q') || '', renderGeneration = 0;
 $('header-slot').outerHTML = renderHeader('machines');

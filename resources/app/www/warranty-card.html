@@ -143,6 +143,12 @@
             padding: 5px 10px;
             font-size: 8pt;
         }
+
+        /* A repair's text never widens or lengthens its row: see fillRepair below. */
+        .repairs-table { table-layout: fixed; }
+        .repairs-table td[id^="repair-date-"] { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+        .repair-fit { display: block; line-height: 1.1; overflow-wrap: anywhere; }
+        .repair-fit.clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
         
         .repairs-label {
             background: #d6e4f5;
@@ -427,6 +433,26 @@
         fitPaper();
         window.addEventListener('resize', fitPaper);
 
+        // One line of "Riparimet e bëra". The text keeps to its row's own height (two lines at
+        // 8pt, set by the "Lloji i riparimit" label): it wraps, then shrinks a half point at a
+        // time down to 6pt (three lines); whatever still doesn't fit ends in "…".
+        function fillRepair(i, date, text) {
+            const dateCell = document.getElementById('repair-date-' + i), cell = document.getElementById('repair-type-' + i);
+            if (!cell) return;
+            if (dateCell) dateCell.textContent = date || '';
+            cell.textContent = '';
+            if (!text) return;
+            const cs = getComputedStyle(cell);
+            const room = cell.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const span = document.createElement('span');
+            span.className = 'repair-fit'; span.textContent = text; span.title = text;
+            cell.appendChild(span);
+            for (let pt = 8; pt >= 6; pt -= 0.5) { span.style.fontSize = pt + 'pt'; if (span.offsetHeight <= room + 0.5) return; }
+            span.classList.add('clamp');
+            span.style.webkitLineClamp = String(Math.max(1, Math.floor(room / (6 * 96 / 72 * 1.1))));
+            span.style.maxHeight = room + 'px';
+        }
+
         // Back to wherever this was opened from (Service, a sale, or Danfos Garanci).
         function goBack() {
             if (window.history.length > 1) {
@@ -502,12 +528,9 @@
                     if (sub && card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent;
                     if (typeof describe === 'function') { describe(); if (card.certNo) sub.textContent = card.certNo + ' · ' + sub.textContent; }
                     const repairs = card.repairs || [];
-                    repairs.slice(0, 4).forEach((r, i) => {
-                        const dateCell = document.getElementById('repair-date-' + i);
-                        const typeCell = document.getElementById('repair-type-' + i);
-                        if (dateCell) dateCell.textContent = r.date || '';
-                        if (typeCell) typeCell.textContent = r.description || '';
-                    });
+                    // Fonts first: the fit is measured, and a late font would change the lines.
+                    await document.fonts.ready;
+                    repairs.slice(0, 4).forEach((r, i) => fillRepair(i, r.date, r.description));
                 } catch (err) {
                     console.error('Failed to load repair history:', err);
                 }

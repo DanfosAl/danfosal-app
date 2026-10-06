@@ -219,6 +219,39 @@ export function buildPurchasing(allDocs, { products = [], receipts = [], today =
     };
 }
 
+// The repair ticket(s) a Kärcher warranty claim belongs to (serviceTickets, shared with Danfos
+// Garanci). A ticket already linked to the claim; else an open ticket with the claim's machine
+// serial ("123456" is Kärcher's "0000123456"); else, only when the ticket has no serial, an open
+// ticket for the same machine model - the weakest match, so the owner confirms it.
+const OPEN_TICKET = new Set(['received', 'in_progress', 'waiting_parts', 'parts_received']);
+const serialKey = s => String(s || '').replace(/\D/g, '').replace(/^0+/, '');
+const modelKey = s => String(s || '').toLowerCase().replace(/\*\s*(eu|int)\b/g, '').replace(/[^a-z0-9/]+/g, ' ').trim();
+export function ticketsForClaim(tickets, claim) {
+    const open = tickets.filter(t => OPEN_TICKET.has(t.status || 'received'));
+    const linked = tickets.filter(t => (t.supplierClaimNos || []).includes(claim.orderNo));
+    if (linked.length) return linked.map(ticket => ({ ticket, by: 'link' }));
+    const serial = serialKey(claim.machine?.serial);
+    const bySerial = serial.length >= 4 ? open.filter(t => serialKey(t.serialNumber) === serial) : [];
+    if (bySerial.length) return bySerial.map(ticket => ({ ticket, by: 'serial' }));
+    const model = modelKey(claim.machine?.name);
+    return model ? open.filter(t => serialKey(t.serialNumber).length < 4 && modelKey(t.productName) === model).map(ticket => ({ ticket, by: 'machine' })) : [];
+}
+
+// The parts a free invoice delivers for one claim, named for the repair ticket and the warranty
+// card: the invoice's lines that the claim asked for (all of them when the invoice serves only
+// this claim). A whole machine sent back is the replacement: "Makineri e re SG 4/2 Classic
+// (S/N 12345)".
+export function claimParts(claim, inv) {
+    const codes = new Set((claim.items || []).map(l => l.code));
+    const only = (inv.orderNos || []).length === 1;
+    const clean = n => String(n || '').replace(/\s*\*\s*(EU|INT)\b/g, '').trim();
+    return (inv.items || []).filter(x => only || codes.has(x.code)).map(x => {
+        const sn = (x.serials || [])[0];
+        const machine = claim.machine && x.code === claim.machine.code;
+        return { name: machine ? `Makineri e re ${clean(x.name)}${sn ? ` (S/N ${sn})` : ''}` : clean(x.name), quantity: Number(x.qty) || 1 };
+    });
+}
+
 // The order-list chip: an order line created from a proforma carries orderNo.
 export function orderState(p, orderNo) {
     const o = p.orders.find(x => x.orderNo === orderNo);

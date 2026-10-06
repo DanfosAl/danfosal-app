@@ -4,7 +4,7 @@ import { db, ready, showError } from './garanci-app.js';
 import { isOpenTicket, getScheduledMillis, timestampMillis, localDateKey, dateKeyMillis } from './garanci-workspace.js';
 import { formatDayAlb, shortWeekdaysAlb } from './garanci-data.js';
 const $ = id => document.getElementById(id), noTech = ticket => !String(ticket.tech || '').trim() || String(ticket.tech).trim().toLowerCase() === 'pa caktuar';
-const statusLabels = { received: 'Pa caktuar', in_progress: 'Në shqyrtim', waiting_parts: 'Në pritje të pjesëve', completed: 'Përfunduar', cancelled: 'Anuluar', rejected: 'Refuzuar' };
+const statusLabels = { received: 'Pa caktuar', in_progress: 'Në shqyrtim', waiting_parts: 'Në pritje të pjesëve', parts_received: 'Pjesët mbërritën', completed: 'Përfunduar', cancelled: 'Anuluar', rejected: 'Refuzuar' };
 let tickets = [], selectedDate = localDateKey(), selectedTech = 'all', includeClosed = false, loaded = false;
 const urlDate = new URLSearchParams(location.search).get('date'); if (dateKeyMillis(urlDate)) selectedDate = urlDate;
 $('header-slot').outerHTML = renderHeader('schedule'); $('app-root').insertAdjacentHTML('afterbegin', renderAuroraBackground());

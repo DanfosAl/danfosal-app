@@ -28,7 +28,7 @@ export function dateKeyMillis(value) {
     const date = new Date(`${value}T00:00:00`);
     return Number.isFinite(date.getTime()) && localDateKey(date) === value ? date.getTime() : 0;
 }
-export function isOpenTicket(ticket) { return ['received', 'in_progress', 'waiting_parts'].includes(ticket?.status || 'received'); }
+export function isOpenTicket(ticket) { return ['received', 'in_progress', 'waiting_parts', 'parts_received'].includes(ticket?.status || 'received'); }
 export function getScheduledMillis(ticket) { return timestampMillis(ticket?.scheduledAt); }
 export function getAttentionItems(tickets, now = Date.now()) {
     const nowMs = timestampMillis(now), today = localDateKey(nowMs);

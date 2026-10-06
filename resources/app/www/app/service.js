@@ -17,6 +17,7 @@ const STATUS = {
     received: { en: 'Not started', sq: 'Pa caktuar', chip: '' },
     in_progress: { en: 'In service', sq: 'Në servis', chip: 'vio' },
     waiting_parts: { en: 'Waiting for parts', sq: 'Presin pjesë', chip: 'warn' },
+    parts_received: { en: 'Parts received', sq: 'Pjesët mbërritën', chip: 'ok' },
     completed: { en: 'Completed', sq: 'Përfunduar', chip: 'ok' },
     rejected: { en: 'Rejected', sq: 'Refuzuar', chip: 'bad' },
     cancelled: { en: 'Cancelled', sq: 'Anuluar', chip: 'bad' }
@@ -24,6 +25,15 @@ const STATUS = {
 const CLOSED = new Set(['completed', 'rejected', 'cancelled']);
 const FIELD_SQ = { status: 'statusi', tech: 'tekniku', promisedBy: 'afati', notes: 'shënimet' };
 const statusChip = s => { const x = STATUS[s] || { en: String(s || 'unknown').replace(/_/g, ' '), chip: '' }; return `<span class="chip ${x.chip}">${esc(x.en)}</span>`; };
+
+// What the warranty card says about a finished repair: what was replaced (the ticket's parts that
+// arrived - Purchases fills them in from Kärcher's invoice), else the problem and the notes.
+// Garanci builds it the same way (WarrantyApp/www/js/service-model.js).
+function repairDescription(ticket, notes) {
+    const changed = (ticket.parts || []).filter(p => p && p.name && p.status === 'received').map(p => `${p.name}${Number(p.quantity) > 1 ? ' ×' + p.quantity : ''}`);
+    if (changed.length) return `U ndërrua: ${changed.join(', ')}${notes ? ' — ' + notes : ''}`;
+    return [ticket.issueDescription, notes].filter(Boolean).join(' — ');
+}
 
 const pad = n => String(n).padStart(2, '0');
 const nowLabel = () => { const d = new Date(); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -41,6 +51,7 @@ const FILTERS = [
     ['received', 'Not started', t => t.status === 'received'],
     ['in_progress', 'In service', t => t.status === 'in_progress'],
     ['waiting_parts', 'Waiting for parts', t => t.status === 'waiting_parts'],
+    ['parts_received', 'Parts received', t => t.status === 'parts_received'],
     ['late', 'Past promised date', t => !CLOSED.has(t.status) && t.promisedBy && new Date(t.promisedBy + 'T23:59') < new Date()],
     ['closed', 'Closed', t => CLOSED.has(t.status)],
     ['all', 'All', () => true]
@@ -111,7 +122,9 @@ function ticketDrawer(ctx, t) {
                 <div><small>Warranty</small><b>${card ? (until ? (until > Date.now() ? `<span class="chip ok">until ${esc(day(until))} ${new Date(until).getFullYear()}</span>` : '<span class="chip bad">expired</span>') : '<span class="chip ok">card issued</span>') : '<span class="chip">none found</span>'}</b></div>
             </div>
             <section><h3>Problem</h3><p style="margin:0">${esc(t.issueDescription || '–')}</p>
-                <p class="empty" style="margin:4px 0 0">${realSerial(t.serialNumber) ? 'Serial ' + esc(realSerial(t.serialNumber)) : 'No serial number recorded'}${t.lastCustomerContactAt ? ' · customer last contacted ' + esc(day(toMs(t.lastCustomerContactAt))) : ''}</p></section>
+                <p class="empty" style="margin:4px 0 0">${realSerial(t.serialNumber) ? 'Serial ' + esc(realSerial(t.serialNumber)) : 'No serial number recorded'}${t.lastCustomerContactAt ? ' · customer last contacted ' + esc(day(toMs(t.lastCustomerContactAt))) : ''}${(t.supplierClaimNos || []).length ? ' · Kärcher claim ' + esc(t.supplierClaimNos.join(', ')) : ''}</p></section>
+            ${(t.parts || []).length ? `<section><h3>Parts</h3><div class="lines">${t.parts.map(p => `<div class="line"><div><b>${esc(p.name)}${Number(p.quantity) > 1 ? ' × ' + int(p.quantity) : ''}</b><span>${esc({ needed: 'needed', ordered: 'ordered', received: 'arrived' }[p.status] || p.status || '')}${p.expectedOn ? ' · expected ' + esc(p.expectedOn) : ''}</span></div></div>`).join('')}</div>
+                ${closed ? '' : `<p class="empty" style="margin:6px 0 0">On Completed, the warranty card records: “${esc(repairDescription(t, t.notes))}”</p>`}</section>` : ''}
             <form class="form-grid" id="tf" novalidate>
                 <label class="fld">Status<select id="tf-status">${STATUS[t.status] ? '' : `<option value="${esc(t.status || '')}" selected>${esc(String(t.status || 'unknown').replace(/_/g, ' '))}</option>`}${Object.entries(STATUS).map(([k, v]) => `<option value="${k}"${k === t.status ? ' selected' : ''}>${esc(v.en)}</option>`).join('')}</select></label>
                 <label class="fld">Technician<input id="tf-tech" value="${esc(t.tech || '')}" placeholder="Name"></label>
@@ -155,7 +168,7 @@ function ticketDrawer(ctx, t) {
                     update.completedAt = Timestamp.now();
                     update.warrantyCardId = cardRef.id;
                     const repair = { ticketId: t._id, createdAt: Timestamp.now(), date: new Date().toLocaleDateString('en-GB'),
-                        description: [current.issueDescription, changes.notes ?? current.notes].filter(Boolean).join(' — '),
+                        description: repairDescription(current, changes.notes ?? current.notes),
                         serialNumber: current.serialNumber || '', productName: current.productName || '' };
                     if (cardSnap.exists()) {
                         const old = cardSnap.data().repairs || [];

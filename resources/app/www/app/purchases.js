@@ -6,9 +6,9 @@
 // two things with it: puts an order on the order list, and hands an arrived invoice to Receive
 // delivery with its landed costs and whether it is already paid, so a prepaid delivery never
 // lands in Money > You owe.
-import { db, collection, doc, getDocs, writeBatch, increment } from './firebase.js';
-import { esc, eur, int, icon, plural, money2, toast, openDrawer, openModal } from './ui.js';
-import { buildPurchasing } from './purchasing.js';
+import { db, collection, doc, getDocs, writeBatch, increment, runTransaction, Timestamp } from './firebase.js';
+import { esc, eur, int, icon, plural, money2, fold, toast, openDrawer, openModal } from './ui.js';
+import { buildPurchasing, ticketsForClaim, claimParts } from './purchasing.js';
 import { loadOrderLines, outstanding } from './orderlist.js';
 import { prefillReceive } from './receive.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
@@ -184,17 +184,54 @@ async function handToCustomer(ctx, inv, P) {
             tick.push({ l, take }); left -= take;
         });
     });
-    const ok = await openModal({ title: `Invoice ${inv.invoiceNo}: received, to the customer?`, confirmLabel: 'Mark received', confirmClass: 'money',
+    // Each claim's repair ticket, and the parts of this invoice that belong to that claim.
+    const repairs = claims.flatMap(claim => ticketsForClaim(ctx.model.tickets || [], claim).map(({ ticket, by }) => ({ ticket, by, claim, parts: claimParts(claim, inv), on: by !== 'machine' })))
+        .filter(r => r.parts.length);
+    const asked = openModal({ title: `Invoice ${inv.invoiceNo}: received, to the customer?`, confirmLabel: 'Mark received', confirmClass: 'money',
         body: `<p>${inv.items.map(x => `${esc(x.name)} × ${int(x.qty)}`).join(', ')}.</p>
             <p>${claims.length ? `${plural(claims.length, 'Warranty claim', 'Warranty claims')} ${claims.map(c => esc(c.orderNo)).join(' and ')} stop waiting` : 'It stops waiting'}${tick.length ? ` and ${plural(tick.length, 'order-list line is', 'order-list lines are')} ticked off` : ''}. Nothing is added to stock.</p>
-            ${claims.some(c => c.outstanding.length) ? `<p class="muted">Still to come, so it stays on the order list: ${claims.flatMap(c => c.outstanding).map(l => `${esc(l.name)} × ${int(l.waiting)}`).join(', ')}.</p>` : ''}` });
-    if (!ok) return;
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'purchaseReceipts', inv.invoiceNo), { invoiceNo: inv.invoiceNo, orderNos: inv.orderNos, how: 'customer', at: Date.now(),
-        lines: inv.items.map(x => ({ code: x.code, name: x.name, qty: x.qty })) });
-    tick.forEach(({ l, take }) => batch.update(doc(db, 'toOrder', l._id), { quantityReceived: increment(take) }));
-    try { await batch.commit(); toast(`Invoice ${inv.invoiceNo} received${tick.length ? `, ${plural(tick.length, 'order line', 'order lines')} ticked off` : ''}`); renderPurchases(ctx); }
-    catch (e) { toast(`Couldn't save: ${e.message}`, { bad: true }); }
+            ${claims.some(c => c.outstanding.length) ? `<p class="muted">Still to come, so it stays on the order list: ${claims.flatMap(c => c.outstanding).map(l => `${esc(l.name)} × ${int(l.waiting)}`).join(', ')}.</p>` : ''}
+            ${repairs.length ? `<p style="margin-bottom:4px">Repair tickets that move to <b>Parts received</b>, with these parts:</p>${repairs.map((r, i) => `<label class="check" style="margin-top:6px"><input type="checkbox" data-rt="${i}"${r.by === 'machine' ? '' : ' checked'}><span><b style="font-weight:500">${esc(r.ticket.productName || 'Repair')} · ${esc(r.ticket.customerName || '?')}</b>${r.ticket.claimNo ? ' · ' + esc(r.ticket.claimNo) : ''}<br>
+                <span class="empty" style="padding:0">claim ${esc(r.claim.orderNo)}: ${esc(r.parts.map(p => `${p.name}${p.quantity > 1 ? ' ×' + p.quantity : ''}`).join(', '))} · ${r.by === 'serial' ? 'same serial number' : r.by === 'link' ? 'linked before' : 'same machine model, no serial on the ticket: tick it if it is this customer'}</span></span></label>`).join('')}`
+                : claims.length ? '<p class="muted">No open repair ticket matches these claims, so no repair status changes.</p>' : ''}` });
+    [...document.querySelectorAll('.modal-backdrop')].pop()?.querySelectorAll('[data-rt]').forEach(c => c.addEventListener('change', () => { repairs[Number(c.dataset.rt)].on = c.checked; }));
+    if (!await asked) return;
+    const chosen = repairs.filter(r => r.on);
+    try {
+        await runTransaction(db, async tx => {
+            const fresh = await Promise.all(chosen.map(r => tx.get(doc(db, 'serviceTickets', r.ticket._id))));
+            tx.set(doc(db, 'purchaseReceipts', inv.invoiceNo), { invoiceNo: inv.invoiceNo, orderNos: inv.orderNos, how: 'customer', at: Date.now(),
+                lines: inv.items.map(x => ({ code: x.code, name: x.name, qty: x.qty })), tickets: chosen.map(r => r.ticket._id) });
+            tick.forEach(({ l, take }) => tx.update(doc(db, 'toOrder', l._id), { quantityReceived: increment(take) }));
+            // The ticket: Parts received (unless it has moved past waiting), the parts marked
+            // arrived, the Kärcher claim remembered, and the step on its timeline (in Albanian,
+            // like Garanci's). Completing it later writes these parts onto the warranty card.
+            chosen.forEach((r, i) => {
+                const cur = fresh[i].exists() ? fresh[i].data() : null; if (!cur) return;
+                const steps = [{ title: `Pjesët mbërritën nga Kärcher (fatura ${inv.invoiceNo}): ${r.parts.map(p => `${p.name}${p.quantity > 1 ? ' ×' + p.quantity : ''}`).join(', ')}`, when: nowLabel(), who: 'Blerjet' }];
+                const update = { parts: mergeParts(cur.parts || [], r.parts), supplierClaimNos: [...new Set([...(cur.supplierClaimNos || []), r.claim.orderNo])], updatedAt: Timestamp.now() };
+                if (['received', 'in_progress', 'waiting_parts'].includes(cur.status || 'received')) { update.status = 'parts_received'; steps.push({ title: 'Statusi u ndryshua: Pjesët mbërritën', when: nowLabel(), who: 'Blerjet' }); }
+                update.timeline = [...(cur.timeline || []), ...steps];
+                tx.update(doc(db, 'serviceTickets', r.ticket._id), update);
+            });
+        });
+        toast(`Invoice ${inv.invoiceNo} received${tick.length ? `, ${plural(tick.length, 'order line', 'order lines')} ticked off` : ''}${chosen.length ? `, ${plural(chosen.length, 'repair', 'repairs')} at Parts received` : ''}`);
+        await ctx.reload(); renderPurchases(ctx);
+    } catch (e) { toast(`Couldn't save: ${e.message}`, { bad: true }); }
+}
+
+const pad = n => String(n).padStart(2, '0');
+const nowLabel = () => { const d = new Date(); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+// A ticket's parts list (Garanci's shape: name, quantity, status, expectedOn): a part already
+// listed is marked arrived, a new one is added as arrived.
+function mergeParts(old, arrived) {
+    const out = old.map(p => ({ ...p }));
+    arrived.forEach(a => {
+        const hit = out.find(p => fold(p.name) === fold(a.name));
+        if (hit) Object.assign(hit, { status: 'received', quantity: Math.max(Number(hit.quantity) || 1, a.quantity) });
+        else out.push({ name: a.name, quantity: a.quantity, status: 'received', expectedOn: '' });
+    });
+    return out;
 }
 
 async function putOnOrderList(ctx, o) {

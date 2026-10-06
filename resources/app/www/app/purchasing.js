@@ -189,7 +189,10 @@ export function buildPurchasing(allDocs, { products = [], receipts = [], today =
             : x.waiting.length ? 'arrived' : x.invoices.every(i => i.booked || i.handed) ? (x.invoices.some(i => i.booked) ? 'booked' : 'handed') : 'delivered';
         // What was ordered but not invoiced yet, by product code. Unknowable while an invoice's
         // PDF is missing, so then it isn't claimed.
+        // A receipt can also say a part came under another name on the invoice (the owner's word:
+        // the K7 cylinder head invoiced as "Piston guidance"), so it isn't still to come.
         const got = new Map(); x.invoices.forEach(i => i.items.forEach(l => got.set(l.code, (got.get(l.code) || 0) + l.qty)));
+        x.invoices.forEach(i => (i.handed?.alsoReceived || []).filter(l => !l.orderNo || l.orderNo === x.orderNo).forEach(l => got.set(l.code, (got.get(l.code) || 0) + (Number(l.qty) || 0))));
         x.outstandingKnown = !x.unfiled.length;
         x.outstanding = x.outstandingKnown ? x.items.map(l => ({ ...l, waiting: Math.max(0, l.qty - (got.get(l.code) || 0)) })).filter(l => l.waiting > 0) : [];
         x.open = r2(x.invoices.filter(i => i.pay.status !== 'paid').reduce((s, i) => s + (i.pay.amount ?? i.net), 0));

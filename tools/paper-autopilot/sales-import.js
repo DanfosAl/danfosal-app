@@ -53,6 +53,15 @@ async function invoiceText(path) {
     } finally { await pdf.destroy(); }
 }
 
+// "2026-10-02" or "02/10/2026" -> that day at 12:00 local time; null when it isn't a date.
+function invoiceDay(s) {
+    const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/) || String(s || '').match(/^(\d{2})[./](\d{2})[./](\d{4})/);
+    if (!m) return null;
+    const [y, mo, d] = m[1].length === 4 ? [m[1], m[2], m[3]] : [m[3], m[2], m[1]];
+    const day = new Date(Number(y), Number(mo) - 1, Number(d), 12);
+    return isNaN(day) ? null : day;
+}
+
 // The processor talks a lot; keep its chatter out of the summary the app reads.
 async function quietly(fn) {
     const keep = [console.log, console.warn, console.info];
@@ -89,6 +98,8 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
         if (!read.success) why.push(/conversion rate/i.test(read.error || '') ? 'invoice in lek: needs the day’s exchange rate' : (read.error || 'could not be read'));
         else {
             d = read.data;
+            // E-invoices print a company's name in quotes ("ABC" SHPK); the customer is ABC.
+            if (d.customerName) d.customerName = String(d.customerName).replace(/["“”„«»]/g, '').replace(/\s+/g, ' ').trim() || d.customerName;
             d.items = (d.items || []).map(it => {
                 const name = cleanItemName(it.itemName || it.name);
                 const p = findBestProductMatch(products, name);
@@ -118,6 +129,13 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
         if (dry) { result.added.push({ ...record, items: d.items.map(i => `${i.quantity} × ${i.linkedProductName} @ ${i.pricePerUnit}`) }); continue; }
         const saved = await quietly(() => proc.saveToDatabase({ ...d, confidence: read.confidence || 0 }));
         if (saved && saved.success) {
+            // The processor stamps a sale with the moment it is saved, which is right when the owner
+            // imports by hand on the day. This runs days later (Monday), so the sale gets the
+            // invoice's own day - at noon, as the e-invoice carries no time - or a 30 Sep invoice
+            // filed on 6 Oct would count in October.
+            const day = invoiceDay(d.date);
+            if (day && day.getTime() < new Date().setHours(0, 0, 0, 0))
+                await db.collection('storeSales').doc(saved.saleId).update({ timestamp: admin.firestore.Timestamp.fromDate(day) });
             result.added.push({ ...record, saleId: saved.saleId });
             state[h] = 'imported';
             await db.collection('salesImports').doc(h.slice(0, 20)).set(clean({ ...record, status: 'imported', saleId: saved.saleId, customerId: saved.customerId || null }));

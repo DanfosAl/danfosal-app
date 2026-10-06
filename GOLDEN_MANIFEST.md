@@ -866,7 +866,7 @@ The owner cancelled an online order and it still showed in Sales, and found no w
 
 ---
 
-#### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — 🟡 **BUILT, DRY RUN PASSED, SHIPPED; FIRST REAL RUN WAITS FOR THE FIRESTORE QUOTA (October 5, 2026)**
+#### **56. NEW E-INVOICES GO INTO SALES ON THEIR OWN** — ✅ **SHIPPED; FIRST INVOICE ADDED AND CHECKED IN THE DATABASE (October 6, 2026)**
 
 The owner: an e-invoice saved from the Platforma Qendrore is already filed into `Sales invoices`
 correctly - it should also reach Sales, without Sell › Import invoice by hand.
@@ -892,9 +892,13 @@ correctly - it should also reach Sales, without Sell › Import invoice by hand.
 - **Checked:** dry run on the owner's example, e-invoice 63/2026 (one Kärcher trigger gun, €55):
   buyer, NIPT, total and the catalogue product all read correctly, confidence 80. The waiting list,
   Review prefill and Dismiss were tried in the preview with a marked test record (now dismissed).
-- **Open:** the real run stopped at its first read with Firestore "Quota exceeded" (the Spark plan's
-  50,000 reads a day, used up on 5 Oct). Nothing was written. It runs on the next sweep after the
-  quota resets (09:00 Albania time).
+- **First real run (6 Oct, after the project moved to the Blaze plan):** 63/2026 saved as an
+  invoice-type sale, €45.83 + €9.17 VAT = €55, linked to the catalogue product with its cost; stock
+  3 → 2; a new customer with its NIPT; `salesImports` record `imported`. Two fixes it showed: the
+  buyer's name kept the e-invoice's quotes (`"ABC"` for ABC), now stripped; and the processor stamps a
+  sale with the moment it is saved, so a Monday run would date last week's invoices today (and a
+  30 Sep invoice in October). An auto-imported sale now gets its invoice day at noon; 63/2026 was
+  moved to 2 Oct (it had 6 Oct 11:46). Manual imports are unchanged: the owner imports on the day.
 
 ---
 

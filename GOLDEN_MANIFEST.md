@@ -793,6 +793,37 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **60. WARRANTY PARTS RECEIVED MOVE THE REPAIR ON; THE CARD SAYS WHAT WAS REPLACED, INSIDE ITS BOX** — ✅ **BUILT, TESTED, SHIPPED (October 6, 2026)**
+
+The owner: when a warranty claim's parts are processed to the customer, the repair's status should
+change to "parts received" by itself; and the reprinted warranty card should say in its repair line
+what was changed, in text that stays inside its box.
+
+- **New status `parts_received`** ("Pjesët mbërritën" / "Parts received"), an open status after
+  `waiting_parts`, in both apps that share `serviceTickets`: Danfosal App (Service: label, filter)
+  and Danfos Garanci (`service-model.js` labels, the board gets a fourth open column, machine
+  passport, schedule, `isOpenTicket`).
+- **Purchases › "To the customer"** now also moves each claim's repair ticket: matched by a link
+  made before (`supplierClaimNos`), by serial ("123456" = Kärcher's "0000123456"), or - only when
+  the ticket has no serial - by machine model, which the dialog leaves unticked for the owner to
+  confirm. The ticket gets status Parts received (unless already past waiting), its `parts` list in
+  Garanci's shape with each arrived part (a whole machine as "Makineri e re SG 4/2 Classic (S/N
+  <new serial>)"), the Kärcher claim number, and two timeline steps by "Blerjet". One transaction with the
+  receipt and the order-list ticks.
+- **Completing a repair** (either app) writes `U ndërrua: <arrived parts>` (+ the notes) as the
+  warranty card's repair line, instead of the problem text; without parts it stays as before. The
+  main app's repair panel lists the parts and previews that line.
+- **warranty-card.html:** each repair line keeps to its row's own height (two lines at 8pt): it
+  wraps, shrinks half a point at a time to 6pt (three lines), and only beyond that ends in "…";
+  `table-layout: fixed`, date cells padded to fit "06/10/2026". Measured: four rows of 8pt, 8pt,
+  6pt and clamped text, every row 39-40 px, the box exactly as tall as when empty.
+- **Applied to the 6 Oct delivery** (marked received before this existed): the K7 ticket (serial
+  match) and the SG 4/2 ticket (owner confirmed) are at Parts received with their parts.
+- **Tested:** the Purchases dialog against a local copy of the live data (K7 ticked by serial, SG
+  4/2 unticked by model; the writes checked), and the card's fitting in the browser.
+
+---
+
 #### **59. THE OCTOBER KÄRCHER DELIVERY: CROATIAN INVOICES, FREE LINES AT CUSTOMS VALUE, WARRANTY GOODS TO THE CUSTOMER** — ✅ **SHIPPED; THE DELIVERY BOOKED AND CLOSED (October 6, 2026)**
 
 The owner received the goods, filed the customs declaration (26AL110000121530R6, 6 Oct, €5,187.89)

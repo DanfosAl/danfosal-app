@@ -793,7 +793,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **59. THE OCTOBER KÄRCHER DELIVERY: CROATIAN INVOICES, FREE LINES AT CUSTOMS VALUE, WARRANTY GOODS TO THE CUSTOMER** — ✅ **BUILT, CHECKED ON THE REAL PAPERS (October 6, 2026)**
+#### **59. THE OCTOBER KÄRCHER DELIVERY: CROATIAN INVOICES, FREE LINES AT CUSTOMS VALUE, WARRANTY GOODS TO THE CUSTOMER** — ✅ **SHIPPED; THE DELIVERY BOOKED AND CLOSED (October 6, 2026)**
 
 The owner received the goods, filed the customs declaration (26AL110000121530R6, 6 Oct, €5,187.89)
 and its payment, and nothing moved: the three waiting orders (the prepaid B 50 W and two warranty
@@ -825,6 +825,13 @@ claims) stayed "prepaid" / "claimed", the declaration "not matched".
   the Purchases screen rendered in the browser against a local copy of the data, "To the customer"
   clicked: it writes the receipt and ticks 5 lines (SG 4/2, 3 pistons, guidance, seals, oil),
   leaves the cylinder head, touches no product.
+- **Closed on live data (6 Oct, after the release):** the free invoice marked "to the customer" (the
+  owner's word) - both claims received, 5 order-list lines ticked, the cylinder head still waiting;
+  the B 50 W booked as a new catalogue product (1.533-228.0): stock 1, cost €4,813.60, price
+  €8,086.85 (the app's rule, owner's choice), its order-list line ticked. Purchases: nothing to book.
+- **Receive delivery** didn't tick off the order-list line of a product it creates (the list knows
+  it by code and paper name, not yet by catalogue name), which invited a second "Receive" on the
+  list and double stock. A new product now ticks its line by code or name and links it.
 
 ---
 

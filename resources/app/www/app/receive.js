@@ -352,13 +352,26 @@ async function save(ctx, toPay) {
         if (!x.p.code && x.code) update.code = x.code;
         batch.update(doc(db, 'products', x.p._id), update);
     });
+    const created = [];
     use.filter(l => l.action === 'new').forEach(l => {
-        const c = lineCost(l);
-        batch.set(doc(collection(db, 'products')), { code: l.code || '', name: l.newName, producer: inv.supplier, baseCost: c, cost: r2(c * VAT),
+        const c = lineCost(l), ref = doc(collection(db, 'products'));
+        batch.set(ref, { code: l.code || '', name: l.newName, producer: inv.supplier, baseCost: c, cost: r2(c * VAT),
             price: l.newPrice || r2(c * VAT * MARKUP), stock: l.quantity, image: '', batches: [{ quantity: l.quantity, cost: c, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(l.invoiceUnit ?? c, l.extraUnit || 0) }], createdAt: Date.now() });
+        created.push({ l, ref });
     });
     // Tick off the order list: oldest waiting line first, never beyond what was ordered.
     let ticked = 0;
+    // A new product can't be on the list under its catalogue name yet, but a line from a Kärcher
+    // order carries its code (and its name from the paper). Left waiting, it would invite a
+    // second "Receive" on the order list - and stock counted twice.
+    created.forEach(({ l, ref }) => {
+        let left = l.quantity;
+        rcv.orderLines.filter(o => (l.code && normCode(o.code) === normCode(l.code)) || (l.name && fold(o.name) === fold(l.name)) || (l.newName && fold(o.name) === fold(l.newName)))
+            .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)).forEach(o => {
+                const take = Math.min(left, outstanding(o)); if (take <= 0) return;
+                batch.update(doc(db, 'toOrder', o._id), { quantityReceived: increment(take), productId: ref.id }); left -= take; ticked++;
+            });
+    });
     perProduct.forEach(x => {
         let left = x.qty;
         rcv.orderLines.filter(o => productForLine([x.p], o)).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)).forEach(o => {

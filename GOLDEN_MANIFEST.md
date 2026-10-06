@@ -832,6 +832,10 @@ claims) stayed "prepaid" / "claimed", the declaration "not matched".
 - **Receive delivery** didn't tick off the order-list line of a product it creates (the list knows
   it by code and paper name, not yet by catalogue name), which invited a second "Receive" on the
   list and double stock. A new product now ticks its line by code or name and links it.
+- **The "missing" cylinder head wasn't missing:** Kärcher invoiced claim 7571151033's cylinder head
+  (9.002-525.0) as "Piston guidance K7"; the owner confirmed every K7 part arrived. A receipt can now
+  carry `alsoReceived` lines, which Purchases counts as delivered and the invoice notes. Shipped the
+  same day with the Receive fix (desktop, Hosting, APK).
 
 ---
 

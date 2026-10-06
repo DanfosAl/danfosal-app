@@ -16,6 +16,9 @@ import { ocrFirstPage, closeOcr } from './ocr.js';
 // Unfinished downloads, Windows' own files, Office's lock files ("~$name.xlsx" while it's open),
 // and the shortcuts to the archive that live here.
 const SKIP = /^(desktop\.ini|thumbs\.db)$|^~\$|\.(crdownload|part|tmp|lnk)$/i;
+// Papers whose filed name carries their own number, so the same name means the same document.
+const REPRINTABLE = new Set(['karcher-invoice', 'karcher-credit-note', 'karcher-order', 'karcher-proforma', 'karcher-warranty-claim',
+    'karcher-delivery-note', 'customs-declaration', 'export-declaration', 'e-invoice']);
 
 // What was learnt about a file last time, keyed by name, size and date, so a scheduled run does
 // not re-read 3 GB of installers every half hour. A PDF's "not recognised" answer is only reused
@@ -175,6 +178,13 @@ export async function makePlan({ source, dest, settleMinutes = 0, cachePath = ''
             continue;
         }
         const plain = join(dir, a.newName), ext = extname(a.newName), stem = a.newName.slice(0, a.newName.length - ext.length);
+        // A paper named by its own number (a Kärcher invoice, a customs declaration, an e-invoice)
+        // that is already filed under that very name is the same document downloaded again: Kärcher's
+        // portal stamps every download afresh, so the bytes differ but it is a reprint, not a "(2)".
+        if (REPRINTABLE.has(a.type) && /\d{6,}|\b\d{1,5}-20\d\d\b/.test(a.newName) && existsSync(plain) && !taken.has(plain.toLowerCase())) {
+            Object.assign(a, { action: 'recycle', type: 'duplicate', label: 'Already filed (downloaded again)', duplicateOf: plain, keptAt: plain, keptSha: await sha256(plain) });
+            continue;
+        }
         const versioned = join(dir, `${stem} (${clean(baseName(a.file), 70)})${ext}`);
         function* names() {
             yield plain;

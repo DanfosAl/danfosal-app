@@ -40,7 +40,10 @@ function unique(docs) {
 // twice. The date the Purchases tab went live.
 export const BOOK_FROM = '2026-09-26';
 
-export function buildPurchasing(allDocs, { products = [], today = new Date().toISOString().slice(0, 10), bookFrom = BOOK_FROM } = {}) {
+// receipts: purchaseReceipts, the deliveries that arrived but went to a customer rather than into
+// stock (a warranty replacement handed over, parts used in the repair) - received, not booked.
+export function buildPurchasing(allDocs, { products = [], receipts = [], today = new Date().toISOString().slice(0, 10), bookFrom = BOOK_FROM } = {}) {
+    const handedOver = new Map(receipts.filter(r => r.invoiceNo).map(r => [r.invoiceNo, r]));
     const docs = unique(allDocs);
     const of = kind => docs.filter(d => d.kind === kind);
     const invoices = of('invoice').filter(d => isKarcher(d.supplier)).sort((a, b) => a.date.localeCompare(b.date));
@@ -95,9 +98,12 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
     // ---------------------------------------------------------------- 3. customs -> the invoices it cleared
     // A Kärcher delivery clears customs a few days after its invoices. The declaration states the
     // invoices' total; find the invoice dates within 30 days before it whose invoices add up to it.
-    const allInv = new Map();                        // number -> {no, date, net}, from PDFs and the statement
-    stmtInvoice.forEach((l, no) => allInv.set(no, { no, date: l.date, net: l.amount }));
-    invoices.forEach(i => allInv.set(i.invoiceNo, { no: i.invoiceNo, date: i.date, net: i.net }));
+    // A free (warranty) line is invoiced at 0 but declared at its "Custom limit", so an invoice
+    // counts here at what it declares: its net plus those values. Fees still follow what was paid.
+    const allInv = new Map();                        // number -> {no, date, net, declared}, from PDFs and the statement
+    stmtInvoice.forEach((l, no) => allInv.set(no, { no, date: l.date, net: l.amount, declared: l.amount }));
+    invoices.forEach(i => allInv.set(i.invoiceNo, { no: i.invoiceNo, date: i.date, net: i.net,
+        declared: r2(i.net + i.items.filter(x => x.free).reduce((s, x) => s + (Number(x.customsValue) || 0), 0)) }));
     const taken = new Set(), customsOf = new Map();  // invoice number -> {decl, share of duty and fees in EUR}
     const links = [];
     for (const d of customs.filter(d => isKarcher(d.exporter) && d.invoiceTotal > 0)) {
@@ -106,17 +112,18 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
         let best = null;
         for (let a = 0; a < dates.length; a++) for (let b = a; b < Math.min(dates.length, a + 3); b++) {
             const set = cands.filter(i => i.date <= dates[a] && i.date >= dates[b]);
-            const sum = set.reduce((s, i) => s + i.net, 0), off = Math.abs(sum - d.invoiceTotal) / d.invoiceTotal;
+            const sum = set.reduce((s, i) => s + i.declared, 0), off = Math.abs(sum - d.invoiceTotal) / d.invoiceTotal;
             if (!best || off < best.off) best = { set, sum, off };
         }
         if (!best || best.off > 0.03) { links.push({ decl: d, invoices: [], matched: false }); continue; }
         best.set.forEach(i => taken.add(i.no));
         const rate = d.rate || 100, duty = (d.dutyAll || 0) / rate, fees = Math.max(0, (d.extraAll || 0) - (d.dutyAll || 0)) / rate;
+        const paidSum = best.set.reduce((s, i) => s + i.net, 0);
         // Duty falls on the lines without EU preference; an invoice we only know from the statement
         // is assumed to carry duty in proportion to its value.
         const dutyBase = i => { const pdf = invoices.find(x => x.invoiceNo === i.no); return pdf ? pdf.items.filter(x => x.preference !== 'EU').reduce((s, x) => s + x.total, 0) : i.net; };
         const dutySum = best.set.reduce((s, i) => s + dutyBase(i), 0);
-        best.set.forEach(i => customsOf.set(i.no, { decl: d, duty: dutySum ? duty * dutyBase(i) / dutySum : 0, fees: best.sum ? fees * i.net / best.sum : 0 }));
+        best.set.forEach(i => customsOf.set(i.no, { decl: d, duty: dutySum ? duty * dutyBase(i) / dutySum : 0, fees: paidSum ? fees * i.net / paidSum : 0 }));
         links.push({ decl: d, invoices: best.set.map(i => i.no), declared: d.invoiceTotal, invoiced: r2(best.sum), matched: true, dutyEUR: r2(duty), feesEUR: r2(fees), vatEUR: r2((d.vatAll || 0) / rate) });
     }
 
@@ -133,9 +140,10 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
             return { ...x, paid: r2(paid), duty: r2(duty), fees: r2(fees), landed: r2(paid + duty + fees), landedUnit: x.qty ? r2((paid + duty + fees) / x.qty) : 0 };
         });
         // Arrival: the day it cleared customs, or failing that the invoice date.
-        const arrived = cust ? cust.decl.date : inv.date, isBooked = booked.get(inv.invoiceNo) || null;
+        const arrived = cust ? cust.decl.date : inv.date, isBooked = booked.get(inv.invoiceNo) || null, handed = handedOver.get(inv.invoiceNo) || null;
         return { ...inv, pay, credit: r2(credit), customs: cust ? { number: cust.decl.number, date: cust.decl.date, duty: r2(cust.duty), fees: r2(cust.fees) } : null,
-            lines, landed: r2(lines.reduce((s, x) => s + x.landed, 0)), booked: isBooked, arrived, bookable: !isBooked && arrived >= bookFrom };
+            lines, landed: r2(lines.reduce((s, x) => s + x.landed, 0)), booked: isBooked, handed, arrived, bookable: !isBooked && !handed && arrived >= bookFrom,
+            allFree: inv.items.length > 0 && inv.items.every(x => x.free) };
     });
 
     // ---------------------------------------------------------------- 5. orders, from order to shelf
@@ -173,11 +181,12 @@ export function buildPurchasing(allDocs, { products = [], today = new Date().toI
         x.unfiled = x.invoices.filter(i => i.pdf === false);
         x.waiting = x.invoices.filter(i => i.bookable);
         // ordered / prepaid: nothing invoiced yet · arrived: an invoice to book into stock ·
-        // booked: every invoice is in stock · delivered: arrived before tracking began ·
-        // claimed: a warranty claim whose replacement hasn't come · labour: a claim for labour
-        // only, which Kärcher settles with a credit note rather than goods.
+        // booked: every invoice is in stock · handed: it arrived and went to the customer (a
+        // warranty replacement) · delivered: arrived before tracking began · claimed: a warranty
+        // claim whose replacement hasn't come · labour: a claim for labour only, which Kärcher
+        // settles with a credit note rather than goods.
         x.stage = !x.invoices.length ? (x.warranty ? (x.items.length ? 'claimed' : x.credits.length ? 'booked' : 'labour') : x.prepaid.length ? 'prepaid' : 'ordered')
-            : x.waiting.length ? 'arrived' : x.invoices.every(i => i.booked) ? 'booked' : 'delivered';
+            : x.waiting.length ? 'arrived' : x.invoices.every(i => i.booked || i.handed) ? (x.invoices.some(i => i.booked) ? 'booked' : 'handed') : 'delivered';
         // What was ordered but not invoiced yet, by product code. Unknowable while an invoice's
         // PDF is missing, so then it isn't claimed.
         const got = new Map(); x.invoices.forEach(i => i.items.forEach(l => got.set(l.code, (got.get(l.code) || 0) + l.qty)));

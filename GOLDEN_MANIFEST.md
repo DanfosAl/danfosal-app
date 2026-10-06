@@ -223,6 +223,7 @@ computing their own, which is what ended the era of one app showing three differ
 | `purchaseDocs` | 150 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
 | `autopilotRuns` | 1 | "Check Downloads now" requests from the phone, answered by the desktop app on the shop PC - Finding #54 |
 | `salesImports` | 1 | What became of each new e-invoice in the archive: added to Sales, waiting for a look in Sell › Import invoice, already a sale, or dismissed - Finding #56 |
+| `purchaseReceipts` | 1 | Deliveries received but not put in stock: warranty replacements handed to the customer, keyed by Kärcher invoice number - Finding #59 |
 | `stockCorrections` | 1 | The 14 Sep stock reconciliation |
 | `dataFixes` | 3 | Reversible data corrections, each with its backup file |
 | `settings` | 2 | `receiptNames.services`, `customerReview.notSame` - the owner's own decisions |
@@ -789,6 +790,41 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **59. THE OCTOBER KÄRCHER DELIVERY: CROATIAN INVOICES, FREE LINES AT CUSTOMS VALUE, WARRANTY GOODS TO THE CUSTOMER** — ✅ **BUILT, CHECKED ON THE REAL PAPERS (October 6, 2026)**
+
+The owner received the goods, filed the customs declaration (26AL110000121530R6, 6 Oct, €5,187.89)
+and its payment, and nothing moved: the three waiting orders (the prepaid B 50 W and two warranty
+claims) stayed "prepaid" / "claimed", the declaration "not matched".
+
+- **Why:** Purchases ties customs to a delivery through Kärcher's invoices, which weren't in
+  Downloads. Once downloaded, two more gaps showed. Kärcher Zagreb now issues invoices **in
+  Croatian** ("Naš br. narudžbe" = order no., "Otpremnica br." = delivery note, "Zemlja podrijetla"
+  = origin, "Serijski br." = serials), so the reader found no order numbers; and the warranty
+  replacements are invoiced at €0 but declared at their **"Custom limit"** (€397.43 in all), so
+  €4,790.46 invoiced could never match €5,187.89 declared.
+- `karcher-invoice.js` reads both languages and keeps each free line's `customsValue`;
+  `purchasing.js` counts an invoice at what it declares (net + free lines' customs values), while
+  duty and fees still follow what was paid. Result on the real papers: the declaration matches
+  both invoices exactly; B 50 W lands at €4,813.60 (€4,790.46 + €0.66 duty + €22.48 fees), prepaid,
+  nothing to You owe; the free invoice covers both claims. Kärcher's free invoice has no cylinder
+  head (9.002-525.0): it shows as still to come and stays on the order list.
+- **Warranty goods to the customer** (the owner's answer: the SG 4/2 replacement goes to its
+  customer, the K7 parts into the repair): a new **"To the customer"** action on a free invoice
+  marks it received without stock - a `purchaseReceipts/{invoiceNo}` record, the claims' order-list
+  lines ticked off - and the order reads "Received · to the customer". Before, Receive delivery was
+  the only way out, and it can only add stock.
+- `purchase-read.js` also reads every item of a customs declaration (description, tariff, origin,
+  weight, value, statistical value, its own duty); not needed for this match, kept for detail.
+- **Reprints:** a numbered paper (Kärcher invoice, customs declaration, e-invoice...) downloaded
+  again with other bytes - Kärcher's portal stamps each download - used to be filed as "(2)"; it now
+  goes to the Recycle Bin as "Already filed (downloaded again)", the filed copy checked unchanged.
+- **Checked:** both invoices read from Downloads and the live papers run through `buildPurchasing`;
+  the Purchases screen rendered in the browser against a local copy of the data, "To the customer"
+  clicked: it writes the receipt and ticks 5 lines (SG 4/2, 3 pistons, guidance, seals, oil),
+  leaves the cylinder head, touches no product.
 
 ---
 

@@ -84,7 +84,7 @@ export function readKarcherWarrantyClaim(lines) {
 // ------------------------------------------------------------------ Kärcher invoices and credit notes
 
 export function readKarcherInvoice(lines) {
-    if (/Credit Note/.test(lines.slice(0, 6).join(' '))) return null;      // a credit note has item lines too
+    if (/Credit Note|Odobrenje/i.test(lines.slice(0, 6).join(' '))) return null;      // a credit note has item lines too
     const inv = parseKarcher(lines);
     if (!inv) return null;
     const t = text(lines);
@@ -92,9 +92,9 @@ export function readKarcherInvoice(lines) {
     return { kind: 'invoice', supplier: 'Karcher', invoiceNo: inv.invoiceNumber, date: inv.date, net: inv.net, currency: 'EUR',
         carriage: inv.carriage || 0, prepayPct: inv.prepayPct || 0, prepayAmount: inv.prepayAmount || 0,
         orderNos: inv.orderNos || [], deliveryNotes: inv.deliveryNotes || [], paymentTerms: due ? due[1].trim() : '',
-        items: inv.items.map(({ pos, code, name, quantity, unit, listPrice, discount, total, unitCost, free, origin, tariff, serials, preference }) =>
+        items: inv.items.map(({ pos, code, name, quantity, unit, listPrice, discount, total, unitCost, free, origin, tariff, serials, preference, customsValue }) =>
             ({ pos, code, name, qty: quantity, unit, listPrice, discount, total, unitCost, free, ...(origin ? { origin } : {}), ...(tariff ? { tariff } : {}),
-                ...(serials ? { serials } : {}), ...(preference ? { preference } : {}) })) };
+                ...(serials ? { serials } : {}), ...(preference ? { preference } : {}), ...(customsValue ? { customsValue } : {}) })) };
 }
 
 // A credit note is money back: a returned item, or the cash discount granted after payment
@@ -176,9 +176,44 @@ export function readCustoms(lines) {
     const totals = [...t.matchAll(/Total(?:i i)?\s+([\d,]+)\s+ALL/g)].map(x => amount(x[1]));
     const total = totals.length ? Math.max(...totals) : NaN;
     const vat = taxes.TVS || 0;
+    const rate = inv ? Number(inv[3]) : NaN;
     return { kind: 'customs', number, date, exporter, invoiceCurrency: inv ? inv[1] : '', invoiceTotal: inv ? amount(inv[2]) : NaN,
-        rate: inv ? Number(inv[3]) : NaN, taxes, totalAll: total, vatAll: vat, dutyAll: taxes.DOG || 0,
-        extraAll: Number.isFinite(total) ? Math.max(0, total - vat) : NaN };
+        rate, taxes, totalAll: total, vatAll: vat, dutyAll: taxes.DOG || 0,
+        extraAll: Number.isFinite(total) ? Math.max(0, total - vat) : NaN, items: customsItems(lines, rate) };
+}
+
+// The declared goods, one per item block ("Shenja & nr 6 Nr 84798997 101"): description and
+// quantity ("Makine larese dyshemeje = 1 CP"), origin, weight, the item's value in the invoice
+// currency (box 42) and its statistical value in lek (box 46). Duty is the DOG entry whose base is
+// that statistical value - continuation pages print two items' taxes side by side, so position
+// alone can't say whose it is. Purchases uses the values to tell which order each line belongs to
+// when Kärcher's invoice isn't there to say.
+function customsItems(lines, rate) {
+    const starts = lines.map((l, i) => /Shenja & nr\s+\d+\s+N[or]\.?\s+\d{8}/.test(l) ? i : -1).filter(i => i >= 0);
+    const dog = [];
+    lines.forEach(l => { for (const x of l.matchAll(/(?:^|\s)DOG\s+([\d,]+)\s+(\d+\.\d{3})\s+([\d,]+)\s+\d\b/g)) dog.push({ base: amount(x[1]), duty: amount(x[3]) }); });
+    return starts.map((s, k) => {
+        const block = lines.slice(s, starts[k + 1] ?? lines.length);
+        const head = block[0].match(/Shenja & nr\s+(\d+)\s+N[or]\.?\s+(\d{8})/);
+        const origin = (block.join('\n').match(/\b21 a ([A-Z]{2}) b ([\d.,]+)/) || []);
+        const net = (block.find(l => /Dual Use/.test(l)) || '').match(/([\d.,]+)\s*$/);
+        const desc = block.find(l => /\S\s*=\s*[\d.,]+/.test(l) && !/Shenja|Kodi/.test(l)) || '';
+        const dm = desc.match(/^(.*?)\s*=\s*([\d.,]+)\s*([A-Za-z]*)/);
+        // Box 42: on the line after its heading, alone ("40") or after the supplementary unit ("C62 1.0000 340").
+        let value = NaN;
+        const h = block.findIndex(l => /42 Vlera e artikullit|42 Item price/.test(l));
+        for (const l of h >= 0 ? block.slice(h + 1, h + 3) : []) {
+            const alone = l.trim().match(/^([\d,]+(?:\.\d+)?)$/), unit = l.match(/\b[A-Z][A-Z0-9]{2}\s+\d+\.\d{4}\s+([\d,]+(?:\.\d+)?)\b/);
+            if (alone || unit) { value = amount((alone || unit)[1]); break; }
+        }
+        const v46 = block.findIndex(l => /46 (Vlera Statistikore|Statistical value)/.test(l));
+        const statAll = v46 >= 0 ? amount((block.slice(v46 + 1, v46 + 3).find(l => /^\s*[\d,]+(?:\.\d+)?\s*$/.test(l)) || '').trim()) : NaN;
+        if (!Number.isFinite(value) && Number.isFinite(statAll) && rate) value = r2(statAll / rate);
+        const d = Number.isFinite(statAll) ? dog.find(x => x.base === statAll) : null;
+        return { no: Number(head[1]), tariff: head[2], desc: dm ? dm[1].trim() : desc.trim(), qty: dm ? amount(dm[2]) : NaN, unit: dm ? dm[3] : '',
+            origin: origin[1] || '', grossKg: origin[2] ? amount(origin[2]) : NaN, netKg: net ? amount(net[1]) : NaN,
+            value: Number.isFinite(value) ? value : null, statAll: Number.isFinite(statAll) ? statAll : null, dutyAll: d ? d.duty : null };
+    });
 }
 
 // ------------------------------------------------------------------ Kärcher's statement

@@ -29,7 +29,9 @@ export function parseKarcher(lines) {
             discount: nums.length > 2 ? nums[1] : 0, total, unitCost: qty ? r2(total / qty) : 0, free: !nums.length,
             ...(m[4] ? { preference: m[4] === 'P' ? 'EU' : 'none' } : {}) });
     });
-    const netIdx = lines.findIndex(l => /Net Amount/.test(l));
+    // "Net Amount", or in Croatian "Prijevoz i pakiranje Neto iznos ..." (carriage, net, VAT...) -
+    // not the table heading, which also says "Neto iznos".
+    const netIdx = lines.findIndex(l => /Net Amount|Prijevoz i pakiranje\s+Neto iznos/.test(l));
     if (netIdx >= 0 && lines[netIdx + 1]) {
         const n = lines[netIdx + 1].split(/\s+/).map(num).filter(x => !isNaN(x));
         if (n.length >= 2) { inv.net = n[1]; inv.carriage = n[0]; }
@@ -45,21 +47,27 @@ export function parseKarcher(lines) {
 // under "Date Time Order No.", and "Order No. 7571122916 10.03.2026" above each group of
 // lines), the delivery note, and per line the country of origin (it decides customs duty) and
 // the serial numbers printed under it ("Serial no ( 642569 - 642592 )" or "( 251936, 251940 )").
+// Kärcher Zagreb also issues them in Croatian (since Sep 2026): "Naš br. narudžbe" is the order
+// number, "Otpremnica br." the delivery note, "Zemlja podrijetla: ... Šifra robe" the origin and
+// tariff, "Serijski br." the serials. A free (warranty) line carries "Custom limit 340,45": the
+// value Kärcher declares to customs for it, which the customs declaration then adds up.
 function karcherInvoiceLinks(lines, itemRe, items) {
     const orderNos = new Set(), deliveryNotes = new Set();
-    const head = lines.findIndex(l => /Date\s+Time\s+Order No\./.test(l));
+    const head = lines.findIndex(l => /Date\s+Time\s+Order No\.|Datum i vrijeme izdavanja\s+Na[šs] br\. narud[žz]be/.test(l));
     const first = head >= 0 ? (lines[head + 1] || '').match(/^\d\d\.\d\d\.\d{4}\s+\d\d:\d\d(?::\d\d)?\s+(757\d{7})\b/) : null;
     if (first) orderNos.add(first[1]);
     let item = -1;
     for (const l of lines) {
-        const o = l.match(/^Order No\.\s+(757\d{7})\b/); if (o) orderNos.add(o[1]);
-        const d = l.match(/Del\. Note No\.\s*(\d{6,})/); if (d) deliveryNotes.add(d[1]);
+        const o = l.match(/^(?:Order No\.|Na[šs] br\. narud[žz]be)\s+(757\d{7})\b/); if (o) orderNos.add(o[1]);
+        const d = l.match(/(?:Del\. Note No\.|Otpremnica br\.)\s*(\d{6,})/); if (d) deliveryNotes.add(d[1]);
         if (itemRe.test(l)) { item++; continue; }
         const it = items[item]; if (!it) continue;
-        const c = l.match(/Country of origin of the material\s+(.+?)(?:\s+Statistic number\s+(\d+))?$/);
+        const c = l.match(/(?:Country of origin of the material|Zemlja podrijetla:)\s+(.+?)(?:\s+(?:Statistic number|Šifra robe)\s+(\d+))?$/);
         if (c) { it.origin = c[1].trim(); if (c[2]) it.tariff = c[2]; }
-        const s = l.match(/^Serial no\s*\((.+)\)\s*$/i);
+        const s = l.match(/^(?:Serial no|Serijski br\.)\s*\((.+)\)\s*$/i);
         if (s) it.serials = serialsOf(s[1]);
+        const v = l.match(/^Custom limit\s+([\d.,]+)\s*$/i);
+        if (v) it.customsValue = num(v[1]);
     }
     return { orderNos: [...orderNos], deliveryNotes: [...deliveryNotes] };
 }

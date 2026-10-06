@@ -77,10 +77,11 @@ export async function applyPlan(plan, { journal, log = () => {} }) {
     for (const a of plan.actions.filter(x => x.action === 'recycle')) {
         const from = join(plan.source, a.file);
         // keptAt: the identical file is already filed (a PDF downloaded twice, the second time
-        // after the first had been filed).
+        // after the first had been filed). keptSha: a reprint - the same numbered paper with other
+        // bytes - so the filed copy must still be the one the plan saw.
         const kept = a.keptAt || where.get(a.duplicateOf) || join(plan.source, a.duplicateOf);
         if (!existsSync(from)) { skip(a, 'no longer in the folder'); continue; }
-        if (!existsSync(kept) || await sha256(kept) !== a.sha256) { skip(a, `the copy that stays (${a.duplicateOf}) is gone or changed, so this one stays too`); continue; }
+        if (!existsSync(kept) || await sha256(kept) !== (a.keptSha || a.sha256)) { skip(a, `the copy that stays (${a.duplicateOf}) is gone or changed, so this one stays too`); continue; }
         if (await sha256(from) !== a.sha256) { skip(a, 'changed since the plan was made'); continue; }
         toRecycle.push({ a, from, kept });
     }

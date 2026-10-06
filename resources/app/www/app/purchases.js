@@ -6,10 +6,10 @@
 // two things with it: puts an order on the order list, and hands an arrived invoice to Receive
 // delivery with its landed costs and whether it is already paid, so a prepaid delivery never
 // lands in Money > You owe.
-import { db, collection, doc, getDocs, writeBatch } from './firebase.js';
+import { db, collection, doc, getDocs, writeBatch, increment } from './firebase.js';
 import { esc, eur, int, icon, plural, money2, toast, openDrawer, openModal } from './ui.js';
 import { buildPurchasing } from './purchasing.js';
-import { loadOrderLines } from './orderlist.js';
+import { loadOrderLines, outstanding } from './orderlist.js';
 import { prefillReceive } from './receive.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
 
@@ -17,14 +17,17 @@ const pu = { filter: 'open' };
 const d8 = s => s ? new Date(s + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
 const STAGE = {
     ordered: ['Ordered', 'vio'], prepaid: ['Prepaid · on its way', 'ok'], arrived: ['Arrived · book it', 'warn'],
-    booked: ['In stock', 'ok'], delivered: ['Delivered (history)', ''],
+    booked: ['In stock', 'ok'], handed: ['Received · to the customer', 'ok'], delivered: ['Delivered (history)', ''],
     claimed: ['Warranty claim · waiting', 'vio'], labour: ['Labour claim · credit due', '']
 };
 const OPEN = ['ordered', 'prepaid', 'arrived', 'claimed', 'labour'];
+// Still open: waiting on something, or received with part of it still to come.
+const isOpen = o => OPEN.includes(o.stage) || (['booked', 'handed'].includes(o.stage) && o.outstandingKnown && o.outstanding.length > 0);
+const norm = c => String(c || '').replace(/[.\-\s]/g, '');
 
 export async function loadPurchasing(products) {
-    const docs = (await getDocs(collection(db, 'purchaseDocs'))).docs.map(d => ({ id: d.id, ...d.data() }));
-    return buildPurchasing(docs, { products });
+    const [docs, receipts] = await Promise.all(['purchaseDocs', 'purchaseReceipts'].map(async c => (await getDocs(collection(db, c))).docs.map(d => ({ id: d.id, ...d.data() }))));
+    return buildPurchasing(docs, { products, receipts });
 }
 
 function payChip(pay) {
@@ -52,7 +55,7 @@ export async function renderPurchases(ctx) {
     const importCosts = P.customs.filter(c => c.matched && c.decl.date.startsWith(year));
     const acc = P.account;
     const prepaidWaiting = P.orders.filter(o => o.stage === 'prepaid');
-    const FILTERS = [['open', 'Open', o => OPEN.includes(o.stage)], ['booked', 'In stock', o => o.stage === 'booked'],
+    const FILTERS = [['open', 'Open', isOpen], ['booked', 'Received', o => ['booked', 'handed'].includes(o.stage)],
         ['history', 'History', o => o.stage === 'delivered'], ['all', 'All', () => true]];
     const f = FILTERS.find(x => x[0] === pu.filter) || FILTERS[0];
     const shown = P.orders.filter(f[2]);
@@ -86,18 +89,20 @@ export async function renderPurchases(ctx) {
                 <td>${paid}</td>
                 <td>${inv.length ? `${plural(inv.length, 'invoice', 'invoices')}${o.unfiled.length ? ` <span class="chip warn" title="Known from Kärcher's statement; the PDF isn't in the archive">${o.unfiled.length} PDF missing</span>` : ''}` : '<span class="muted">none yet</span>'}</td>
                 <td>${cust.length && duty > 0.005 ? `<span class="chip" title="${esc(cust.join(', '))}">+${eur(duty, 2)}</span>` : '<span class="muted">–</span>'}</td>
-                <td><span class="chip ${tone}">${esc(label)}</span>${onList.has(o.orderNo) ? ' <span class="chip vio">on the list</span>' : ''}</td>
+                <td><span class="chip ${tone}">${esc(label)}</span>${o.invoices.length && o.outstandingKnown && o.outstanding.length ? ` <span class="chip warn" title="${esc(o.outstanding.map(l => `${l.name} × ${l.waiting}`).join(', '))}">${int(o.outstanding.reduce((s, l) => s + l.waiting, 0))} still to come</span>` : ''}${onList.has(o.orderNo) ? ' <span class="chip vio">on the list</span>' : ''}</td>
                 <td class="n" style="white-space:nowrap">${o.waiting.length ? `<button class="btn small money" type="button" data-book="${esc(o.orderNo)}">${icon('move_to_inbox')}Book into stock</button>` : ''}
+                    ${o.warranty && o.waiting.some(i => i.allFree) ? `<button class="btn small" type="button" data-hand="${esc(o.orderNo)}" title="The replacement went to the customer (or into the repair): mark it received without adding stock">${icon('handshake')}To the customer</button>` : ''}
                     ${canList ? `<button class="btn small" type="button" data-list="${esc(o.orderNo)}">${icon('playlist_add')}Order list</button>` : ''}</td></tr>`;
         }).join('') || `<tr><td colspan="8"><div class="all-clear">${icon('check_circle')}<div><b>${pu.filter === 'open' ? 'No order is waiting on anything.' : 'Nothing here.'}</b><br><span>New Kärcher papers are read when Downloads is filed: on Mondays, or now with “Check Downloads now”.</span></div></div></td></tr>`}</tbody></table>
         <div class="table-foot">Read from the papers in E:\\Danfos Papers. Landed cost = what you paid Kärcher (less any cash discount credited back) + customs duty and fees; import VAT is left out because it is reclaimed.</div></div>`;
 
     ctx.body.querySelector('#pu-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { pu.filter = b.dataset.f; renderPurchases(ctx); } });
     ctx.body.querySelector('#pu-rows').addEventListener('click', async e => {
-        const book = e.target.closest('[data-book]'), list = e.target.closest('[data-list]'), row = e.target.closest('tr[data-o]');
-        const o = P.orders.find(x => x.orderNo === (book?.dataset.book || list?.dataset.list || row?.dataset.o));
+        const book = e.target.closest('[data-book]'), hand = e.target.closest('[data-hand]'), list = e.target.closest('[data-list]'), row = e.target.closest('tr[data-o]');
+        const o = P.orders.find(x => x.orderNo === (book?.dataset.book || hand?.dataset.hand || list?.dataset.list || row?.dataset.o));
         if (!o) return;
         if (book) return bookInvoice(ctx, o.waiting[0], o);
+        if (hand) return handToCustomer(ctx, o.waiting.find(i => i.allFree), P);
         if (list) return putOnOrderList(ctx, o);
         orderDrawer(ctx, P, o, onList);
     });
@@ -118,11 +123,12 @@ function orderDrawer(ctx, P, o, onList) {
     o.invoices.forEach(i => {
         const lines = (i.lines || []).map(l => `<tr><td class="name"><b>${esc(l.name)}</b><span>${esc([l.code, l.origin, l.preference === 'EU' ? 'EU origin, no duty' : l.preference === 'none' ? 'duty applies' : '', l.serials ? `${l.serials.length} serial${l.serials.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '))}</span></td>
             <td class="n">${int(l.qty)}</td><td class="n">€${money2(l.unitCost)}</td><td class="n">${l.duty + l.fees ? `+€${money2((l.duty + l.fees) / (l.qty || 1))}` : '–'}</td><td class="n"><b>€${money2(l.landedUnit)}</b></td></tr>`).join('');
-        events.push([i.date, row(i.date, `<b>Invoice ${esc(i.invoiceNo)}</b> ${payChip(i.pay)} ${i.booked ? '<span class="chip ok">in stock</span>' : i.bookable ? '<span class="chip warn">to book</span>' : i.pdf === false ? '<span class="chip warn">PDF missing</span>' : ''}`, eur(i.net, 2),
+        events.push([i.date, row(i.date, `<b>Invoice ${esc(i.invoiceNo)}</b> ${payChip(i.pay)} ${i.booked ? '<span class="chip ok">in stock</span>' : i.handed ? `<span class="chip ok">to the customer ${esc(d8(new Date(i.handed.at).toISOString().slice(0, 10)))}</span>` : i.bookable ? '<span class="chip warn">to book</span>' : i.pdf === false ? '<span class="chip warn">PDF missing</span>' : ''}`, eur(i.net, 2),
             [i.pay?.note, i.credit ? `€${money2(i.credit)} credited back (cash discount)` : '', i.customs ? `customs ${esc(i.customs.number)} on ${esc(d8(i.customs.date))}: duty €${money2(i.customs.duty)}, fees €${money2(i.customs.fees)}` : '',
                 i.pdf === false ? 'known from Kärcher’s statement; download the PDF to book its lines' : esc(i.file || '')].filter(Boolean).join(' · '))
             + (lines ? `<div class="table-wrap" style="margin:4px 0 10px"><table class="dt"><thead><tr><th>Line</th><th class="n">Qty</th><th class="n">Invoice</th><th class="n">Customs</th><th class="n">Landed</th></tr></thead><tbody>${lines}</tbody></table></div>` : '')
-            + (i.pdf !== false && !i.booked ? `<button class="btn small ${i.bookable ? 'money' : ''}" type="button" data-book-inv="${esc(i.invoiceNo)}" style="margin-bottom:8px">${icon('move_to_inbox')}Book invoice ${esc(i.invoiceNo)} into stock</button>` : '')]);
+            + (i.pdf !== false && !i.booked && !i.handed ? `<button class="btn small ${i.bookable ? 'money' : ''}" type="button" data-book-inv="${esc(i.invoiceNo)}" style="margin-bottom:8px">${icon('move_to_inbox')}Book invoice ${esc(i.invoiceNo)} into stock</button>` : '')
+            + (i.bookable && i.allFree ? ` <button class="btn small" type="button" data-hand-inv="${esc(i.invoiceNo)}" style="margin-bottom:8px">${icon('handshake')}Received · to the customer</button>` : '')]);
     });
     o.credits.forEach(c => events.push([c.date, row(c.date, `<b>Credit note ${esc(c.number)}</b> (${esc(c.reason)})`, `−${eur(c.amount, 2)}`, esc(c.refInvoices.join(', ')))]));
     events.sort((a, b) => (a[0] || '').localeCompare(b[0] || ''));
@@ -134,8 +140,9 @@ function orderDrawer(ctx, P, o, onList) {
         foot: canList ? `<button class="btn" type="button" id="od-list">${icon('playlist_add')}Put on the order list</button>` : ''
     });
     el.addEventListener('click', e => {
-        const b = e.target.closest('[data-book-inv]');
+        const b = e.target.closest('[data-book-inv]'), h = e.target.closest('[data-hand-inv]');
         if (b) { close(); bookInvoice(ctx, o.invoices.find(i => i.invoiceNo === b.dataset.bookInv), o); }
+        if (h) { close(); handToCustomer(ctx, o.invoices.find(i => i.invoiceNo === h.dataset.handInv), P); }
         if (e.target.closest('#od-list')) { close(); putOnOrderList(ctx, o); }
     });
 }
@@ -160,8 +167,36 @@ async function bookInvoice(ctx, inv, o) {
     window.location.hash = '#receive';
 }
 
+// A free replacement that went to the customer, or parts used in the warranty repair: it arrived,
+// so its claims stop waiting and their order-list lines are ticked off, but no stock moves. What
+// the invoice doesn't carry (a part still to come) stays waiting on the list.
+async function handToCustomer(ctx, inv, P) {
+    if (!inv) return;
+    const claims = P.orders.filter(x => inv.orderNos.includes(x.orderNo));
+    let lines = [];
+    try { lines = await loadOrderLines(); } catch { /* the receipt still records it */ }
+    const tick = [];
+    inv.items.forEach(it => {
+        let left = it.qty;
+        lines.filter(l => inv.orderNos.includes(l.orderNo) && norm(l.code) === norm(it.code)).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)).forEach(l => {
+            const take = Math.min(left, outstanding(l)); if (take <= 0) return;
+            tick.push({ l, take }); left -= take;
+        });
+    });
+    const ok = await openModal({ title: `Invoice ${inv.invoiceNo}: received, to the customer?`, confirmLabel: 'Mark received', confirmClass: 'money',
+        body: `<p>${inv.items.map(x => `${esc(x.name)} × ${int(x.qty)}`).join(', ')}.</p>
+            <p>${claims.length ? `${plural(claims.length, 'Warranty claim', 'Warranty claims')} ${claims.map(c => esc(c.orderNo)).join(' and ')} stop waiting` : 'It stops waiting'}${tick.length ? ` and ${plural(tick.length, 'order-list line is', 'order-list lines are')} ticked off` : ''}. Nothing is added to stock.</p>
+            ${claims.some(c => c.outstanding.length) ? `<p class="muted">Still to come, so it stays on the order list: ${claims.flatMap(c => c.outstanding).map(l => `${esc(l.name)} × ${int(l.waiting)}`).join(', ')}.</p>` : ''}` });
+    if (!ok) return;
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'purchaseReceipts', inv.invoiceNo), { invoiceNo: inv.invoiceNo, orderNos: inv.orderNos, how: 'customer', at: Date.now(),
+        lines: inv.items.map(x => ({ code: x.code, name: x.name, qty: x.qty })) });
+    tick.forEach(({ l, take }) => batch.update(doc(db, 'toOrder', l._id), { quantityReceived: increment(take) }));
+    try { await batch.commit(); toast(`Invoice ${inv.invoiceNo} received${tick.length ? `, ${plural(tick.length, 'order line', 'order lines')} ticked off` : ''}`); renderPurchases(ctx); }
+    catch (e) { toast(`Couldn't save: ${e.message}`, { bad: true }); }
+}
+
 async function putOnOrderList(ctx, o) {
-    const norm = c => String(c || '').replace(/[.\-\s]/g, '');
     const lines = o.outstandingKnown && o.outstanding.length ? o.outstanding.map(l => ({ ...l, qty: l.waiting })) : o.items;
     const ok = await openModal({ title: `Put order ${o.orderNo} on the order list?`, confirmLabel: 'Add to the order list',
         body: `<p>${plural(lines.length, 'line', 'lines')}: ${lines.slice(0, 5).map(l => `${esc(l.name)} × ${int(l.qty)}`).join(', ')}${lines.length > 5 ? '…' : ''}.</p>

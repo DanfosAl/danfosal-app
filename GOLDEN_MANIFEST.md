@@ -263,7 +263,7 @@ stockNote?, priceNote?      why a figure was corrected by hand (Finding #43, #44
 #### `returns` (a refund, read off a credit note)
 ```
 type 'return'|'cancellation', reason, invoiceNumber, invoiceDate, customerName
-invoiceNumber    the credit note's own number, not the sale's; "te" on those saved before 5 Oct (Finding #58)
+invoiceNumber    the corrective invoice's own number, not the sale's (read as "te" until 5 Oct, corrected 6 Oct; Finding #58)
 total            the positive amount refunded, VAT included
 items[] {itemName, quantity (negative), pricePerUnit, lineTotal, unit?, printedLineTotal?}
 timestamp
@@ -792,13 +792,15 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **58. EVERY CREDIT NOTE WAS SAVED WITH INVOICE NUMBER "te"** — 🟡 **FIXED, TESTED, BRIDGE RESTARTED; THE 17 STORED RECORDS ARE CORRECTED AT 09:30 ON 6 OCT (October 5, 2026)**
+#### **58. EVERY CREDIT NOTE WAS SAVED WITH INVOICE NUMBER "te"** — ✅ **FIXED, TESTED, SHIPPED; ALL 19 STORED RECORDS CORRECTED (October 5–6, 2026)**
 
 The bridge log said "for invoice te..." on every return. `findInvoiceNumber` tried two patterns on
 each line in turn: `Fatura Nr`, then a loose fallback (`invoice|receipt|no|#`). A credit note prints
 "Korrigjuese - Note Krediti" above its Fatura Nr line, so the fallback took the "No" in "Note" and
-returned "te". Every credit note since at least February was stored in `returns` that way, and any
-sale or online order one of them marked Returned got `cancelledInvoiceNumber: "te"`.
+returned "te". Debit notes ("Note Debiti") were read the same way, and the bridge records any
+"Korrigjuese" receipt as a return, debit notes included. Every one since at least February was
+stored in `returns` that way, and any sale or online order one of them marked Returned got
+`cancelledInvoiceNumber: "te"`.
 
 - **Fixed:** every line is searched for `Fatura Nr` first. The fallback only runs when no line has
   it, and only on whole words, so "no" cannot come out of Note, Nota or Konferenca.
@@ -819,15 +821,27 @@ sale or online order one of them marked Returned got `cancelledInvoiceNumber: "t
   note links by customer and amount even when an unrelated sale carries its number. The test fails
   on the old parser (`'te'`) and without the guard (it links the unrelated sale). Run it from
   `resources/app` with `node tests\easypos-ocr-bridge.cjs`. Over all 300 stored captures, the 17
-  credit notes now read their own numbers and no other receipt changes.
+  corrective invoices (14 credit notes, 3 debit notes) now read their own numbers and no other
+  receipt changes.
 - **Shipped:** commit `2d8128a`, pushed. The bridge was restarted on the fixed code at 17:03 on 5 Oct.
-- **Open:** the 17 stored `returns`, and the `cancelledInvoiceNumber` on whatever they marked
-  Returned, still say "te". The owner approved the correction. `C:\Danfosal\Backups\fix-te-returns.cjs`
-  (outside the repo) matches each return to its capture by `easypos.captureJobId`, checks date and
-  amount, backs up to `C:\Danfosal\Backups\returns-te-fix-2026-10-05.json` and writes in one
-  transaction. Its first run stopped at Firestore "Quota exceeded" (nothing read or written; the
-  same 5 Oct quota as Finding #56). The one-time scheduled task `fix-te-returns-firestore` runs it
-  at 09:30 on 6 Oct.
+- **Stored records corrected on 6 Oct, with the owner's approval and a backup**
+  (`C:\Danfosal\Backups\returns-te-fix-2026-10-05.json`, outside the repo): **19 `returns`** (16
+  credit notes, 3 debit notes) and the one store sale a credit note had marked Returned
+  (`cancelledInvoiceNumber`). All 20 were written in one transaction that would have stopped if any
+  field no longer said "te". Afterwards nothing in `returns`, `storeSales`, `onlineOrders` or a
+  customer's `invoiceHistory` says "te".
+  - **A return's receipt is found by job id and capture timestamp together.** The till's job ids
+    start over (one id has 7 captures), so `easypos.captureJobId` alone matched only 3 of the 19. The
+    script (`C:\Danfosal\Backups\fix-te-returns.cjs`) matches on both, then checks that the receipt
+    is a corrective invoice and that its date and amount agree with the return.
+  - **Two returns had no saved text** (`_data.json`), only the receipt image. One is from the
+    bridge's first days, when it read the same receipt three times: as a sale, then a duplicate, then
+    a return. The other is the 24 Sep credit note for the EUR 6,500 machine of Finding #43. Both were
+    read again with the bridge's own OCR. The one with no date to compare was confirmed by the till's
+    sequence: its number is the only gap between the receipts either side.
+  - The first try on 5 Oct stopped at Firestore "Quota exceeded" (the same quota as Finding #56).
+    The scheduled run at 09:30 on 6 Oct stopped at a permission prompt, so the correction was run by
+    hand after the quota reset.
 
 ---
 

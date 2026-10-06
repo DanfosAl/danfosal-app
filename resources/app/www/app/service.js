@@ -27,11 +27,12 @@ const FIELD_SQ = { status: 'statusi', tech: 'tekniku', promisedBy: 'afati', note
 const statusChip = s => { const x = STATUS[s] || { en: String(s || 'unknown').replace(/_/g, ' '), chip: '' }; return `<span class="chip ${x.chip}">${esc(x.en)}</span>`; };
 
 // What the warranty card says about a finished repair: what was replaced (the ticket's parts that
-// arrived - Purchases fills them in from Kärcher's invoice), else the problem and the notes.
+// arrived - Purchases fills them in from Kärcher's invoice) and nothing else - the service notes
+// are the shop's own; without parts, the problem and the notes as before.
 // Garanci builds it the same way (WarrantyApp/www/js/service-model.js).
 function repairDescription(ticket, notes) {
     const changed = (ticket.parts || []).filter(p => p && p.name && p.status === 'received').map(p => `${p.name}${Number(p.quantity) > 1 ? ' ×' + p.quantity : ''}`);
-    if (changed.length) return `U ndërrua: ${changed.join(', ')}${notes ? ' — ' + notes : ''}`;
+    if (changed.length) return `U ndërrua: ${changed.join(', ')}`;
     return [ticket.issueDescription, notes].filter(Boolean).join(' — ');
 }
 

@@ -1,9 +1,9 @@
 export const STATUS_LABELS={received:'Pa caktuar',in_progress:'Në servis',waiting_parts:'Presin pjesë',parts_received:'Pjesët mbërritën',completed:'Përfunduar',rejected:'Refuzuar',cancelled:'Anuluar'};
 export const CLOSED_STATUSES=['completed','rejected','cancelled'];
 // What the warranty card records for a finished repair: the parts that arrived (Danfosal App's
-// Purchases fills them in from Kärcher's invoice), else the problem and the notes.
+// Purchases fills them in from Kärcher's invoice) and nothing else; else the problem and the notes.
 export function repairDescription(t,notes){const changed=(t.parts||[]).filter(p=>p&&p.name&&p.status==='received').map(p=>`${p.name}${Number(p.quantity)>1?' ×'+p.quantity:''}`);
-    return changed.length?`U ndërrua: ${changed.join(', ')}${notes?' — '+notes:''}`:[t.issueDescription,notes].filter(Boolean).join(' — ');}
+    return changed.length?`U ndërrua: ${changed.join(', ')}`:[t.issueDescription,notes].filter(Boolean).join(' — ');}
 export function canonical(value){
     if(value==null)return null;
     if(value.toMillis)return value.toMillis();

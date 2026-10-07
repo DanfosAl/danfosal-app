@@ -14,7 +14,7 @@ export const firebaseConfig = {
     measurementId: "G-50JPG2KKEC"
 };
 
-const PARTS_MONTHS_DEFAULT = 24;
+const PARTS_MONTHS_DEFAULT = 12;      // 12 months on a machine, from the sale (owner, 7 Oct 2026)
 const LABOUR_MONTHS_DEFAULT = 12;
 export { PARTS_MONTHS_DEFAULT, LABOUR_MONTHS_DEFAULT };
 

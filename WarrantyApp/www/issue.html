@@ -69,7 +69,7 @@
 
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
           <button class="gn-btn gn-btn-primary" id="issue-btn" disabled>Rishiko dhe lësho garancinë</button>
-          <span style="font-size:12.5px;color:rgba(245,243,255,.5);">Periudha: 24 muaj pjesë · 12 muaj punë</span>
+          <span style="font-size:12.5px;color:rgba(245,243,255,.5);">Periudha: 12 muaj nga data e blerjes</span>
         </div>
 
         <div id="issued-panel" style="display:none;"></div>
@@ -359,13 +359,14 @@ document.getElementById('issue-btn').addEventListener('click', async () => {
     try {
         const confirmed = await confirmAction({
             title: 'Rishiko certifikatën e garancisë',
-            body: `Klienti: ${klienti}\nFatura: ${invoiceNumber || 'Manuale'}\nData e blerjes: ${purchaseLabel || '—'}\n\n${certItems.map((it, i) => `${i + 1}. ${it.name} · kodi ${it.modelCode || '—'} · S/N ${it.serialNumber || '—'}`).join('\n')}\n\nMbulesa: 24 muaj pjesë · 12 muaj punë, nga dita e lëshimit.\n\n${corrections.length ? 'Ndryshimet që do të ruhen bashkë me certifikatën:\n' + corrections.join('\n') : 'Të dhënat e faturës dhe profilit janë të pandryshuara.'}`,
+            body: `Klienti: ${klienti}\nFatura: ${invoiceNumber || 'Manuale'}\nData e blerjes: ${purchaseLabel || '—'}\n\n${certItems.map((it, i) => `${i + 1}. ${it.name} · kodi ${it.modelCode || '—'} · S/N ${it.serialNumber || '—'}`).join('\n')}\n\nMbulesa: 12 muaj, nga data e blerjes.\n\n${corrections.length ? 'Ndryshimet që do të ruhen bashkë me certifikatën:\n' + corrections.join('\n') : 'Të dhënat e faturës dhe profilit janë të pandryshuara.'}`,
             confirmLabel: 'Konfirmo dhe lësho'
         });
         if (!confirmed) return;
         const certNo = await nextSequenceNumber(db, 'warrantyCertNo', 'GAR');
         const issuedAt = Timestamp.now();
-        const warrantyUntil = Timestamp.fromDate(addMonths(issuedAt, PARTS_MONTHS_DEFAULT));
+        // From the day of the purchase, not the day the certificate is written.
+        const warrantyUntil = Timestamp.fromDate(addMonths(purchaseDate || issuedAt, PARTS_MONTHS_DEFAULT));
         const cardDoc = doc(collection(db, 'warrantyCards'));
         const sourceRef = invoice ? doc(db, invoice.collectionName, invoice.id) : null;
         const customerRef = (nipt || telefon) ? (customer?.id ? doc(db, 'customers', customer.id) : doc(collection(db, 'customers'))) : null;

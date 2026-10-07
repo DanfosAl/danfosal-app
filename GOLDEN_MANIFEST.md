@@ -793,6 +793,24 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **63. WARRANTY IS 12 MONTHS ON A MACHINE, FROM THE SALE** — ✅ **DONE: RULE IN BOTH APPS, ALL 13 CARDS CORRECTED (October 7, 2026)**
+
+The owner: Danfos gives 12 months on machines, counted from the sale (no warranty on parts or
+services, and that is not to be written on any card). The apps issued "parts 24 months, labour 12":
+every card in the app (GAR-2026-0006 to -0018) was covered for 24 months, and Danfos Garanci counted
+them from the day the certificate was written, not the sale.
+
+- Danfosal App (`warranty.js`) and Danfos Garanci (`garanci-shared.js`, the repair page, `issue.html`)
+  issue 12 months from the purchase date (Garanci from the issue day only when no purchase date is
+  given); `partsMonths`/`labourMonths` both 12. Garanci's Issue page and its confirmation say "12 muaj,
+  nga data e blerjes"; the machine page shows one "Garancia N muaj" instead of parts/labour.
+- All 13 cards corrected: cover = purchase date (or the issue day where none was recorded) + 12
+  months. The K7's card (created earlier without a number) got GAR-2026-0019, its sale's date
+  (06/09/2025) and catalogue number; its cover ended 06/09/2026 - the Kärcher claim was filed on
+  26/08/2026, inside it.
+
+---
+
 #### **62. A REPAIR ON A MACHINE WITHOUT A CARD ISSUES A PROPER ONE; PRINT IT FROM THE REPAIR** — ✅ **BUILT, TESTED (October 7, 2026)**
 
 The owner completed a warranty repair (an SG 4/2, sold 19 Nov 2025) and its printed warranty showed

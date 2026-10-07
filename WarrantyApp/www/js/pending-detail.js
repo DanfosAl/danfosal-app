@@ -79,7 +79,7 @@ async function save(event){
             if(isCompleting){update.completedAt=Timestamp.now();update.warrantyCardId=repairRef.id;update.warrantyCardItemIndex=repairSnap.exists()?candidateMatch([{...repairSnap.data(),id:repairRef.id}],current)?.itemIndex??null:0;const repair={ticketId,createdAt:Timestamp.now(),date:new Date().toLocaleDateString('en-GB'),description:repairDescription({...current,...(changes.parts?{parts:changes.parts}:{})},changes.notes??current.notes),serialNumber:current.serialNumber||'',productName:current.productName||''};
                 if(repairSnap.exists()){const old=repairSnap.data().repairs||[];if(!old.some(r=>r.ticketId===ticketId))tx.update(repairRef,{repairs:[...old,repair]});}
                 else tx.set(repairRef,{saleId:current.linkedSaleId||'',saleType:current.linkedSaleType||'manual',customerName:current.customerName||'',items:[{name:current.productName||'',serialNumber:current.serialNumber||'',...(srcItem?.code?{code:srcItem.code}:{}),...(Number.isInteger(current.linkedItemIndex)?{sourceItemIndex:current.linkedItemIndex}:{})}],location:'Danfos',createdAt:Timestamp.now(),repairs:[repair],
-                    certNo,invoiceNumber:invoiceLabel!=='—'?invoiceLabel:'',purchaseDate:Timestamp.fromDate(new Date(soldAt)),partsMonths:24,labourMonths:12,warrantyUntil:Timestamp.fromDate(addMonths(soldAt,24))});
+                    certNo,invoiceNumber:invoiceLabel!=='—'?invoiceLabel:'',purchaseDate:Timestamp.fromDate(new Date(soldAt)),partsMonths:12,labourMonths:12,warrantyUntil:Timestamp.fromDate(addMonths(soldAt,12))});
             }
             tx.update(ref,update);
         });

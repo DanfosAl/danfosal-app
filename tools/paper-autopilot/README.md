@@ -180,6 +180,13 @@ read, in Sell › Import invoice with the reason. Each outcome is a record in Fi
 `salesImports`; `sales-import.json` in the reports folder remembers which files were handled.
 Older e-invoices are left alone: many were recorded another way (a till sale, lek amounts).
 
+**Prepayments** (`www/app/prepayment.js`): a prepayment invoice ("Parapagim ...") goes in as a
+prepayment, nothing taken from stock; the final invoice, which deducts it with a negative line
+"Zbritje parapagimi sipas fatures 45/2026", takes the goods from stock and is linked to it, with the
+goods' cost shared between the two. A final invoice whose prepayment isn't in Sales waits for
+review. `node autopilot.js --sales --include "Sales invoices/2026/<file>.pdf"` takes an older
+e-invoice the owner names.
+
 ## Still to build
 
 Customs declarations for 2026 are missing from the archive (two customs payments have no

@@ -71,6 +71,9 @@ export const netRevenue = s => Number(s.subtotal) > 0 ? Number(s.subtotal) : (Nu
 // Phase 0 backfill all follow that convention); `netCost` is exact where it exists.
 export function lineNetCost(item) {
     if (item.isService) return 0;          // labour/services carry no stock cost
+    // A prepayment's deduction on the final invoice carries a negative cost: the part of the goods'
+    // cost its prepayment invoice took over (prepayment.js). Unknown until that one is linked.
+    if (item.isPrepaymentDeduction) return item.netCost === null || item.netCost === undefined || isNaN(Number(item.netCost)) ? null : Number(item.netCost);
     if (Number(item.netCost) > 0) return Number(item.netCost);
     if (Number(item.cost) > 0) return Number(item.cost) / VAT;
     return null;
@@ -224,6 +227,7 @@ const FAMILIES = [
 ];
 export function productFamily(name, item) {
     if (item && item.isService) return 'Services';
+    if (item && (item.isPrepayment || item.isPrepaymentDeduction)) return 'Prepayments';
     const n = String(name || '').trim();
     const hit = FAMILIES.find(([, re]) => re.test(n));
     return hit ? hit[0] : 'Other';

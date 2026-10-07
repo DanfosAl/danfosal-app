@@ -408,6 +408,9 @@ class ManualPDFProcessor {
     
     extractDate(text) {
         const patterns = [
+            // The e-invoice's own issue date. It comes first: a line can quote another invoice's
+            // date ("Zbritje parapagimi sipas fatures 17/2025 date 27.02.2025") before it.
+            /Data\s+dhe\s+ora\s+e\s+l[ëe]shimit[^:\n]*:\s*(\d{1,2}\.\d{1,2}\.\d{4})/i,
             /Data\s+e\s+fatures\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
             /Data\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
             /Date\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
@@ -429,7 +432,18 @@ class ManualPDFProcessor {
     
     async extractItemsWithCurrency(lines, fullText, currencyInfo, conversionRate = null) {
         const items = [];
-        
+        // A long description wraps: "Zbritje sipas parapagimit te fatures nr.98/2025" on one line
+        // and its prices "9 375,00 0,00 S-VAT" on the next. Put them back on one line, the way a
+        // short one is printed, so the item opens with its name.
+        const amountRe = '-?\\d{1,3}(?:\\s\\d{3})*,\\d{2}';
+        const pricesOnly = new RegExp(`^\\s*${amountRe}\\s+${amountRe}\\s+S-VAT\\b`, 'i');
+        lines = lines.reduce((out, line) => {
+            const prev = out[out.length - 1];
+            if (prev !== undefined && pricesOnly.test(line) && /[a-zA-ZëËçÇ]{3,}/.test(prev) && !/s-vat|=== PAGE/i.test(prev)) out[out.length - 1] = `${prev.trim()} ${line.trim()}`;
+            else out.push(line);
+            return out;
+        }, []);
+
         console.log('📋 Extracting items from', lines.length, 'lines');
         
         // Find the items table section
@@ -539,9 +553,10 @@ class ManualPDFProcessor {
                     continue;
                 }
                 
-                // Pattern: Item number line (starts with digit, has "Cope"/"Copë")
-                // Example: "2 Cope 0,00 Lo"
-                if (pendingItem && !pendingItem.itemNumber && /^\d+\s+(cop[eë]|cope|pako|liter)/i.test(line)) {
+                // Pattern: Item number line (starts with digit, then the unit: "Cope"/"Copë", or
+                // any other the platform prints - "m2", "Kg", "Orë" - followed by the reduction)
+                // Example: "2 Cope 0,00 Lo", "1 m2 0,00"
+                if (pendingItem && !pendingItem.itemNumber && (/^\d+\s+(cop[eë]|cope|pako|liter)/i.test(line) || /^\d+\s+[a-zA-ZëËçÇ][^\s]*\s+-?\d{1,3}(?:\s\d{3})*,\d{2}\s*$/.test(line))) {
                     const numMatch = line.match(/^(\d+)/);
                     if (numMatch) {
                         pendingItem.itemNumber = numMatch[1];
@@ -551,9 +566,9 @@ class ManualPDFProcessor {
                 }
                 
                 // Pattern: Quantity and prices line
-                // Example: "1 140 000,00 116 666,67"
+                // Example: "1 140 000,00 116 666,67"; a deduction is negative: "-1 -11 250,00 -9 375,00"
                 if (pendingItem && pendingItem.itemNumber && !pendingItem.quantity) {
-                    const qtyPriceMatch = line.match(/^(\d{1,4})\s+(\d{1,3}(?:\s\d{3})*,\d{2})\s+(\d{1,3}(?:\s\d{3})*,\d{2})/);
+                    const qtyPriceMatch = line.match(/^(-?\d{1,4})\s+(-?\d{1,3}(?:\s\d{3})*,\d{2})\s+(-?\d{1,3}(?:\s\d{3})*,\d{2})/);
                     if (qtyPriceMatch) {
                         pendingItem.quantity = parseInt(qtyPriceMatch[1]);
                         const grossPrice = this.parsePrice(qtyPriceMatch[2].replace(/\s/g, ''));
@@ -578,6 +593,9 @@ class ManualPDFProcessor {
         // Convert items to final format
         const finalItems = [];
         for (const item of items) {
+            // A deduction ("-1 Copë, -9 375,00") is kept as one unit at a negative price, so
+            // quantities stay positive everywhere downstream and the line still takes its amount off.
+            if (item.quantity < 0) { item.quantity = -item.quantity; item.netValue = -Math.abs(item.netValue); }
             let unitPrice = item.netValue / item.quantity;
             let lineTotal = item.netValue;
             

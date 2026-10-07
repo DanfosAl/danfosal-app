@@ -18,6 +18,8 @@ import {
 } from './data.js';
 
 const r2 = n => Math.round(n * 100) / 100;
+// −€4,316.67 rather than €-4,316.67 (a prepayment's deduction line).
+const eurSigned = n => `${Number(n) < 0 ? '−€' : '€'}${money2(Math.abs(Number(n) || 0))}`;
 
 // ================================================================== all sales
 
@@ -35,7 +37,7 @@ function allRecords(model) {
             kind: 'sale', id: s._id, rec: s, t: saleTime(s), src, total: Number(s.total) || 0,
             doc: inv ? `${s.type === 'easypos' ? 'Receipt' : 'Invoice'} ${shortInvoice(inv)}` : src === 'Till' ? 'Till sale' : src === 'Import' ? 'Imported sale' : 'Sale',
             who: s.clientName || s.customerName || '', items: s.items || [],
-            margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn
+            margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn, prepay: prepayChip(s)
         };
     });
     // A cancelled or returned order sold nothing: it stays under Online orders, not here.
@@ -106,7 +108,7 @@ function renderSales(ctx) {
             const more = r.items.length > 1 ? ` +${r.items.length - 1}` : '';
             return `<tr data-kind="${r.kind}" data-id="${esc(r.id)}" tabindex="0">
                 <td class="muted" style="white-space:nowrap">${esc(dateTime(r.t))}</td>
-                <td>${esc(r.doc)}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}${r.kind === 'refund' ? ' <span class="chip bad">money back</span>' : ''}</td>
+                <td>${esc(r.doc)}${r.prepay || ''}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}${r.kind === 'refund' ? ' <span class="chip bad">money back</span>' : ''}</td>
                 <td>${r.who && !WALKIN.test(r.who) ? esc(r.who) : '<span class="muted">walk-in</span>'}</td>
                 <td class="muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${first ? esc(`${Number(first.quantity) || 1} × ${first.name || '?'}`) + more : '–'}</td>
                 <td><span class="chip">${esc(r.src)}</span></td>
@@ -129,6 +131,26 @@ function renderSales(ctx) {
     }
 }
 
+// Prepayments (prepayment.js): an invoice paid in advance for goods not yet delivered, and the
+// final invoice that takes it off. Both stay sales as invoiced; the chip and the panel say how
+// they belong together.
+function prepayChip(s) {
+    const pp = s.prepayment;
+    if (pp && pp.status === 'settled') return ` <span class="chip ok" title="Settled by invoice ${esc(shortInvoice(pp.settledBy?.invoiceNumber || ''))}">prepayment · settled</span>`;
+    if (pp || (s.items || []).some(i => i.isPrepayment)) return ' <span class="chip warn" title="Paid in advance; the goods are not invoiced yet">prepayment · not delivered</span>';
+    if ((s.prepaid || []).length) return ` <span class="chip" title="Its total is after the prepayment">less prepayment ${esc(s.prepaid.map(p => p.invoiceNumber).join(', '))}</span>`;
+    return '';
+}
+function prepaySection(ctx, s) {
+    const find = id => id && ctx.model.sales.find(x => x._id === id);
+    const link = (id, no) => find(id) ? `<a href="sell.html?q=${encodeURIComponent(shortInvoice(no))}#sales">${esc(shortInvoice(no))}</a>` : esc(shortInvoice(no));
+    const pp = s.prepayment;
+    if (pp && pp.status === 'settled') return `<section><h3>Prepayment</h3><p style="margin:0">Paid in advance${pp.productName ? ` for <b style="font-weight:500">${esc(pp.productName)}</b>` : ''}; the goods were invoiced on ${link(pp.settledBy?.saleId, pp.settledBy?.invoiceNumber || '')}, which took them from stock. This invoice carries its share of their cost, so both show the real margin.</p></section>`;
+    if (pp || (s.items || []).some(i => i.isPrepayment)) return `<section><h3>Prepayment</h3><p style="margin:0">Paid in advance${pp?.productName ? ` for <b style="font-weight:500">${esc(pp.productName)}</b>` : ''}, <span style="color:var(--warn)">not delivered yet</span>: nothing has left stock. When the final invoice that deducts it (“Zbritje parapagimi … ${esc(shortInvoice(s.invoiceNumber || ''))}”) is imported, the goods leave stock and the two are linked.</p></section>`;
+    if ((s.prepaid || []).length) return `<section><h3>Prepayment</h3><p style="margin:0">This invoice lists the goods at their full price and takes off ${s.prepaid.map(p => p.saleId ? `prepayment ${link(p.saleId, p.invoiceNumber)} (€${money2(p.net)} net)` : `prepayment ${esc(p.invoiceNumber)}, <span style="color:var(--warn)">which isn't in Sales</span>`).join(' and ')}. Its total is what was left to pay.</p></section>`;
+    return '';
+}
+
 function saleDrawer(ctx, r) {
     if (!r) return;
     if (r.kind === 'order') {
@@ -147,10 +169,13 @@ function saleDrawer(ctx, r) {
                 <div><small>Margin</small><b>${cost === null ? 'unknown' : `€${money2(net - cost)} · ${Math.round(100 * (net - cost) / (net || 1))}%`}</b></div></div>
             <section><h3>Customer</h3><p style="margin:0">${r.who && !WALKIN.test(r.who) ? esc(r.who) : 'Walk-in'}${nipt ? ` <span class="chip">NIPT ${esc(nipt)}</span>` : ''}</p>
                 ${s.customerAddress ? `<p class="empty" style="margin:4px 0 0">${esc(s.customerAddress)}</p>` : ''}</section>
+            ${prepaySection(ctx, s)}
             <section><h3>Items</h3><div class="lines">${r.items.map(i => {
                 const c = lineNetCost(i); const q = Number(i.quantity) || 1;
-                return `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(q)} × €${money2(i.price)} · cost ${c === null ? '<span style="color:var(--warn)">unknown</span>' : i.isService ? 'service' : '€' + money2(c) + ' net'}${realSerial(i.serialNumber) ? ` · S/N ${esc(realSerial(i.serialNumber))}` : ''}</span></div>
-                    <span class="n">€${money2((Number(i.price) || 0) * q)}</span></div>`;
+                const costText = c === null ? (i.isPrepayment ? 'known when the goods are invoiced' : i.isPrepaymentDeduction ? '<span style="color:var(--warn)">its prepayment isn\'t in Sales</span>' : '<span style="color:var(--warn)">unknown</span>')
+                    : i.isService ? 'service' : `${eurSigned(c)} net${i.isPrepayment ? ' (its share of the goods\' cost)' : i.isPrepaymentDeduction ? ' (the share its prepayment carries)' : ''}`;
+                return `<div class="line"><div><b>${esc(i.name || '?')}</b><span>${int(q)} × ${eurSigned(i.price)} · cost ${costText}${realSerial(i.serialNumber) ? ` · S/N ${esc(realSerial(i.serialNumber))}` : ''}</span></div>
+                    <span class="n">${eurSigned((Number(i.price) || 0) * q)}</span></div>`;
             }).join('')}</div></section>`,
         foot: `<button class="btn" type="button" id="sd-warranty">${icon('verified')}Warranty card</button>
                <button class="btn ghost" type="button" id="sd-delete" style="margin-left:auto;color:var(--bad)">${icon('delete')}Delete sale</button>`

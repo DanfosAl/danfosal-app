@@ -793,6 +793,43 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **61. PREPAYMENTS AND THE FINAL INVOICES THAT DEDUCT THEM** — ✅ **BUILT, TESTED, IN SALES (October 7, 2026)**
+
+The owner filed e-invoice 45/2026 (a company customer, 25 Jun 2026, €5,180: "Parapagim 70% per makinen
+B 50 W Bp") - a prepayment for the B 50 W that arrived on 6 Oct - and it wasn't in Sales. The final
+invoice will list the machine at full price less the prepayment, naming the prepayment invoice.
+
+- **How Danfos invoices it** (all 7 cases in the archive, 2025-2026): the prepayment has one line
+  "Parapagim ..." (sometimes platform type 386 "Faturë parapagimi"); the final invoice lists the goods
+  at full price plus a negative line "Zbritje parapagimi sipas fatures 17/2025 date 27.02.2025" /
+  "Zbritje sipas parapagimit te fatures nr.98/2025"; its total is what is left to pay.
+- **The reader couldn't read a final invoice:** a long description wraps onto two lines, units other
+  than "Copë" ("m2") weren't recognised, a minus sign broke the quantity line, and the date was taken
+  from the first date anywhere (the one quoted in the deduction). Fixed in `manual-pdf-processor.js`;
+  a deduction is kept as one unit at a negative price. Regression run on all 65 archived sales
+  invoices: 60 read exactly as before, 5 improved (the archive's two final invoices, and three with a
+  line named "20,83"/"183,33"/"37,50" that now carry their real names); lines add up in 36 of 36 (34).
+- **`www/app/prepayment.js`** (shared by Sell › Import invoice and the automatic import): tells a
+  prepayment from a final invoice; prepayment and deduction lines are no product and get `noStock`
+  (without it the processor's name match would take the B 50 W off the shelf at the prepayment);
+  after saving, a prepayment is tagged `prepayment: {status: 'open', productName}`, and a final
+  invoice is linked to it: the prepayment becomes `settled` (`settledBy`), the final gets `prepaid`,
+  and the goods' cost is shared in proportion to the amounts - the prepayment line carries
+  cost × prepayment/goods, the deduction line the same amount negative (`lineNetCost` accepts it).
+  Both invoices then show the real margin and add up to the goods' cost. Checked in memory on the
+  B 50 W: €7,400 sale, cost €4,813.60 → 22% on both invoices, net €6,166.67 and cost €4,813.60 in all.
+- **Automatic import:** a final invoice whose prepayment isn't in Sales waits for review ("it deducts
+  prepayment 98/2025, which isn't in Sales"). Older e-invoices are still left alone; the owner can
+  name one: `autopilot.js --sales --include "<archive path>"`.
+- **Sales shows it:** "prepayment · not delivered" / "prepayment · settled" / "less prepayment
+  45/2026" on the row, a Prepayment section in the sale, line costs that say where they come from.
+  Import invoice says what saving will do. Tested in the browser against a local copy of the data.
+- **Imported at the owner's word:** 45/2026 (B 50 W) and 57/2026
+  (Blancus 230, €23,520, 28 Jul) as open prepayments on their own dates; 47/2026
+  left out (owner's choice). The Blancus 230 isn't in the catalogue yet.
+
+---
+
 #### **60. WARRANTY PARTS RECEIVED MOVE THE REPAIR ON; THE CARD SAYS WHAT WAS REPLACED, INSIDE ITS BOX** — ✅ **BUILT, TESTED, SHIPPED (October 6, 2026)**
 
 The owner: when a warranty claim's parts are processed to the customer, the repair's status should

@@ -34,7 +34,7 @@ import { importSales } from './sales-import.js';
 const { values: opt, positionals } = parseArgs({ allowPositionals: true, options: {
     apply: { type: 'boolean' }, undo: { type: 'boolean' }, sweep: { type: 'boolean' }, now: { type: 'boolean' },
     weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' }, 'no-sync': { type: 'boolean' },
-    sales: { type: 'boolean' }, dry: { type: 'boolean' },
+    sales: { type: 'boolean' }, dry: { type: 'boolean' }, include: { type: 'string', multiple: true },
     source: { type: 'string', default: join(homedir(), 'Downloads') },
     dest: { type: 'string', default: 'E:\\Danfos Papers' },
     out: { type: 'string', default: 'C:\\Danfosal\\Reports\\paper-autopilot' },
@@ -126,8 +126,9 @@ if (opt.apply) {
 
 } else if (opt.sales) {
     // ------------------------------------------------------------ new e-invoices into Sales
-    // --dry says what would be added or wait for review, and writes nothing.
-    const r = await importSales({ dest: opt.dest, out: opt.out, dry: !!opt.dry, log: say });
+    // --dry says what would be added or wait for review, and writes nothing. --include "<file>"
+    // (repeatable, a path in the archive) takes an older e-invoice too, at the owner's word.
+    const r = await importSales({ dest: opt.dest, out: opt.out, dry: !!opt.dry, log: say, include: opt.include || [] });
     say(JSON.stringify(r, null, 1));
 
 } else if (opt.sync || opt.resync) {

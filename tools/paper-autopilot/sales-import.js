@@ -15,10 +15,11 @@
 import { readdirSync, statSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { join, relative, basename } from 'node:path';
+import { join, relative, basename, resolve } from 'node:path';
 import { sha256 } from './plan.js';
 import { pdfjs } from './pdftext.js';
 import { textItemsToLines, pageText, cleanItemName, findBestProductMatch } from '../../resources/app/www/app/invoice-text.js';
+import { prepaymentKind, prepareItems, prepaymentRefs, linkAfterSave } from '../../resources/app/www/app/prepayment.js';
 
 const require = createRequire(import.meta.url);
 export const SALES_FROM = '2026-10-01';
@@ -69,9 +70,17 @@ async function quietly(fn) {
     try { return await fn(); } finally { [console.log, console.warn, console.info] = keep; }
 }
 
-export async function importSales({ dest, out, dry = false, log = () => {} }) {
+// The same rule as the app's lineNetCost (www/app/data.js), which can't be imported under Node.
+const netCostOf = i => i.isService ? 0 : i.isPrepaymentDeduction ? (i.netCost == null || isNaN(Number(i.netCost)) ? null : Number(i.netCost))
+    : Number(i.netCost) > 0 ? Number(i.netCost) : Number(i.cost) > 0 ? Number(i.cost) / 1.2 : null;
+
+// include: older e-invoices the owner asked for by name (a prepayment from before SALES_FROM).
+export async function importSales({ dest, out, dry = false, log = () => {}, include = [] }) {
     const result = { added: [], review: [], already: [] };
-    const files = walk(join(dest, 'Sales invoices')).filter(f => /E-invoice/i.test(basename(f)) && basename(f).slice(0, 10) >= SALES_FROM);
+    const wanted = new Set(include.map(p => resolve(dest, p).toLowerCase()));
+    // Oldest first, so a prepayment is in Sales before the final invoice that deducts it.
+    const files = walk(join(dest, 'Sales invoices')).filter(f => /E-invoice/i.test(basename(f)) && (basename(f).slice(0, 10) >= SALES_FROM || wanted.has(resolve(f).toLowerCase())))
+        .sort((a, b) => basename(a).localeCompare(basename(b)));
     if (!files.length) return result;
     const statePath = join(out, 'sales-import.json');
     let state = {};
@@ -94,7 +103,7 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
         const text = await invoiceText(f);
         const read = await quietly(() => proc.extractAlbanianInvoiceFromText(text, {}));
         const why = [];
-        let d = null;
+        let d = null, kind = null;
         if (!read.success) why.push(/conversion rate/i.test(read.error || '') ? 'invoice in lek: needs the day’s exchange rate' : (read.error || 'could not be read'));
         else {
             d = read.data;
@@ -105,13 +114,21 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
                 const p = findBestProductMatch(products, name);
                 return { ...it, itemName: name || it.itemName, productId: p ? p._id : undefined, linkedProductName: p ? p.name : undefined, matchedBy: p ? 'auto' : null };
             });
+            // A prepayment, or a final invoice taking one off (prepayment.js): those lines are no
+            // product and never touch stock; a final invoice waits until its prepayment is in Sales.
+            kind = prepaymentKind(d, text);
+            d = prepareItems(d, kind);
+            if (kind === 'final') d.items.filter(i => i.noStock).flatMap(i => prepaymentRefs(i.itemName)).forEach(ref => {
+                if (!sales.some(s => short(saleNo(s)) === ref && (s.prepayment || (s.items || []).some(x => x.isPrepayment))))
+                    why.push(`it deducts prepayment ${ref}, which isn't in Sales`);
+            });
             const dup = sales.find(s => short(saleNo(s)) === short(d.invoiceNumber) && (s.type === 'manual-invoice' || Math.abs((Number(s.total) || 0) - (Number(d.total) || 0)) < 0.06));
             if (dup) {
                 result.already.push({ invoiceNumber: d.invoiceNumber, saleId: dup.id });
                 if (!dry) { state[h] = 'already'; await db.collection('salesImports').doc(h.slice(0, 20)).set(clean({ status: 'already', invoiceNumber: d.invoiceNumber, customerName: d.customerName, total: d.total, file, saleId: dup.id, at: new Date().toISOString() })); }
                 continue;
             }
-            const unlinked = d.items.filter(i => !i.productId).map(i => i.itemName);
+            const unlinked = d.items.filter(i => !i.productId && !i.noStock).map(i => i.itemName);
             if (!d.items.length) why.push('no lines read');
             if (unlinked.length) why.push(`not matched to a product: ${unlinked.join(', ')}`);
             const lines = d.items.reduce((s, i) => s + (Number(i.lineTotal) || 0), 0);
@@ -120,13 +137,13 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
             if (!(Number(d.total) > 0)) why.push('no total read');
         }
         const record = { invoiceNumber: d?.invoiceNumber || '', date: d?.date || basename(f).slice(0, 10), customerName: d?.customerName || '', customerNipt: d?.customerNipt || '',
-            total: Number(d?.total) || 0, file, at: new Date().toISOString(), confidence: read.confidence || 0 };
+            total: Number(d?.total) || 0, file, at: new Date().toISOString(), confidence: read.confidence || 0, ...(kind ? { kind } : {}) };
         if (why.length) {
             result.review.push({ ...record, reason: why.join('; ') });
             if (!dry) { state[h] = 'review'; await db.collection('salesImports').doc(h.slice(0, 20)).set(clean({ ...record, status: 'needs-review', reason: why.join('; '), data: d })); }
             continue;
         }
-        if (dry) { result.added.push({ ...record, items: d.items.map(i => `${i.quantity} × ${i.linkedProductName} @ ${i.pricePerUnit}`) }); continue; }
+        if (dry) { result.added.push({ ...record, items: d.items.map(i => `${i.quantity} × ${i.noStock ? i.itemName + ' (no stock)' : i.linkedProductName} @ ${i.pricePerUnit}`) }); continue; }
         const saved = await quietly(() => proc.saveToDatabase({ ...d, confidence: read.confidence || 0 }));
         if (saved && saved.success) {
             // The processor stamps a sale with the moment it is saved, which is right when the owner
@@ -136,9 +153,20 @@ export async function importSales({ dest, out, dry = false, log = () => {} }) {
             const day = invoiceDay(d.date);
             if (day && day.getTime() < new Date().setHours(0, 0, 0, 0))
                 await db.collection('storeSales').doc(saved.saleId).update({ timestamp: admin.firestore.Timestamp.fromDate(day) });
-            result.added.push({ ...record, saleId: saved.saleId });
+            // Tag the prepayment, or link the final invoice to its prepayment and share the cost.
+            let link = null;
+            if (kind) {
+                const store = {
+                    getSale: async id => { const x = await db.collection('storeSales').doc(id).get(); return x.exists ? { id: x.id, ...x.data() } : null; },
+                    salesByInvoice: async no => (await db.collection('storeSales').where('invoiceNumber', '==', no).get()).docs.map(x => ({ id: x.id, ...x.data() })),
+                    updateSale: (id, patch) => db.collection('storeSales').doc(id).update(clean(patch))
+                };
+                link = await linkAfterSave(store, saved.saleId, kind, { products, match: findBestProductMatch, netCostOf });
+                if (kind === 'prepayment') sales.push({ id: saved.saleId, invoiceNumber: d.invoiceNumber, customerNipt: d.customerNipt, prepayment: { status: 'open' } });
+            }
+            result.added.push({ ...record, saleId: saved.saleId, ...(link ? { link } : {}) });
             state[h] = 'imported';
-            await db.collection('salesImports').doc(h.slice(0, 20)).set(clean({ ...record, status: 'imported', saleId: saved.saleId, customerId: saved.customerId || null }));
+            await db.collection('salesImports').doc(h.slice(0, 20)).set(clean({ ...record, status: 'imported', saleId: saved.saleId, customerId: saved.customerId || null, ...(link ? { link } : {}) }));
             log(`sale added: invoice ${record.invoiceNumber} ${record.customerName} €${record.total}`);
         } else {
             result.review.push({ ...record, reason: `saving failed: ${saved?.error || 'unknown'}` });

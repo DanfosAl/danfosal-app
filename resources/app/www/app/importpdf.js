@@ -9,10 +9,12 @@
 // Product matching is the classic page's findBestProductMatch, with its model-number guard.
 import { db, collection, doc, getDocs, getDoc, addDoc, updateDoc, Timestamp, query, where } from './firebase.js';
 import { esc, eur, int, icon, money2, fold, toast, openModal } from './ui.js';
-import { customerKey, customerDirectory, saleInvoiceNumber, shortInvoice, rankProducts } from './data.js';
+import { customerKey, customerDirectory, saleInvoiceNumber, shortInvoice, rankProducts, lineNetCost } from './data.js';
 // The line builder and product matching are shared with the Paper Autopilot, which adds new
 // e-invoices to sales on its own (tools/paper-autopilot/sales-import.js).
 import { textItemsToLines, pageText, cleanItemName, findBestProductMatch } from './invoice-text.js';
+// Prepayments and the final invoices that deduct them: the same rules as the automatic import.
+import { prepaymentKind, prepareItems, prepaymentRefs, linkAfterSave } from './prepayment.js';
 
 function loadScript(src, globalName) {
     if (window[globalName]) return Promise.resolve(window[globalName]);
@@ -51,7 +53,7 @@ async function pdfText(file, status) {
 // ------------------------------------------------------------------ screen
 
 // fromImport: the salesImports record being reviewed, when the invoice came from Downloads.
-const im = { data: null, confidence: 0, force: false, busy: false, status: '', fileName: '', text: '', fromImport: null };
+const im = { data: null, confidence: 0, force: false, busy: false, status: '', fileName: '', text: '', fromImport: null, kind: null };
 let processor = null;
 
 async function getProcessor() {
@@ -65,7 +67,7 @@ export function renderImport(ctx) {
     ctx.setSub('Turn a PDF sales invoice into a sale: stock, customer and profit in one step');
     const actions = ctx.setActions(im.data ? `<button class="btn ghost" type="button" id="im-reset">${icon('restart_alt')}Start again</button>` : '');
     const reset = actions.querySelector('#im-reset');
-    if (reset) reset.addEventListener('click', () => { Object.assign(im, { data: null, force: false, fromImport: null }); renderImport(ctx); });
+    if (reset) reset.addEventListener('click', () => { Object.assign(im, { data: null, force: false, fromImport: null, kind: null }); renderImport(ctx); });
     if (!im.data) return renderPick(ctx);
     renderReview(ctx);
 }
@@ -102,7 +104,8 @@ function renderPick(ctx) {
                 const p = findBestProductMatch(ctx.model.products, clean);
                 return { ...it, itemName: clean || it.itemName, productId: p ? p._id : undefined, linkedProductName: p ? p.name : undefined, matchedBy: p ? 'auto' : null };
             });
-            Object.assign(im, { data: d, confidence: result.confidence || 0, force: false, fileName: file.name, ocr, text });
+            const kind = prepaymentKind(d, text);
+            Object.assign(im, { data: prepareItems(d, kind), kind, confidence: result.confidence || 0, force: false, fileName: file.name, ocr, text });
             renderImport(ctx);
         } catch (e) { status.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
         finally { im.busy = false; drop.classList.remove('busy'); }
@@ -141,6 +144,7 @@ async function renderWaiting(ctx) {
             if (!r.data) { toast('This record has no invoice data: import the PDF by hand.', { bad: true }); return; }
             Object.assign(im, { data: r.data, confidence: r.confidence || 0, force: false, fileName: r.file || '', ocr: 0, text: '', fromImport: r._id });
             im.data.items = (im.data.items || []).map(it => ({ ...it, productId: it.productId || undefined }));
+            im.kind = r.kind || prepaymentKind(im.data); im.data = prepareItems(im.data, im.kind);
             renderImport(ctx);
         }
         if (dm) {
@@ -182,17 +186,18 @@ function renderReview(ctx) {
                 · read ${im.ocr ? `with OCR on ${int(im.ocr)} page(s): check carefully` : 'from the exact text'} · ${esc(im.fileName)} · confidence ${int(im.confidence)}%
                 ${d.hasDualCurrency ? ' · euro totals used (lek ignored)' : d.normalizedToEUR ? ` · converted from ${esc(d.originalCurrency)} at ${esc(d.conversionRate)}` : ''}</p>
             ${(d.warnings || []).length ? `<p class="empty" style="margin:6px 0 0;color:var(--warn)">${d.warnings.map(esc).join(' · ')}</p>` : ''}
+            ${prepayNote(ctx, d)}
         </section>
         <div class="table-wrap"><table class="dt"><thead><tr><th>On the invoice</th><th>Product (stock)</th><th class="n">Qty</th><th class="n">Price each, net</th><th class="n">Line total</th></tr></thead>
         <tbody id="im-lines">${d.items.map((it, i) => { const p = it.productId && products.find(x => x._id === it.productId); return `<tr data-i="${i}" style="cursor:default">
             <td class="name"><input class="inp" data-n="${i}" value="${esc(it.itemName)}" style="width:100%" aria-label="Name on the invoice"></td>
             <td>${p ? `<b style="font-weight:500">${esc(p.name)}</b> <span class="muted">${int(Number(p.stock) || 0)} in stock → ${int((Number(p.stock) || 0) - (Number(it.quantity) || 0))}</span>${it.matchedBy === 'auto' ? ' <span class="chip">auto</span>' : ''}`
-                : it.noStock ? '<span class="muted">Not from stock (service or non-catalogue item)</span>' : '<span class="chip warn">not linked: pick one</span>'}
+                : it.noStock ? `<span class="muted">${im.kind && (im.kind === 'prepayment' || Number(it.pricePerUnit) < 0) ? 'Prepayment: not from stock' : 'Not from stock (service or non-catalogue item)'}</span>` : '<span class="chip warn">not linked: pick one</span>'}
                 <div style="margin-top:4px;display:flex;gap:6px"><button class="btn ghost small" type="button" data-pick="${i}">${icon('link')}${p ? 'Change' : 'Choose product'}</button>
                 ${it.noStock ? '' : `<button class="btn ghost small" type="button" data-nostock="${i}">Not from stock</button>`}</div></td>
             <td class="n"><input class="inp" type="number" min="1" step="1" data-q="${i}" value="${Number(it.quantity) || 1}" style="width:66px;text-align:right" aria-label="Quantity"></td>
-            <td class="n"><input class="inp" type="number" min="0" step="0.01" data-p="${i}" value="${Number(it.pricePerUnit) || 0}" style="width:96px;text-align:right" aria-label="Price each"></td>
-            <td class="n">€${money2(it.lineTotal)}</td></tr>`; }).join('')}</tbody></table></div>
+            <td class="n"><input class="inp" type="number"${Number(it.pricePerUnit) < 0 ? '' : ' min="0"'} step="0.01" data-p="${i}" value="${Number(it.pricePerUnit) || 0}" style="width:96px;text-align:right" aria-label="Price each"></td>
+            <td class="n">${Number(it.lineTotal) < 0 ? '−€' + money2(-it.lineTotal) : '€' + money2(it.lineTotal)}</td></tr>`; }).join('')}</tbody></table></div>
         <section class="panel" style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
             <label class="fld">Subtotal (net)<input id="im-sub" type="number" step="0.01" value="${Number(d.subtotal) || 0}"></label>
             <label class="fld">VAT<input id="im-tax" type="number" step="0.01" value="${Number(d.tax) || 0}"></label>
@@ -230,6 +235,15 @@ function renderReview(ctx) {
     $('#im-save').addEventListener('click', () => { keep(); save(ctx); });
 }
 
+// What a prepayment or a final invoice does when saved, said before it is.
+function prepayNote(ctx, d) {
+    if (im.kind === 'prepayment') return `<p style="margin:8px 0 0">${icon('savings')} <b style="font-weight:500">Prepayment invoice.</b> It is saved as a prepayment: counted in sales, nothing taken from stock. The final invoice that deducts it ("Zbritje parapagimi … ${esc(shortInvoice(d.invoiceNumber))}") takes the goods from stock and is linked to it.</p>`;
+    if (im.kind !== 'final') return '';
+    const refs = d.items.filter(i => Number(i.pricePerUnit) < 0).flatMap(i => prepaymentRefs(i.itemName));
+    const inSales = ref => ctx.model.sales.some(s => shortInvoice(saleInvoiceNumber(s)) === ref && (s.prepayment || (s.items || []).some(x => x.isPrepayment)));
+    return `<p style="margin:8px 0 0">${icon('savings')} <b style="font-weight:500">Final invoice after a prepayment.</b> ${refs.length ? refs.map(r => inSales(r) ? `Prepayment ${esc(r)} is in Sales: they are linked, and the goods' cost is shared between the two.` : `<span style="color:var(--warn)">Prepayment ${esc(r)} isn't in Sales</span>: this invoice is saved alone, and its margin stays unknown.`).join(' ') : 'No prepayment invoice number was found on the deduction line.'}</p>`;
+}
+
 async function pickProduct(ctx, text) {
     let chosen = null;
     const pr = openModal({ title: `Which product is “${text}”?`, confirmLabel: 'Link',
@@ -256,10 +270,21 @@ async function save(ctx) {
     try {
         const result = await (await getProcessor()).saveToDatabase({ ...d });
         if (!result || result.success === false) throw new Error((result && result.error) || 'Save failed');
-        toast(`Invoice ${shortInvoice(d.invoiceNumber)} saved as a sale`);
+        // A prepayment is tagged; a final invoice is linked to its prepayment and the goods' cost shared.
+        let note = '';
+        if (im.kind && result.saleId) {
+            const store = {
+                getSale: async id => { const x = await getDoc(doc(db, 'storeSales', id)); return x.exists() ? { id: x.id, ...x.data() } : null; },
+                salesByInvoice: async no => (await getDocs(query(collection(db, 'storeSales'), where('invoiceNumber', '==', no)))).docs.map(x => ({ id: x.id, ...x.data() })),
+                updateSale: (id, patch) => updateDoc(doc(db, 'storeSales', id), JSON.parse(JSON.stringify(patch)))
+            };
+            const link = await linkAfterSave(store, result.saleId, im.kind, { products: ctx.model.products, match: findBestProductMatch, netCostOf: lineNetCost }).catch(() => null);
+            note = im.kind === 'prepayment' ? ' as a prepayment' : link && link.prepaid.length ? `, linked to prepayment ${link.prepaid.map(p => p.invoiceNumber).join(', ')}` : link && link.missing.length ? ` (prepayment ${link.missing.join(', ')} isn't in Sales)` : '';
+        }
+        toast(`Invoice ${shortInvoice(d.invoiceNumber)} saved${note || ' as a sale'}`);
         // An invoice reviewed from Downloads leaves the waiting list.
         if (im.fromImport) await updateDoc(doc(db, 'salesImports', im.fromImport), { status: 'imported', saleId: result.saleId || null, importedBy: 'owner', importedAt: Date.now() }).catch(() => {});
-        Object.assign(im, { data: null, force: false, fromImport: null, status: `Last saved: invoice ${shortInvoice(d.invoiceNumber)} for ${d.customerName}.` });
+        Object.assign(im, { data: null, force: false, fromImport: null, kind: null, status: `Last saved: invoice ${shortInvoice(d.invoiceNumber)} for ${d.customerName}.` });
         await ctx.reload();
     } catch (e) { if (btn) btn.disabled = false; toast(`Couldn't save: ${e.message}`, { bad: true }); }
 }

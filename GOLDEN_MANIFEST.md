@@ -793,6 +793,35 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **62. A REPAIR ON A MACHINE WITHOUT A CARD ISSUES A PROPER ONE; PRINT IT FROM THE REPAIR** — ✅ **BUILT, TESTED (October 7, 2026)**
+
+The owner completed a warranty repair (an SG 4/2, sold 19 Nov 2025) and its printed warranty showed
+the repair day as the purchase date, as a new card with no number and no cover date; and printing it
+meant finding it in the Warranty cards list.
+
+- **Why:** that sale never had a warranty card in the app, so completing the repair (Danfos Garanci,
+  and Danfosal App the same way) created one with only the repair: `createdAt` today, which the print
+  page shows when there is no `purchaseDate`.
+- **Now** (both apps) such a card is issued as Sell would have issued it on the sale: the next
+  `GAR-YYYY-NNNN` from the shared counter, `purchaseDate` = the sale's date, the invoice number (a till
+  receipt's too), the catalogue number, `partsMonths` 24 / `labourMonths` 12, `warrantyUntil` = sale +
+  24 months. A card that exists (linked to the repair, or issued on the sale) is still updated, never
+  duplicated.
+- **Printing:** Service › Repairs has a "Warranty card" print button on every repair whose machine has
+  a card, and in the repair panel; completing a repair offers to print the card right away. Garanci's
+  repair page has "Printo kartën e garancisë" (opens the print page in the browser).
+- **The card from 7 Oct fixed:** GAR-2026-0018, purchase date 19 Nov 2025, covered to 19 Nov 2027,
+  catalogue number 1.092-301.0 (Kärcher's papers and the catalogue; the till line said 1.100-240.0).
+- **Tested** in both apps against a local copy of the data with a made-up open repair: card issued
+  GAR-2026-0019 from the sale's date (7 Feb 2026 → 7 Feb 2028) with the repair line, ticket linked,
+  print opened; Garanci's page shows the print button where a card exists.
+- **Six-digit serials:** a Kärcher machine's serial has six digits (a label reads 012345), but its invoices
+  drop the leading zero (153 of 669 serials read had five digits). `karcher-invoice.js` restores it;
+  all 168 purchase papers re-read (`--resync`): 692 serials, all six digits; Purchases unchanged. The
+  replacement SG 4/2 on GAR-2026-0018 carries its six-digit serial (card, repair line and ticket).
+
+---
+
 #### **61. PREPAYMENTS AND THE FINAL INVOICES THAT DEDUCT THEM** — ✅ **BUILT, TESTED, IN SALES (October 7, 2026)**
 
 The owner filed e-invoice 45/2026 (a company customer, 25 Jun 2026, €5,180: "Parapagim 70% per makinen

@@ -7,9 +7,10 @@
 // warranty card, once per ticket, exactly as Garanci does.
 import { bootWorkspace } from './workspace.js';
 import { warrantyRemoveDialog } from './warrantyreturn.js';
+import { nextCertNo, addMonths, PARTS_MONTHS, LABOUR_MONTHS } from './warranty.js';
 import { db, collection, doc, addDoc, runTransaction, writeBatch, deleteDoc, deleteField, Timestamp } from './firebase.js';
 import { esc, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
-import { DAY, toMs, saleTime, orderTime, customerDirectory, realSerial, soldOrder
+import { DAY, toMs, saleTime, orderTime, customerDirectory, realSerial, soldOrder, saleInvoiceNumber, shortInvoice
 } from './data.js';
 
 // Status values are shared with Garanci and the classic page; the timeline stays in Albanian like theirs.
@@ -72,7 +73,7 @@ function renderTickets(ctx) {
             <div class="filters" id="tk-f" role="group" aria-label="Filter repairs"></div>
         </div>
         <div class="table-wrap" style="max-height:calc(100vh - 290px)"><table class="dt"><thead><tr>
-            <th>Customer and machine</th><th>Problem</th><th>Status</th><th class="n">Open for</th><th class="n">Promised</th><th>Last step</th></tr></thead>
+            <th>Customer and machine</th><th>Problem</th><th>Status</th><th class="n">Open for</th><th class="n">Promised</th><th>Last step</th><th></th></tr></thead>
             <tbody id="tk-body"></tbody></table></div>`;
     const draw = () => {
         const terms = fold(tk.q).trim().split(/\s+/).filter(Boolean);
@@ -91,13 +92,17 @@ function renderTickets(ctx) {
                 <td>${statusChip(t.status)}${t.tech ? ` <span class="muted" style="font-size:12px">${esc(t.tech)}</span>` : ''}</td>
                 <td class="n ${age > 14 && !CLOSED.has(t.status) ? 'zero' : ''}">${isNaN(age) ? '–' : plural(age, 'day', 'days')}</td>
                 <td class="n ${late ? 'zero' : 'muted'}">${t.promisedBy ? esc(day(new Date(t.promisedBy).getTime())) : '–'}</td>
-                <td class="muted" style="font-size:12px">${last ? esc(last.title) + ' · ' + esc(last.when) : '–'}</td></tr>`;
-        }).join('') || `<tr><td colspan="6" class="muted" style="padding:18px">${tickets.length ? 'No repair matches.' : 'No repairs yet.'}</td></tr>`;
+                <td class="muted" style="font-size:12px">${last ? esc(last.title) + ' · ' + esc(last.when) : '–'}</td>
+                <td class="n">${cardOf(ctx, t) ? `<button class="btn small ghost" type="button" data-print="${esc(cardOf(ctx, t)._id)}" title="Print the warranty card, with its repairs">${icon('print')}Warranty card</button>` : ''}</td></tr>`;
+        }).join('') || `<tr><td colspan="7" class="muted" style="padding:18px">${tickets.length ? 'No repair matches.' : 'No repairs yet.'}</td></tr>`;
     };
     draw();
     ctx.body.querySelector('#tk-q').addEventListener('input', e => { tk.q = e.target.value; draw(); });
     ctx.body.querySelector('#tk-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { tk.filter = b.dataset.f; draw(); } });
-    const openRow = e => { const tr = e.target.closest('tr[data-id]'); if (tr) ticketDrawer(ctx, ctx.model.tickets.find(t => t._id === tr.dataset.id)); };
+    const openRow = e => {
+        const pr = e.target.closest('[data-print]'); if (pr) { printCard(pr.dataset.print); return; }
+        const tr = e.target.closest('tr[data-id]'); if (tr) ticketDrawer(ctx, ctx.model.tickets.find(t => t._id === tr.dataset.id));
+    };
     ctx.body.querySelector('#tk-body').addEventListener('click', openRow);
     ctx.body.querySelector('#tk-body').addEventListener('keydown', e => { if (e.key === 'Enter') openRow(e); });
     // Deep links: ?id= opens a ticket (from a customer's history), ?customer= starts a new one.
@@ -109,9 +114,28 @@ function renderTickets(ctx) {
     }
 }
 
+// The machine's warranty card: the one the repair is linked to, else the one issued on its sale.
+function cardOf(ctx, t) {
+    return ctx.model.warranties.find(w => w._id === t.warrantyCardId) || (t.linkedSaleId && ctx.model.warranties.find(w => w.saleId === t.linkedSaleId && !w.cancelledAt)) || null;
+}
+const printCard = id => window.open(`warranty-card.html?id=${encodeURIComponent(id)}`, '_blank');
+
+// A repair finished on a machine that never got a warranty card: issue one now, as Sell would have
+// on the day of the sale - its number, the sale's date (the warranty runs from the purchase, not
+// from the repair), the invoice, the catalogue number and the usual terms.
+async function newCardFrom(ctx, t) {
+    const sale = t.linkedSaleType === 'onlineOrder' ? ctx.model.orders.find(o => o._id === t.linkedSaleId) : ctx.model.sales.find(s => s._id === t.linkedSaleId);
+    const soldAt = (sale && (saleTime(sale) || orderTime(sale))) || toMs(t.createdAt) || Date.now();
+    const items = sale?.items || [];
+    const item = (Number.isInteger(t.linkedItemIndex) && items[t.linkedItemIndex]) || items.find(i => fold(i.name) === fold(t.productName)) || null;
+    const product = item && ctx.model.products.find(p => p._id === item.productId);
+    return { soldAt, code: item?.code || product?.code || '', fields: { certNo: await nextCertNo(), invoiceNumber: sale ? shortInvoice(saleInvoiceNumber(sale)) || '' : '',
+        purchaseDate: Timestamp.fromDate(new Date(soldAt)), partsMonths: PARTS_MONTHS, labourMonths: LABOUR_MONTHS, warrantyUntil: Timestamp.fromDate(addMonths(soldAt, PARTS_MONTHS)) } };
+}
+
 function ticketDrawer(ctx, t) {
     const closed = CLOSED.has(t.status);
-    const card = ctx.model.warranties.find(w => w._id === t.warrantyCardId) || (t.linkedSaleId && ctx.model.warranties.find(w => w.saleId === t.linkedSaleId));
+    const card = cardOf(ctx, t);
     const until = card && toMs(card.warrantyUntil);
     const { el, close } = openDrawer({
         title: esc(t.productName || 'Repair'),
@@ -138,9 +162,11 @@ function ticketDrawer(ctx, t) {
                 <div class="line"><div><b>${esc(x.title)}</b><span>${esc(x.when || '')}${x.who ? ' · ' + esc(x.who) : ''}</span></div></div>`).join('')}</div>` : '<p class="empty">No steps recorded.</p>'}</section>`,
         foot: `<button class="btn primary" type="button" id="tf-save">${icon('check')}Save</button>
                <button class="btn" type="button" id="tf-contact">${icon('call')}Customer contacted</button>
+               ${card ? `<button class="btn" type="button" id="tf-print">${icon('print')}Warranty card</button>` : ''}
                <button class="btn ghost" type="button" id="tf-msg" style="margin-left:auto">${icon('content_copy')}Copy update message</button>`
     });
 
+    if (card) el.querySelector('#tf-print').addEventListener('click', () => printCard(card._id));
     const err = el.querySelector('#tf-err');
     const fail = x => { err.textContent = x.message; err.hidden = false; };
 
@@ -151,6 +177,7 @@ function ticketDrawer(ctx, t) {
         const completing = changes.status === 'completed';
         const btn = el.querySelector('#tf-save'); btn.disabled = true;
         try {
+            const fresh = completing && !card ? await newCardFrom(ctx, t) : null;
             const ticketRef = doc(db, 'serviceTickets', t._id);
             const cardRef = completing ? (card ? doc(db, 'warrantyCards', card._id) : doc(collection(db, 'warrantyCards'))) : null;
             await runTransaction(db, async tx => {
@@ -176,13 +203,17 @@ function ticketDrawer(ctx, t) {
                         if (!old.some(r => r.ticketId === t._id)) tx.update(cardRef, { repairs: [...old, repair] });
                     } else {
                         tx.set(cardRef, { saleId: current.linkedSaleId || '', saleType: current.linkedSaleType || 'manual', customerName: current.customerName || '',
-                            items: [{ name: current.productName || '', serialNumber: current.serialNumber || '' }], location: 'Danfos', createdAt: Timestamp.now(), repairs: [repair] });
+                            items: [{ name: current.productName || '', serialNumber: current.serialNumber || '', ...(fresh?.code ? { code: fresh.code } : {}) }], location: 'Danfos', createdAt: Timestamp.now(), repairs: [repair],
+                            ...(fresh?.fields || {}) });
                     }
                 }
                 tx.update(ticketRef, update);
             });
             toast(completing ? 'Repair completed and recorded on the warranty card' : 'Repair saved');
             close(); await ctx.reload();
+            // The card now carries this repair: offer it for printing straight away.
+            if (completing && await openModal({ title: 'Print the warranty card?', confirmLabel: 'Print it', cancelLabel: 'Not now',
+                body: `<p>${fresh ? `This machine had no warranty card yet: ${esc(fresh.fields.certNo)} was issued, dated from its sale on ${esc(day(fresh.soldAt))} ${new Date(fresh.soldAt).getFullYear()}.` : 'The repair is on its warranty card.'} Print it for the customer?</p>` })) printCard(cardRef.id);
         } catch (x) { btn.disabled = false; fail(x); }
     });
 

@@ -73,15 +73,17 @@ function karcherInvoiceLinks(lines, itemRe, items) {
 }
 
 // "642569 - 642592" is a run of consecutive numbers; "251936, 251940" a list. A run longer than
-// 500 is kept as its two ends rather than expanded.
+// 500 is kept as its two ends rather than expanded. A machine's serial has six digits (its label
+// says 012345); the invoice drops the leading zero ("12345"), so short ones get it back.
 function serialsOf(s) {
     const out = [];
+    const six = x => /^\d{1,5}$/.test(x) ? x.padStart(6, '0') : x;
     s.split(',').map(x => x.trim()).filter(Boolean).forEach(part => {
         const r = part.match(/^(\d+)\s*-\s*(\d+)$/);
         if (r && Number(r[2]) >= Number(r[1]) && Number(r[2]) - Number(r[1]) < 500) {
-            const w = r[1].length;
+            const w = Math.max(6, r[1].length);
             for (let n = Number(r[1]); n <= Number(r[2]); n++) out.push(String(n).padStart(w, '0'));
-        } else out.push(part.replace(/\s+/g, ''));
+        } else out.push(six(part.replace(/\s+/g, '')));
     });
     return out;
 }

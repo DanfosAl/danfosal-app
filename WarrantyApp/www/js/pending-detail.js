@@ -1,12 +1,18 @@
 import { collection, doc, getDoc, getDocs, query, where, runTransaction, Timestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-import { renderHeader,renderAuroraBackground,escapeHtml as esc,formatDateAlb,warrantyBadge,confirmAction,announceConnection } from './garanci-shared.js';
+import { renderHeader,renderAuroraBackground,escapeHtml as esc,formatDateAlb,warrantyBadge,confirmAction,announceConnection,nextSequenceNumber } from './garanci-shared.js';
 import { toMillis } from './garanci-data.js';
 import { findSimilarClaims } from './garanci-similarity.js';
 import { getWarrantyMatches } from './garanci-workspace.js';
 import { db,ready,showError } from './garanci-app.js';
 import { STATUS_LABELS,repairDescription,changedFields,assertNoConflicts,normalizeParts,normalizeCosts,customerDraft } from './service-model.js';
 const $=id=>document.getElementById(id), ticketId=new URLSearchParams(location.search).get('id');
-let ticket,card=null,parts=[],photos=[],busy=false,invoiceLabel='—',sourceItems=[];
+let ticket,card=null,parts=[],photos=[],busy=false,invoiceLabel='—',sourceItems=[],saleDate=0;
+// The machine's warranty card, printed by Danfosal App's page with its repairs.
+const printUrl=id=>`https://danfosal-app.web.app/warranty-card.html?id=${encodeURIComponent(id)}`;
+// A repair finished on a machine that never got a warranty card gets a proper one, as if issued on
+// the day of the sale: its number, the sale's date (the warranty runs from the purchase, not the
+// repair), the invoice, the catalogue number and the usual terms.
+const addMonths=(ms,m)=>{const d=new Date(ms);d.setMonth(d.getMonth()+m);return d;};
 $('header-slot').outerHTML=renderHeader('pending');$('app-root').insertAdjacentHTML('afterbegin',renderAuroraBackground());
 const nowLabel=()=>formatDateAlb(new Date())+' '+new Date().toLocaleTimeString('sq-AL',{hour:'2-digit',minute:'2-digit'});
 const entry=title=>({title,when:nowLabel(),who:'Servisi'});
@@ -22,7 +28,7 @@ async function load(){
     if(!ticketId)throw new Error('Mungon identifikuesi i kërkesës.');
     const snap=await getDoc(doc(db,'serviceTickets',ticketId));if(!snap.exists())throw new Error('Kërkesa nuk u gjet.');ticket={...snap.data(),id:snap.id};
     const [cardsSnap,ticketsSnap]=await Promise.all([getDocs(ticket.linkedSaleId?query(collection(db,'warrantyCards'),where('saleId','==',ticket.linkedSaleId)):collection(db,'warrantyCards')),getDocs(collection(db,'serviceTickets'))]);
-    if(ticket.linkedSaleId){const sale=await getDoc(doc(db,ticket.linkedSaleType==='onlineOrder'?'onlineOrders':'storeSales',ticket.linkedSaleId));invoiceLabel=sale.exists()?sale.data().invoiceNumber||'—':'—';sourceItems=sale.exists()?sale.data().items||[]:[];}
+    if(ticket.linkedSaleId){const sale=await getDoc(doc(db,ticket.linkedSaleType==='onlineOrder'?'onlineOrders':'storeSales',ticket.linkedSaleId));invoiceLabel=sale.exists()?sale.data().invoiceNumber||String(sale.data().easypos?.invoiceNumber||'').split('/').slice(0,2).join('/')||'—':'—';sourceItems=sale.exists()?sale.data().items||[]:[];saleDate=sale.exists()?toMillis(sale.data().timestamp)||toMillis(sale.data().orderDate)||0:0;}
     card=candidateCard(cardsSnap.docs.map(d=>({...d.data(),id:d.id})),ticket);
     announceConnection('connected');parts=(ticket.parts||[]).map(p=>({...p}));
     render(findSimilarClaims(ticketsSnap.docs.map(d=>({...d.data(),id:d.id})),ticket.productName,ticket.issueDescription,ticketId));
@@ -41,7 +47,7 @@ function render(similar){
     <form id="service-form" class="dg-stack"><div class="dg-panel dg-stack"><h2>Organizoni servisin</h2><div class="dg-form-grid"><label>Statusi<select class="gn-input" id="status">${Object.entries(STATUS_LABELS).map(([v,l])=>option(v,l,t.status||'received')).join('')}</select></label><label>Prioriteti<select class="gn-input" id="priority">${['E ulët','Normal','Urgjent'].map(v=>option(v,v,t.priority||'Normal')).join('')}</select></label><label>Tekniku<input class="gn-input" id="tech" value="${esc(t.tech||'')}" placeholder="Emri i teknikut"></label><label>Trajtimi<select class="gn-input" id="mode">${['Në servis','Në terren'].map(v=>option(v,v,t.mode||'Në servis')).join('')}</select></label><label>Takimi<input type="datetime-local" class="gn-input" id="scheduledAt" value="${dateTimeInput(t.scheduledAt)}"></label><label>Afati i premtuar<input type="date" class="gn-input" id="promisedBy" value="${esc(t.promisedBy||'')}"></label><label class="wide">Shënime të servisit<textarea class="gn-input" id="notes">${esc(t.notes||'')}</textarea></label><label class="wide">Gjendja në pranim<textarea class="gn-input" id="condition" placeholder="Dëmtime të dukshme, gjendja e jashtme…">${esc(t.intake?.condition||'')}</textarea></label><label class="wide">Aksesorët e pranuar<input class="gn-input" id="accessories" value="${esc(t.intake?.accessories||'')}" placeholder="Kabllo, grykë, bateri…"></label></div></div>
     <div class="dg-panel dg-stack"><h2>Pjesët rezervë</h2><div id="parts-list" class="dg-stack"></div><button type="button" class="gn-btn gn-btn-glass" id="add-part">＋ Shto pjesë</button></div>
     <div class="dg-panel dg-stack"><h2>Kostot e riparimit</h2><p class="dg-muted">Shumat në EUR.</p><div class="dg-form-grid">${[['parts','Pjesët'],['labour','Puna'],['supplierClaim','Kërkuar furnitorit'],['supplierReceived','Marrë nga furnitori']].map(([key,label])=>`<label>${label}<input type="number" min="0" step="0.01" class="gn-input" id="cost-${key}" value="${Number(c[key])||0}"></label>`).join('')}</div><p id="cost-total" class="dg-muted"></p></div>
-    <div class="dg-save-bar"><button class="gn-btn gn-btn-primary" id="save-service" type="submit">Rishiko dhe ruaj</button><span id="save-status" class="dg-success" role="status"></span></div></form></div>`;
+    <div class="dg-save-bar"><button class="gn-btn gn-btn-primary" id="save-service" type="submit">Rishiko dhe ruaj</button>${card?`<a class="gn-btn gn-btn-glass" href="${printUrl(card.id)}" target="_blank" rel="noopener">Printo kartën e garancisë ↗</a>`:''}<span id="save-status" class="dg-success" role="status"></span></div></form></div>`;
     renderParts();costTotal();
     $('service-form').addEventListener('submit',save);$('add-part').addEventListener('click',()=>{readParts();parts.push({name:'',quantity:1,status:'needed',expectedOn:''});renderParts();});
     $('service-form').addEventListener('input',costTotal);
@@ -62,6 +68,8 @@ async function save(event){
         const changes=changedFields(ticket,values());if(!Object.keys(changes).length){$('save-status').textContent='Nuk ka ndryshime.';return;}
         if(!await confirmAction({title:'Ruani ndryshimet e servisit?',body:review(changes),confirmLabel:'Ruaj ndryshimet'}))return;
         const ref=doc(db,'serviceTickets',ticketId),isCompleting=changes.status==='completed'&&ticket.status!=='completed';
+        const certNo=isCompleting&&!card?await nextSequenceNumber(db,'warrantyCertNo','GAR'):null;
+        const soldAt=saleDate||toMillis(ticket.createdAt)||Date.now(),srcItem=(Number.isInteger(ticket.linkedItemIndex)&&sourceItems[ticket.linkedItemIndex])||sourceItems.find(i=>(i.name||'')===ticket.productName)||null;
         const repairRef=isCompleting?(card?doc(db,'warrantyCards',card.id):doc(collection(db,'warrantyCards'))):null;
         await runTransaction(db,async tx=>{
             const fresh=await tx.get(ref);if(!fresh.exists())throw new Error('Kërkesa nuk ekziston më.');const current=fresh.data();assertNoConflicts(ticket,current,changes);
@@ -70,11 +78,12 @@ async function save(event){
             const update={...changes,updatedAt:Timestamp.now(),timeline:[...(current.timeline||[]),entry('U përditësua servisi: '+Object.keys(changes).map(k=>({status:'statusi',tech:'tekniku',parts:'pjesët',repairCosts:'kostot',scheduledAt:'takimi',promisedBy:'afati',intake:'pranimi',notes:'shënimet',priority:'prioriteti',mode:'trajtimi'}[k]||k)).join(', '))]};
             if(isCompleting){update.completedAt=Timestamp.now();update.warrantyCardId=repairRef.id;update.warrantyCardItemIndex=repairSnap.exists()?candidateMatch([{...repairSnap.data(),id:repairRef.id}],current)?.itemIndex??null:0;const repair={ticketId,createdAt:Timestamp.now(),date:new Date().toLocaleDateString('en-GB'),description:repairDescription({...current,...(changes.parts?{parts:changes.parts}:{})},changes.notes??current.notes),serialNumber:current.serialNumber||'',productName:current.productName||''};
                 if(repairSnap.exists()){const old=repairSnap.data().repairs||[];if(!old.some(r=>r.ticketId===ticketId))tx.update(repairRef,{repairs:[...old,repair]});}
-                else tx.set(repairRef,{saleId:current.linkedSaleId||'',saleType:current.linkedSaleType||'manual',customerName:current.customerName||'',items:[{name:current.productName||'',serialNumber:current.serialNumber||'',...(Number.isInteger(current.linkedItemIndex)?{sourceItemIndex:current.linkedItemIndex}:{})}],location:'Danfos',createdAt:Timestamp.now(),repairs:[repair]});
+                else tx.set(repairRef,{saleId:current.linkedSaleId||'',saleType:current.linkedSaleType||'manual',customerName:current.customerName||'',items:[{name:current.productName||'',serialNumber:current.serialNumber||'',...(srcItem?.code?{code:srcItem.code}:{}),...(Number.isInteger(current.linkedItemIndex)?{sourceItemIndex:current.linkedItemIndex}:{})}],location:'Danfos',createdAt:Timestamp.now(),repairs:[repair],
+                    certNo,invoiceNumber:invoiceLabel!=='—'?invoiceLabel:'',purchaseDate:Timestamp.fromDate(new Date(soldAt)),partsMonths:24,labourMonths:12,warrantyUntil:Timestamp.fromDate(addMonths(soldAt,24))});
             }
             tx.update(ref,update);
         });
-        await load();$('save-status').textContent='Ndryshimet u ruajtën.';
+        await load();$('save-status').textContent=isCompleting?(certNo?`Riparimi u përfundua. Makina nuk kishte kartë garancie: u lëshua ${certNo}, nga data e shitjes. Printojeni me butonin pranë.`:'Riparimi u përfundua dhe u shënua në kartën e garancisë. Printojeni me butonin pranë.'):'Ndryshimet u ruajtën.';
     }catch(e){errorMessage(e);}finally{busy=false;if($('save-service'))$('save-service').disabled=false;}
 }
 async function markContact(){if(busy)return;busy=true;$('mark-contact').disabled=true;try{if(!await confirmAction({title:'Klienti është kontaktuar?',body:`Shënoni kontaktin me ${ticket.customerName||'klientin'} për ${ticket.claimNo||'këtë kërkesë'}.`,confirmLabel:'Po, u kontaktua'}))return;await runTransaction(db,async tx=>{const ref=doc(db,'serviceTickets',ticketId),snap=await tx.get(ref);if(!snap.exists())throw new Error('Kërkesa nuk u gjet.');tx.update(ref,{lastCustomerContactAt:Timestamp.now(),timeline:[...(snap.data().timeline||[]),entry('Klienti u kontaktua')]});});$('contact-status').textContent='Kontakti u shënua.';}catch(e){errorMessage(e);}finally{busy=false;$('mark-contact').disabled=false;}}

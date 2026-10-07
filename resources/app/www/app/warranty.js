@@ -6,12 +6,12 @@ import { esc, int, toast, openModal } from './ui.js';
 import { WALKIN, saleTime, orderTime, saleInvoiceNumber, shortInvoice } from './data.js';
 
 // Kaercher's terms, the same ones Danfos Garanci issues on: parts for two years, labour for one.
-const PARTS_MONTHS = 24, LABOUR_MONTHS = 12;
+export const PARTS_MONTHS = 24, LABOUR_MONTHS = 12;
 
 // The shop has one series of certificate numbers, kept in counters/warrantyCertNo and shared with
 // Garanci - GAR-2026-0015 follows GAR-2026-0014 whichever app issued it. The transaction is what
 // makes that safe when both are open, and the sequence restarts each year.
-async function nextCertNo() {
+export async function nextCertNo() {
     const ref = doc(db, 'counters', 'warrantyCertNo');
     const year = new Date().getFullYear();
     let out = null;
@@ -25,7 +25,7 @@ async function nextCertNo() {
     return out;
 }
 
-const addMonths = (ms, months) => { const d = new Date(ms); d.setMonth(d.getMonth() + months); return d; };
+export const addMonths = (ms, months) => { const d = new Date(ms); d.setMonth(d.getMonth() + months); return d; };
 
 export async function warrantyDialog(ctx, sale, { customer = '', saleType = 'storeSale', coll = 'storeSales' } = {}) {
     const items = sale.items || [];

@@ -6,7 +6,7 @@
 **Application Version:** 1.4.1  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
-**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64); see **CURRENT STATE** below, which wins wherever an older section disagrees  
+**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64) and the Danfos HQ audit (Finding #65); see **CURRENT STATE** below, which wins wherever an older section disagrees  
 **Overall Grade:** A- (Security: A- | Performance: A | Organization: A | Documentation: A+ | held back from A by Finding #4 — backups not actually scheduled)
 
 > **Confirmed scope (Aug 24, 2026):** This app is used only by the owner (Kushtrim), on his own PC and his own phone (sideloaded APK) — it is **not distributed** to staff, customers, or the public, and it is **not connected to Albania's e-Fiscalization/tax system**. A separate app (linked to EasyPOS) is the official system of record for taxes. This app exists purely to track sales/data for the owner's own business decisions, because it's more data-rich than the official fiscal app. This supersedes the fiscal-compliance framing in `docs/archive/GOLDEN_MANIFEST_v1.md` — float-money precision, NIPT/IIC OCR validation, and confidence-gating are **not** legal-risk items for this app and should not be re-flagged as such.
@@ -32,7 +32,7 @@ statements are listed at the end of it.
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
 | **Access** | **Owner only** (Finding #64): one Firebase Auth account (email/password); `firestore.rules` allow that uid alone; Anonymous sign-in disabled. Signed in once on each: Danfosal App on the PC, Danfos Garanci, the phone, the browser (print pages), Danfos HQ - each remembers it until Sign out (Settings › General). A request without the sign-in is refused (403). Server keys (chatbot, webhook, EasyPOS bridge, Paper Autopilot) are not affected. |
-| **Danfos HQ** | Separate desktop companion (`Documents\Codex\2026-09-21\can-x20\outputs`, two synced copies; Finding #51): local server `127.0.0.1:17846` + Electron shell. Its live view of the newest orders and sales signs in with the owner's account (`live.js` + `signin.js`); its bundled 21-Sep Garanci snapshot and classic-app copy stay anonymous and are blocked, on the owner's choice. |
+| **Danfos HQ** | Separate desktop companion at **`E:\Danfos HQ\app`** (Findings #51, #65; never OneDrive): local server `127.0.0.1:17846` + Electron shell. Signs in with the owner's account; shows the newest orders and sales with Danfosal App's own status, open-order and warranty-card rules, and the current Danfosal App and Garanci inside its monitors (copies refreshed by `sync-apps.py` after each release). |
 | **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore, open only to the owner's account (Finding #64); Auth (email/password, owner only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
 
 ### Where it is installed (9 Oct 2026)
@@ -40,7 +40,8 @@ statements are listed at the end of it.
 | Target | Version | Checked |
 |---|---|---|
 | Desktop, shop PC | build with the sign-in (3ac135d), installed 9 Oct 15:14 | installed `app.asar` = built `app.asar` (byte size); no anonymous sign-in left in it |
-| Danfos Garanci, shop PC | build with the sign-in, installed 9 Oct 15:16 | contains `signInWithEmailAndPassword`, no anonymous sign-in |
+| Danfos Garanci, shop PC | build with the sign-in and the invoice-number fix (Finding #65), installed 9 Oct 16:03 | installed `app.asar` = built (byte size); contains both |
+| Danfos HQ, shop PC | `E:\Danfos HQ\app`, app copies refreshed 9 Oct; Desktop shortcut and server moved there | its server answers from E: (`/api/health`); the open window moves on its next start |
 | Website | = repo, published 9 Oct with the sign-in | 46 html/js/css files identical to the live site in the morning audit; the four sign-in files re-checked after publishing |
 | Database rules | owner's uid only, deployed 9 Oct 15:21 | 403 without sign-in, for reading and writing |
 | Android | debug-signed APK of 9 Oct 15:13 with the sign-in, sideloaded on the owner's phone | `android/app/build/outputs/apk/debug/app-debug.apk` |
@@ -62,7 +63,7 @@ versionName 1.4.1 / versionCode 14, app-version.json).
 | Service **DanfosEasyPOSCapture** | automatic, running |
 | Startup **DanfosalStartup.lnk** | starts the pipeline at logon |
 | Danfosal App | open on the PC, signed in; answers "Check Downloads now" requests from the phone |
-| Danfos HQ | its local server runs when started from the Desktop shortcut; signed in |
+| Danfos HQ | its local server (from `E:\Danfos HQ\app`) runs when started from the Desktop shortcut; signed in |
 
 ### The data (live, 9 Oct 2026)
 
@@ -893,6 +894,67 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **65. DANFOS HQ MATCHES THE APPS AGAIN, AND RUNS FROM E:, NOT ONEDRIVE** — ✅ **DONE AND TESTED (October 9, 2026)**
+
+The owner asked for an audit of Danfos HQ (Finding #51) so that it matches Danfosal App and Danfos
+Garanci - warranties and online orders in particular - and then: OneDrive is never to be used.
+
+**What the audit found**
+
+- **The running HQ was the wrong copy.** Windows had moved Desktop and Documents into OneDrive; the
+  Desktop shortcut and the running server/Electron used `OneDrive\Documents\Codex\...`, an older copy
+  without the 3D room and later work, which lived only in `C:\Users\User\Documents\Codex\...`. HQ's
+  own README said the opposite.
+- **Its bundled apps were 21-Sep snapshots and had stopped working:** the classic Danfosal pages it
+  linked to (`online-orders.html`, `warranty-cards-list.html`, `customer-portal.html`) were retired
+  from the app that day, and since #64 they and the Garanci form were refused by the database
+  (anonymous). That Garanci form also issued 24-month cards from the day of issue.
+- **Orders:** every order offered "Review & fulfill", Paid and Cancelled alike (29 of the newest 30
+  are Paid); the badge counted recent records, not open orders.
+- **Sales:** a sale that already had a card (6 of the newest 30) still offered "Prepare warranty"; a
+  prepayment invoice did too; a cancelled sale was labelled "no warranty" but clicking it still opened
+  the form.
+- **Invoice number:** Garanci's form filled it only from a top-level `invoiceNumber`, which a till
+  receipt rarely has (it keeps it in `easypos.invoiceNumber`) - 27 of the newest 30 sales would give
+  a card with no invoice. This was in Danfos Garanci itself, not only HQ.
+- Records dated with a number (9 docs) sorted as the oldest; Garanci's top bar showed inside the
+  monitor because its class had been renamed.
+
+**What changed**
+
+- **HQ moved to `E:\Danfos HQ\app`** (logs `E:\Danfos HQ\work`), from the newer non-OneDrive copy;
+  the Desktop shortcut points there and the server was restarted from it. Both old folders are kept
+  untouched as backups, each with a `_RETIRED` note. OneDrive itself is the owner's to switch off.
+- **`sync-apps.py`** (in HQ) refreshes `danfosal/` and `garanci/` from this repo's `resources/app/www`
+  and `WarrantyApp/www`, adds HQ's adapter (`embed.js`) to each page and HQ's sale preselect to the
+  Garanci form; it stops if the form changed too much. **Run it after every Danfosal App or Garanci
+  release.** The copies share HQ's sign-in (same address).
+- **Orders** read as in Danfosal App (`online.js`, `data.js`): status and what is left (*Ordered · to
+  ship*, *Delivered · not paid yet*, *Paid · done*, *Cancelled · not a sale*...), closed ones dimmed,
+  the badge = open orders over the whole collection (not Paid/Returned/Cancelled). An order opens
+  itself: **Online orders now accept `?id=`** (`www/app/online.js`, like Repairs).
+- **Sales:** HQ also listens to `warrantyCards`; a sale with a card (same `saleId`, not cancelled -
+  Danfosal's `cardOf`) shows *Warranty GAR-… · print* and opens to its cards with **Print this card**
+  (the current print page, repair lines included) and *Issue another card for this sale*.
+  Prepayments say so and offer no warranty (it comes from the final invoice); cancelled sales open a
+  note instead of the form. A plain sale opens the **current** Garanci form: invoice as printed, the
+  sale's date, 12 months, the next GAR number - the same record Danfosal App writes.
+- **Danfos Garanci** (`issue.html`): the invoice number from `invoiceNumber` or
+  `easypos.invoiceNumber`, shortened to `358/2026`; rebuilt and installed on the shop PC 9 Oct 16:03.
+- HQ hides Garanci's top bar and Danfosal App's sidebar inside the monitor; Quick Find shows the same
+  status lines and finds till invoice numbers.
+
+**Not yet released:** the `?id=` link is in the repo and in HQ's copy, not in the desktop, web or
+Android builds; it goes out with the next release (nothing else uses it).
+
+**Tested** with a stand-in for Firebase and sample records in the browser: labels and counts, an
+order opening in its drawer, the card screen and print page, prepayment and cancelled screens,
+issuing through the embedded form (invoice, date, 12 months, GAR number, saved signal) and Quick
+Find; the real pages load to the sign-in form. No real record was written; test files removed.
+The owner closes and reopens HQ once from the Desktop shortcut so its window also runs from E:.
+
+---
+
 #### **64. ONLY THE OWNER GETS IN: EMAIL SIGN-IN ONCE PER DEVICE, DATABASE LOCKED TO THAT ACCOUNT** — ✅ **SHIPPED AND LOCKED (October 9, 2026)**
 
 The owner: nobody else should have access; the password should be asked once on each device and
@@ -1395,7 +1457,7 @@ copies to the Recycle Bin, never deleted), then a watcher, then booking into the
 #### **51. DANFOS HQ: WHAT IT IS, AND THE TWO THINGS IT REVEALS** — 🟡 **CHECKED (September 24, 2026)**
 
 **Danfos HQ** is a separate desktop companion built 21-22 Sep, living in
-`Documents\Codex6-09-21\can-x20\outputs`. **Two copies of it exist** - that path and the OneDrive
+`Documents\Codex\2026-09-21\can-x20\outputs` (moved to `E:\Danfos HQ\app` on 9 Oct, Finding #65). **Two copies of it exist** - that path and the OneDrive
 one - as separate files that OneDrive keeps in sync; the Desktop shortcut points at the first and
 the running server had been reading the second. An earlier version of this finding called them "the
 same files" on the strength of their contents matching; editing one and seeing nothing change is how

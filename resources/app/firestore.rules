@@ -1,10 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all documents for authenticated and unauthenticated users
-    // This is for the Danfosal App which uses anonymous authentication
+    // Only the owner's account gets in: info@danfosal.com, signed in with email and password once
+    // per device (www/app/signin.js; Danfos Garanci and the print page use the same). Anonymous
+    // sign-ins, which every app used until October 2026, no longer get in.
+    //
+    // The Instagram chatbot (Render), the instagramWebhook function, the EasyPOS bridge and the
+    // Paper Autopilot connect with server credentials (Admin SDK), which these rules don't apply to.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == 'ekPs5bxBhZeWrRohSWmhOwbpJGl1';
     }
   }
 }

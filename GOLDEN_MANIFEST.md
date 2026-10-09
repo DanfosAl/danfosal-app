@@ -4,12 +4,107 @@
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
 **Application Version:** 1.4.1  
-**Danfos Garanci Version:** 1.1.0 (separate Windows app; installed September 13, 2026)  
+**Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
-**Last Updated:** September 21, 2026 (Albanian invoice scanner now reads the PDF text layer instead of OCR-ing a picture of it, and no longer matches the wrong product; see Finding #23)  
+**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC; see **CURRENT STATE** below, which wins wherever an older section disagrees  
 **Overall Grade:** A- (Security: A- | Performance: A | Organization: A | Documentation: A+ | held back from A by Finding #4 — backups not actually scheduled)
 
 > **Confirmed scope (Aug 24, 2026):** This app is used only by the owner (Kushtrim), on his own PC and his own phone (sideloaded APK) — it is **not distributed** to staff, customers, or the public, and it is **not connected to Albania's e-Fiscalization/tax system**. A separate app (linked to EasyPOS) is the official system of record for taxes. This app exists purely to track sales/data for the owner's own business decisions, because it's more data-rich than the official fiscal app. This supersedes the fiscal-compliance framing in `docs/archive/GOLDEN_MANIFEST_v1.md` — float-money precision, NIPT/IIC OCR validation, and confidence-gating are **not** legal-risk items for this app and should not be re-flagged as such.
+
+---
+
+## 🧭 CURRENT STATE (audited October 9, 2026)
+
+Checked on the day, not copied from earlier sections: the code in `main` (99bef1b, clean, pushed), the
+live database (all 23 collections read), what is installed and published, and what runs on the shop
+PC. Where an older section of this manifest says otherwise, this section is right; the stale
+statements are listed at the end of it.
+
+### What exists
+
+| Part | State |
+|---|---|
+| **Danfosal App** (`resources/app`) | 1.4.1. Electron 37.10.3 (`^37.2.5`), electron-builder 24.13.3, Capacitor 6 (core 6.2.1, android 6.1.2), firebase-admin 12.7 (Node tools only), tesseract.js 5.1.1, pdf.js 3.11.174 (CDN). One codebase in `www/` for desktop, web and Android. |
+| **Screens** (`www/*.html` + `www/app/*.js`) | Today (`index.html`) · Sell: All sales, New sale (till), Online orders, Instagram, Import invoice · Stock: Catalogue, Reorder, Link receipt items, Order list, Purchases, Receive delivery, Yearly plan · Customers: Customers, Win back, Review names · Service: Repairs, Warranty cards · Money: Owed to you, You owe, Expenses, Next 30 days · Insights · Settings: General, Data health, Tools · print page `warranty-card.html`. The pre-September pages (business-intelligence.js, ai-agent.js, advanced-analytics.js, smart-inventory.js, invoice-ocr.js, ai-chatbot.js, the fiscal/store scanners, compiled Tailwind) are **gone**: the September redesign (Findings #25-#30) replaced them and Finding #30 retired them to quarantine (the repository cleanup is Finding #22). |
+| **Modules** (`www/app`) | data.js (one meaning for every number), firebase.js, workspace.js/shell.js (frame, nav, Ctrl K), ui.js; today, sell (+ online, leads, importpdf, invoice-text, prepayment), stock (+ orderlist, receive, purchases, purchasing, karcher-invoice, plan, planmodel), customers, service (+ warranty, warrantyreturn), money (+ payables), insights, settings, autopilot-run. Plus `www/manual-pdf-processor.js` (invoice reader, shared with the tools) and `smart-inventory-scanner.js`. |
+| **Desktop main process** | `main.js`: one window; IPC `check-for-updates`, `download-update`, `fetch-url`, `save-page-pdf`, `paper-autopilot-run` (→ `autopilot-runner.js`); preload exposes `electronAPI` and the bridge events in `api`. |
+| **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
+| **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
+| **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
+| **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore; Auth (anonymous only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
+
+### Where it is installed (9 Oct 2026)
+
+| Target | Version | Checked |
+|---|---|---|
+| Desktop, shop PC | build of af90480, installed 7 Oct 18:11 | installed `app.asar` = built `app.asar` (byte size) |
+| Danfos Garanci, shop PC | build of af90480, installed 7 Oct 18:14 | contains the 12-month texts |
+| Website | = repo | all 46 html/js/css files identical to the live site |
+| Android | debug-signed APK of 7 Oct, sideloaded on the owner's phone | `android/app/build/outputs/apk/debug/app-debug.apk` |
+| GitHub `DanfosAl/danfosal-app` (public) | `main` = 99bef1b | no customer data in October commits (checked each push) |
+
+**Updates are local.** `electron-updater` is wired to GitHub Releases, but no release has ever been
+published, so "Check for updates" finds nothing; every desktop update is a local `npm run dist` +
+silent install (procedure in the memory note on shipping, and Findings #54-#63). The Android OTA
+manifest `update-manifest.json` (still says 1.2.0) is a leftover of the old Firebase Storage
+updater and is not used. Version numbers agree everywhere else (package.json, build.gradle
+versionName 1.4.1 / versionCode 14, app-version.json).
+
+### What runs on the shop PC
+
+| Item | Schedule / state |
+|---|---|
+| Task **Danfosal EasyPOS Watchdog** | every 30 min; restarts the bridge if it stopped (last run 9 Oct, OK) |
+| Task **Danfosal Paper Autopilot** | Mondays 09:00 + at logon (once a week); last run 5 Oct OK, next 12 Oct. "Check Downloads now" runs it any day. |
+| Service **DanfosEasyPOSCapture** | automatic, running |
+| Startup **DanfosalStartup.lnk** | starts the pipeline at logon |
+| Danfosal App | open on the PC; answers "Check Downloads now" requests from the phone |
+
+### The data (live, 9 Oct 2026)
+
+`storeSales` 1,513 (EasyPOS 271, till 42, PDF invoices 9, 2025 import 1,191) · `products` 341 (268
+in stock, 12,577 units; 0 negative) · `onlineOrders` 311 (Paid 307, Returned 3, Cancelled 1; last
+28 Sep) · `customers` 154 (4 merged) · `returns` 19 · `warrantyCards` 13 (GAR-2026-0006 to -0019,
+-0011 deleted as a duplicate (recorded), 1 cancelled, 11 active, all 12 months) · `serviceTickets`
+2 (1 completed, 1 parts received) · `toOrder` 31 (nothing waiting) · `purchaseDocs` 168 ·
+`purchaseReceipts` 1 · `salesImports` 4 · `autopilotRuns` 1 · `debtors` 6 (+8 invoices) ·
+`creditors` 0 · `expenses` 5 · `recurringCosts` 1 · `predictions` 4 · `analytics_events` 6,866
+(chatbot, active today) · `analytics` 3 · `counters` 2 (warrantyCertNo 2026/19, claimNo 2026/1) ·
+`settings` 2 · `dataFixes` 4 · `stockCorrections` 1.
+
+### Open items
+
+1. **No automatic database backup** (Finding #4, still open). `scripts/maintenance/backup-firestore.ps1`
+   exists but is not scheduled; `C:\Danfosal\Backups` holds only fix backups. Settings › Tools ›
+   "Save everything" (JSON) is the only copy, and it is manual. Blaze now allows
+   `firestore:export`.
+2. **Three security items are open** (access control, an external endpoint, a credential in a
+   script). This repository is public, so their details are kept off it, in
+   `SECURITY-OPEN.local.md` on the shop PC (`*.local.md` is git-ignored).
+3. **Costs:** 28 products have no cost price and 4 no code; 43 sales have a line of unknown cost
+   (11 in 2026), so their margin isn't counted.
+4. **EasyPOS Failed folder:** the 3 debit notes (34/2026, 36/2026, 93/2026) the bridge treated as
+   refunds and added stock for - left for the owner to check (Finding #58's note); don't reprocess.
+5. **Open business items:** prepayments 45/2026 (B 50 W, arrived 6 Oct, final invoice not issued yet)
+   and 57/2026 (Blancus 230, not in the catalogue); 47/2026 deliberately not in Sales (Finding #61).
+   The K7 repair is open with parts received; its card GAR-2026-0019 ran to 06/09/2026, the Kärcher
+   claim was filed within it.
+6. **Housekeeping:** three leftover git worktrees in `.claude/worktrees` (92 MB; one holds an unmerged
+   security fix); quarantine folders on E: (`DanfosalApp_QUARANTINE_2026-09-14` is 3.2 GB, plus 09-21 and
+   09-22) can go once the owner is sure; `update-manifest.json` is stale.
+
+### Older statements this replaces
+
+- **Users:** the owner alone, on his PC and phone (the Executive Summary's "staff" is wrong).
+- **Architecture diagram and Frontend table:** the files and the compiled Tailwind/FontAwesome/AI
+  chatbot they name no longer exist (see "What exists").
+- **Update mechanism:** no GitHub Releases are published and the Android Storage OTA is unused (see
+  "Where it is installed").
+- **Operational guide › How to Deploy Updates / Build & Deployment › Android:** the real procedure is
+  local `npm run dist` + silent install from PowerShell, `firebase deploy --only hosting` (login
+  expires daily), `npx cap sync android` + `gradlew assembleDebug` for the sideloaded APK.
+- **Operational guide › Daily Backups:** written as if done; it isn't (open item 1).
+- **Future Roadmap's "Firebase Blaze plan: ~$50-100/month":** real use costs cents a day.
 
 ---
 

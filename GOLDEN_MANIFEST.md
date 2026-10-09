@@ -910,8 +910,8 @@ anyone holding the app's public web config could read and write everything.
 - **Not affected** (server credentials, which rules don't apply to): the Instagram chatbot on Render
   (`onlineOrders`, `analytics_events`), the `instagramWebhook` function, the EasyPOS bridge, the Paper
   Autopilot. Checked after the lock: the server key still reads; the bridge saved receipts as before.
-- **Left to the owner:** switch off the Anonymous provider in Authentication › Sign-in method (it no
-  longer opens anything, but nothing needs it). 363 anonymous accounts remain listed; harmless.
+- **Anonymous sign-in switched off** by the owner the same day (Authentication › Sign-in method: Email/
+  Password enabled, Anonymous disabled). 363 old anonymous accounts remain listed; they open nothing.
 - Tested in the browser with a stand-in for Firebase (form, wrong password, success, remembered email,
   Settings line); no real password handled by the assistant.
 

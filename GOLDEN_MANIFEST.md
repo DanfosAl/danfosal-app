@@ -31,7 +31,7 @@ statements are listed at the end of it.
 | **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
-| **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore; Auth (anonymous only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
+| **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore, open only to the owner's account (Finding #64); Auth (email/password, owner only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
 
 ### Where it is installed (9 Oct 2026)
 
@@ -78,9 +78,10 @@ in stock, 12,577 units; 0 negative) · `onlineOrders` 311 (Paid 307, Returned 3,
    exists but is not scheduled; `C:\Danfosal\Backups` holds only fix backups. Settings › Tools ›
    "Save everything" (JSON) is the only copy, and it is manual. Blaze now allows
    `firestore:export`.
-2. **Three security items are open** (access control, an external endpoint, a credential in a
-   script). This repository is public, so their details are kept off it, in
-   `SECURITY-OPEN.local.md` on the shop PC (`*.local.md` is git-ignored).
+2. **Two security items are open** (an external endpoint, a credential in a script); access to the
+   data itself is closed since 9 Oct (Finding #64: owner-only sign-in and rules). This repository is
+   public, so their details are kept off it, in `SECURITY-OPEN.local.md` on the shop PC
+   (`*.local.md` is git-ignored).
 3. **Costs:** 28 products have no cost price and 4 no code; 43 sales have a line of unknown cost
    (11 in 2026), so their margin isn't counted.
 4. **EasyPOS Failed folder:** the 3 debit notes (34/2026, 36/2026, 93/2026) the bridge treated as
@@ -278,10 +279,10 @@ These components are **off-limits for analysis, refactoring, or modification**:
 ### Backend Services
 | Service | Usage | Security Status |
 |---------|-------|-----------------|
-| **Cloud Firestore** | Primary database | ✅ Auth required (`request.auth != null`); anonymous sign-in only, no App Check yet |
+| **Cloud Firestore** | Primary database | ✅ Owner's account only (`request.auth.uid` = the owner's), email/password sign-in once per device (Finding #64) |
 | **Firebase Storage** | Update manifests | Public bucket |
 | **Firebase Hosting** | Web hosting | `danfosal-app.web.app` |
-| **Firebase Auth** | Anonymous auth | No user accounts |
+| **Firebase Auth** | Email/Password | One account, the owner's (Finding #64); anonymous sign-in retired |
 
 ---
 
@@ -885,6 +886,34 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **64. ONLY THE OWNER GETS IN: EMAIL SIGN-IN ONCE PER DEVICE, DATABASE LOCKED TO THAT ACCOUNT** — ✅ **SHIPPED AND LOCKED (October 9, 2026)**
+
+The owner: nobody else should have access; the password should be asked once on each device and
+remembered. Until now every app signed in anonymously and the rules let in any signed-in user, so
+anyone holding the app's public web config could read and write everything.
+
+- **The account:** Firebase Auth Email/Password, one user created by the owner in the console (uid
+  `ekPs5bxBhZeWrRohSWmhOwbpJGl1`).
+- **`www/app/signin.js`** (copied to `WarrantyApp/www/js/signin.js`): a sign-in form the first time on
+  a device, then Firebase's local persistence keeps the session until "Sign out"; "Forgot the
+  password?" sends a reset email; an old anonymous session is signed out and replaced. Used by
+  Danfosal App (`firebase.js` → `ready`), the print page `warranty-card.html`, and Danfos Garanci
+  (`garanci-app.js`, `issue.html`, `analytics.html`, `claim.js`) - every `signInAnonymously` is gone.
+  Settings › General shows who is signed in on the device and has **Sign out**.
+- **`firestore.rules`:** read/write only when `request.auth.uid` is the owner's. Deployed after the owner
+  had signed in on all four: the PC's Danfosal App, Danfos Garanci, the phone, and the browser (where
+  Garanci opens print pages). Checked: a request without sign-in is refused (403) for reading sales
+  and for writing an order.
+- **Not affected** (server credentials, which rules don't apply to): the Instagram chatbot on Render
+  (`onlineOrders`, `analytics_events`), the `instagramWebhook` function, the EasyPOS bridge, the Paper
+  Autopilot. Checked after the lock: the server key still reads; the bridge saved receipts as before.
+- **Left to the owner:** switch off the Anonymous provider in Authentication › Sign-in method (it no
+  longer opens anything, but nothing needs it). 363 anonymous accounts remain listed; harmless.
+- Tested in the browser with a stand-in for Firebase (form, wrong password, success, remembered email,
+  Settings line); no real password handled by the assistant.
 
 ---
 

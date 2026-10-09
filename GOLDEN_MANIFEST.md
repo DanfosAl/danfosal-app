@@ -192,7 +192,7 @@ These components are **off-limits for analysis, refactoring, or modification**:
 
 ## 📊 DATA DICTIONARY
 
-**Read from the database on 24 Sep 2026** (`scratchpad/schema.cjs` lists every collection and the
+**Read from the database on 24 Sep 2026; storeSales, warrantyCards, serviceTickets, purchaseDocs and salesImports recounted 9 Oct 2026** (`scratchpad/schema.cjs` lists every collection and the
 fields its documents actually carry, with how often). The previous version of this section
 described four collections with field names - `costPrice`, `salePrice`, `receiptNumber` - that the
 app had stopped using; what follows is what is really there. Where a field is optional the share of
@@ -207,22 +207,22 @@ computing their own, which is what ended the era of one app showing three differ
 
 | Collection | Docs | What it is |
 |---|---|---|
-| `storeSales` | 1,504 | Every sale over the counter: EasyPOS receipts, PDF invoices, till sales, and the 2025 import |
+| `storeSales` | 1,513 | Every sale over the counter: EasyPOS receipts, PDF invoices, till sales, and the 2025 import. A prepayment invoice carries `prepayment {status open/settled, productName, settledBy}` and lines `isPrepayment`; a final invoice `prepaid [...]` and a deduction line `isPrepaymentDeduction` with a negative `netCost` - Finding #61 |
 | `onlineOrders` | 310 | Instagram and WhatsApp orders |
 | `products` | 340 | The catalogue |
 | `customers` | 144 | Customer profiles (a buyer without one still counts as a customer - see `customerDirectory`) |
 | `returns` | 19 | Refunds and cancellations read off credit notes |
-| `warrantyCards` | 9 | Certificates, shared with Danfos Garanci |
-| `serviceTickets` | 2 | Repairs |
+| `warrantyCards` | 13 | Certificates, shared with Danfos Garanci: `certNo` (counters/warrantyCertNo), `purchaseDate`, `warrantyUntil` = purchase + 12 months (`partsMonths`/`labourMonths` 12), `repairs [{date, description "U ndërrua: …", ticketId}]` - Findings #60, #62, #63 |
+| `serviceTickets` | 2 | Repairs, shared with Danfos Garanci. Status `parts_received` ("Pjesët mbërritën") between waiting for parts and completed; `parts [{name, quantity, status, expectedOn}]`, `supplierClaimNos` (Kärcher claims) - Finding #60 |
 | `debtors` + `debtors/{id}/invoices` | 6 | What customers owe |
 | `creditors` + subcollections | 0 | What the shop owes suppliers - empty today, the screen still works |
 | `expenses` | 5 | One-off costs, by date |
 | `recurringCosts` | 1 | What the shop costs every month, entered once (Finding #47) |
 | `predictions` | 4 | Yearly purchase plans; v2 documents are the ones the new plan reads |
 | `toOrder` | 24 | The order list |
-| `purchaseDocs` | 150 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
+| `purchaseDocs` | 168 | What each purchasing paper says (Kärcher orders, invoices, credit notes, statement; customs; supplier payments), written by the Paper Autopilot - Finding #53 |
 | `autopilotRuns` | 1 | "Check Downloads now" requests from the phone, answered by the desktop app on the shop PC - Finding #54 |
-| `salesImports` | 1 | What became of each new e-invoice in the archive: added to Sales, waiting for a look in Sell › Import invoice, already a sale, or dismissed - Finding #56 |
+| `salesImports` | 4 | What became of each new e-invoice in the archive: added to Sales, waiting for a look in Sell › Import invoice, already a sale, or dismissed - Finding #56 |
 | `purchaseReceipts` | 1 | Deliveries received but not put in stock: warranty replacements handed to the customer, keyed by Kärcher invoice number - Finding #59 |
 | `stockCorrections` | 1 | The 14 Sep stock reconciliation |
 | `dataFixes` | 3 | Reversible data corrections, each with its backup file |
@@ -793,7 +793,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **63. WARRANTY IS 12 MONTHS ON A MACHINE, FROM THE SALE** — ✅ **DONE: RULE IN BOTH APPS, ALL 13 CARDS CORRECTED (October 7, 2026)**
+#### **63. WARRANTY IS 12 MONTHS ON A MACHINE, FROM THE SALE** — ✅ **SHIPPED TO DESKTOP, WEB, ANDROID AND DANFOS GARANCI; ALL 13 CARDS CORRECTED (October 7, 2026)**
 
 The owner: Danfos gives 12 months on machines, counted from the sale (no warranty on parts or
 services, and that is not to be written on any card). The apps issued "parts 24 months, labour 12":
@@ -811,7 +811,7 @@ them from the day the certificate was written, not the sale.
 
 ---
 
-#### **62. A REPAIR ON A MACHINE WITHOUT A CARD ISSUES A PROPER ONE; PRINT IT FROM THE REPAIR** — ✅ **BUILT, TESTED (October 7, 2026)**
+#### **62. A REPAIR ON A MACHINE WITHOUT A CARD ISSUES A PROPER ONE; PRINT IT FROM THE REPAIR** — ✅ **BUILT, TESTED, SHIPPED TO DESKTOP, WEB, ANDROID AND DANFOS GARANCI (October 7, 2026)**
 
 The owner completed a warranty repair (an SG 4/2, sold 19 Nov 2025) and its printed warranty showed
 the repair day as the purchase date, as a new card with no number and no cover date; and printing it
@@ -840,7 +840,7 @@ meant finding it in the Warranty cards list.
 
 ---
 
-#### **61. PREPAYMENTS AND THE FINAL INVOICES THAT DEDUCT THEM** — ✅ **BUILT, TESTED, IN SALES (October 7, 2026)**
+#### **61. PREPAYMENTS AND THE FINAL INVOICES THAT DEDUCT THEM** — ✅ **BUILT, TESTED, SHIPPED TO DESKTOP, WEB AND ANDROID; TWO PREPAYMENTS IN SALES (October 7, 2026)**
 
 The owner filed e-invoice 45/2026 (a company customer, 25 Jun 2026, €5,180: "Parapagim 70% per makinen
 B 50 W Bp") - a prepayment for the B 50 W that arrived on 6 Oct - and it wasn't in Sales. The final

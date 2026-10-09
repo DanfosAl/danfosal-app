@@ -944,6 +944,15 @@ Garanci - warranties and online orders in particular - and then: OneDrive is nev
 - HQ hides Garanci's top bar and Danfosal App's sidebar inside the monitor; Quick Find shows the same
   status lines and finds till invoice numbers.
 
+**The same afternoon, after the owner reopened HQ from E::** they asked to remove the **3D room** -
+its files (`workshop-3d.*`, `workshop-architecture/benches/equipment.js`, the unused
+`workshop-robot.js`, the `vendor/` 3D library) moved to `E:\Danfos HQ\work\removed-3d-room-2026-10-09`;
+the photo workshop and Explore room stay. They also saw the order cancelled on 28 Sep in the
+dispatch bay and took it for deleted: it was cancelled on 5 Oct, never deleted (still in
+`onlineOrders`). The dispatch bay now leaves out Cancelled and Returned orders, as Danfosal App's
+sales and its Online orders' default view do, and says how many; deleting one for good stays the
+owner's button in Danfosal App.
+
 **Not yet released:** the `?id=` link is in the repo and in HQ's copy, not in the desktop, web or
 Android builds; it goes out with the next release (nothing else uses it).
 

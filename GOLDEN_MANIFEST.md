@@ -6,16 +6,16 @@
 **Application Version:** 1.4.1  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
-**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC; see **CURRENT STATE** below, which wins wherever an older section disagrees  
+**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64); see **CURRENT STATE** below, which wins wherever an older section disagrees  
 **Overall Grade:** A- (Security: A- | Performance: A | Organization: A | Documentation: A+ | held back from A by Finding #4 — backups not actually scheduled)
 
 > **Confirmed scope (Aug 24, 2026):** This app is used only by the owner (Kushtrim), on his own PC and his own phone (sideloaded APK) — it is **not distributed** to staff, customers, or the public, and it is **not connected to Albania's e-Fiscalization/tax system**. A separate app (linked to EasyPOS) is the official system of record for taxes. This app exists purely to track sales/data for the owner's own business decisions, because it's more data-rich than the official fiscal app. This supersedes the fiscal-compliance framing in `docs/archive/GOLDEN_MANIFEST_v1.md` — float-money precision, NIPT/IIC OCR validation, and confidence-gating are **not** legal-risk items for this app and should not be re-flagged as such.
 
 ---
 
-## 🧭 CURRENT STATE (audited October 9, 2026)
+## 🧭 CURRENT STATE (audited October 9, 2026; updated the same day after the sign-in release)
 
-Checked on the day, not copied from earlier sections: the code in `main` (99bef1b, clean, pushed), the
+Checked on the day, not copied from earlier sections: the code in `main` (clean, pushed), the
 live database (all 23 collections read), what is installed and published, and what runs on the shop
 PC. Where an older section of this manifest says otherwise, this section is right; the stale
 statements are listed at the end of it.
@@ -31,17 +31,20 @@ statements are listed at the end of it.
 | **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
+| **Access** | **Owner only** (Finding #64): one Firebase Auth account (email/password); `firestore.rules` allow that uid alone; Anonymous sign-in disabled. Signed in once on each: Danfosal App on the PC, Danfos Garanci, the phone, the browser (print pages), Danfos HQ - each remembers it until Sign out (Settings › General). A request without the sign-in is refused (403). Server keys (chatbot, webhook, EasyPOS bridge, Paper Autopilot) are not affected. |
+| **Danfos HQ** | Separate desktop companion (`Documents\Codex\2026-09-21\can-x20\outputs`, two synced copies; Finding #51): local server `127.0.0.1:17846` + Electron shell. Its live view of the newest orders and sales signs in with the owner's account (`live.js` + `signin.js`); its bundled 21-Sep Garanci snapshot and classic-app copy stay anonymous and are blocked, on the owner's choice. |
 | **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore, open only to the owner's account (Finding #64); Auth (email/password, owner only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
 
 ### Where it is installed (9 Oct 2026)
 
 | Target | Version | Checked |
 |---|---|---|
-| Desktop, shop PC | build of af90480, installed 7 Oct 18:11 | installed `app.asar` = built `app.asar` (byte size) |
-| Danfos Garanci, shop PC | build of af90480, installed 7 Oct 18:14 | contains the 12-month texts |
-| Website | = repo | all 46 html/js/css files identical to the live site |
-| Android | debug-signed APK of 7 Oct, sideloaded on the owner's phone | `android/app/build/outputs/apk/debug/app-debug.apk` |
-| GitHub `DanfosAl/danfosal-app` (public) | `main` = 99bef1b | no customer data in October commits (checked each push) |
+| Desktop, shop PC | build with the sign-in (3ac135d), installed 9 Oct 15:14 | installed `app.asar` = built `app.asar` (byte size); no anonymous sign-in left in it |
+| Danfos Garanci, shop PC | build with the sign-in, installed 9 Oct 15:16 | contains `signInWithEmailAndPassword`, no anonymous sign-in |
+| Website | = repo, published 9 Oct with the sign-in | 46 html/js/css files identical to the live site in the morning audit; the four sign-in files re-checked after publishing |
+| Database rules | owner's uid only, deployed 9 Oct 15:21 | 403 without sign-in, for reading and writing |
+| Android | debug-signed APK of 9 Oct 15:13 with the sign-in, sideloaded on the owner's phone | `android/app/build/outputs/apk/debug/app-debug.apk` |
+| GitHub `DanfosAl/danfosal-app` (public) | `main`, pushed after every change | no customer data or security details in October commits (checked each push) |
 
 **Updates are local.** `electron-updater` is wired to GitHub Releases, but no release has ever been
 published, so "Check for updates" finds nothing; every desktop update is a local `npm run dist` +
@@ -58,7 +61,8 @@ versionName 1.4.1 / versionCode 14, app-version.json).
 | Task **Danfosal Paper Autopilot** | Mondays 09:00 + at logon (once a week); last run 5 Oct OK, next 12 Oct. "Check Downloads now" runs it any day. |
 | Service **DanfosEasyPOSCapture** | automatic, running |
 | Startup **DanfosalStartup.lnk** | starts the pipeline at logon |
-| Danfosal App | open on the PC; answers "Check Downloads now" requests from the phone |
+| Danfosal App | open on the PC, signed in; answers "Check Downloads now" requests from the phone |
+| Danfos HQ | its local server runs when started from the Desktop shortcut; signed in |
 
 ### The data (live, 9 Oct 2026)
 
@@ -915,6 +919,7 @@ anyone holding the app's public web config could read and write everything.
   folders, the old file kept as `live.js.backup-2026-10-09`); HQ asks once and remembers. Its bundled
   Garanci snapshot (24-month cards) and classic-app copy stay anonymous and blocked, on the owner's
   choice.
+  The owner signed in on HQ the same day (15:35); its live view is back.
 - **Anonymous sign-in switched off** by the owner the same day (Authentication › Sign-in method: Email/
   Password enabled, Anonymous disabled). 363 old anonymous accounts remain listed; they open nothing.
 - Tested in the browser with a stand-in for Firebase (form, wrong password, success, remembered email,

@@ -123,6 +123,10 @@ function fieldValue(key) {
     return autoValues[key] || '';
 }
 
+// The number on the paper: a till receipt keeps it in easypos.invoiceNumber, with the device after it
+// ("358/2026/mv200vz195") - the card says 358/2026, as Danfosal App writes it.
+const invoiceNo = inv => String(inv.invoiceNumber || (inv.easypos && inv.easypos.invoiceNumber) || '').split('/').slice(0, 2).join('/');
+
 function computeAutoValues() {
     autoValues = {};
     if (!activeInvoice) return;
@@ -131,7 +135,7 @@ function computeAutoValues() {
     autoValues.klienti = data.clientName || data.customerName || '';
     autoValues.nipt = (customer && customer.nipt) || '';
     autoValues.telefon = (customer && customer.phone) || data.telephone || data.phoneNumber || '';
-    autoValues.fatura = data.invoiceNumber || '';
+    autoValues.fatura = invoiceNo(data);
     autoValues.data = formatDateAlb(data.timestamp);
 }
 
@@ -148,7 +152,7 @@ function renderInvoiceList() {
         return `
         <button data-idx="${idx}" style="display:block;width:100%;text-align:left;padding:16px 20px;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:${active ? 'rgba(139,92,255,.14)' : 'transparent'};cursor:pointer;">
           <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <b style="font-family:var(--font-display);font-size:14px;color:#fff;">${escapeHtml(inv.invoiceNumber || ('#' + inv.id.slice(0, 6)))}</b>
+            <b style="font-family:var(--font-display);font-size:14px;color:#fff;">${escapeHtml(invoiceNo(inv) || ('#' + inv.id.slice(0, 6)))}</b>
             <span style="font-size:12px;font-weight:800;color:rgba(245,243,255,.45);">${formatDateAlb(inv.timestamp)}</span>
           </span>
           <span style="display:block;margin-top:6px;font-size:14px;font-weight:800;color:#fff;">${escapeHtml(inv.clientName || inv.customerName || 'Klient')}</span>
@@ -459,7 +463,7 @@ function renderIssuedPanel(cardId, customerName, certItems, purchaseLabel) {
         </div>
       </div>
       <div style="display:grid;gap:8px;font-size:13px;color:rgba(245,243,255,.72);">
-        <span>✓ Fusha e garancisë u mbush ${activeInvoice ? 'nga fatura ' + escapeHtml(activeInvoice.invoiceNumber || activeInvoice.id.slice(0, 6)) : 'manualisht'}</span>
+        <span>✓ Fusha e garancisë u mbush ${activeInvoice ? 'nga fatura ' + escapeHtml(invoiceNo(activeInvoice) || activeInvoice.id.slice(0, 6)) : 'manualisht'}</span>
         <span>✓ Makineritë e zgjedhura dhe serialet u ruajtën në certifikatë</span>
         <span>◷ Faqja e printimit hapet në aplikacionin kryesor</span>
       </div>

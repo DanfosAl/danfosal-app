@@ -28,7 +28,7 @@ const addressOf = o => [o.address || o.deliveryAddress, o.city].filter(Boolean).
 const itemsTotal = items => r2(items.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0));
 const productFor = (products, it) => (it.id && products.find(p => p._id === it.id)) || products.find(p => p.name === it.name) || null;
 
-const on = { filter: 'open', q: '' };
+const on = { filter: 'open', q: '', opened: false };
 
 export function renderOnline(ctx) {
     const orders = ctx.model.orders.slice().sort((a, b) => (orderTime(b) || 0) - (orderTime(a) || 0));
@@ -77,6 +77,12 @@ export function renderOnline(ctx) {
     const openRow = e => { const tr = e.target.closest('tr[data-id]'); if (tr) orderDetail(ctx, ctx.model.orders.find(o => o._id === tr.dataset.id)); };
     ctx.body.querySelector('#on-body').addEventListener('click', openRow);
     ctx.body.querySelector('#on-body').addEventListener('keydown', e => { if (e.key === 'Enter') openRow(e); });
+    // Deep link: ?id= opens that order (Danfos HQ's dispatch bay).
+    if (!on.opened) {
+        on.opened = true;
+        const id = ctx.params.get('id'), o = id && ctx.model.orders.find(x => x._id === id);
+        if (o) orderDetail(ctx, o);
+    }
 }
 
 // ------------------------------------------------------------------ one order

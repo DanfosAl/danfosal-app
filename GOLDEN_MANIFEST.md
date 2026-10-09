@@ -910,6 +910,11 @@ anyone holding the app's public web config could read and write everything.
 - **Not affected** (server credentials, which rules don't apply to): the Instagram chatbot on Render
   (`onlineOrders`, `analytics_events`), the `instagramWebhook` function, the EasyPOS bridge, the Paper
   Autopilot. Checked after the lock: the server key still reads; the bridge saved receipts as before.
+- **Danfos HQ** (Finding #51) read its live orders/sales anonymously and showed "Connection
+  unavailable" after the lock. Its `live.js` now signs in through a copy of `signin.js` (both HQ
+  folders, the old file kept as `live.js.backup-2026-10-09`); HQ asks once and remembers. Its bundled
+  Garanci snapshot (24-month cards) and classic-app copy stay anonymous and blocked, on the owner's
+  choice.
 - **Anonymous sign-in switched off** by the owner the same day (Authentication › Sign-in method: Email/
   Password enabled, Anonymous disabled). 363 old anonymous accounts remain listed; they open nothing.
 - Tested in the browser with a stand-in for Firebase (form, wrong password, success, remembered email,

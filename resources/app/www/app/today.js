@@ -18,8 +18,9 @@ function greeting(now) {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-// Each item: severity, headline, one line of why, and at most one action.
-function needsYou(a) {
+// Each item: severity, headline, one line of why, and at most one action. Exported for Danfos HQ's
+// morning briefing, which shows the same "Now" items.
+export function needsYou(a) {
     const items = [];
     if (a.reorder.length) {
         const names = a.reorder.slice(0, 3).map(r => r.product.name).join(', ');

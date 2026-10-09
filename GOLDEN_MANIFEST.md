@@ -6,7 +6,7 @@
 **Application Version:** 1.4.1  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
-**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64) and the Danfos HQ audit (Finding #65); see **CURRENT STATE** below, which wins wherever an older section disagrees  
+**Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
 **Overall Grade:** A- (Security: A- | Performance: A | Organization: A | Documentation: A+ | held back from A by Finding #4 — backups not actually scheduled)
 
 > **Confirmed scope (Aug 24, 2026):** This app is used only by the owner (Kushtrim), on his own PC and his own phone (sideloaded APK) — it is **not distributed** to staff, customers, or the public, and it is **not connected to Albania's e-Fiscalization/tax system**. A separate app (linked to EasyPOS) is the official system of record for taxes. This app exists purely to track sales/data for the owner's own business decisions, because it's more data-rich than the official fiscal app. This supersedes the fiscal-compliance framing in `docs/archive/GOLDEN_MANIFEST_v1.md` — float-money precision, NIPT/IIC OCR validation, and confidence-gating are **not** legal-risk items for this app and should not be re-flagged as such.
@@ -891,6 +891,37 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **66. DANFOS HQ: A BRIEFING, REPAIRS ON THE BENCH, LIGHTING BY THE CLOCK, A TILL BELL** — ✅ **BUILT AND TESTED (October 9, 2026)**
+
+The owner uses HQ as the daily shortcut to everything and chose three of the suggestions; every
+desk stays.
+
+- **The briefing** (`briefing.js`, `briefing.css` in HQ): a card on the home screen - greeting,
+  then what matters today: Danfosal App's Today "Now" items, the repair whose parts are here (and
+  since when, from the Service timeline), the last day's sales and today's (counted as the Today
+  page counts them), open prepayments, money owed, open online orders. Each line opens the right
+  screen inside HQ; "–" hides it until the next day. It imports Danfosal App's own `data.js` and
+  `today.js` from HQ's copy - **`today.js` now exports `needsYou`** for this - and loads them only
+  after HQ has signed in, so a computer that isn't signed in sees one sign-in form, not two.
+  Refreshes every 30 minutes and ~20 s after a new sale or repair change (one load ≈ 2,600 reads,
+  the same as opening the app).
+- **Repairs on the warranty bench:** HQ also listens to `serviceTickets`. The bench monitor has
+  *Sales & warranties* | *Repairs*; repairs follow Service's statuses (open = not completed,
+  rejected, cancelled, delivered, closed), parts-received first, each opening
+  `service.html?id=…#tickets`. While one waits, the bench lamps breathe amber and the sign reads
+  *1 REPAIR WAITING FOR YOU*. No new desk - the bench in the artwork is the repair bench.
+- **Lighting by the clock** (default; switched on once over the saved mood): original before noon,
+  golden hour 12-18, neon night from 18:00; the other moods still pick one.
+- **The till bell:** a soft two-note ding for each new sale (not returns), part of Sound (off until
+  switched on; switching it on plays the bell); rings with HQ behind other windows, silent in Quiet
+  mode.
+- Tested with a stand-in for Firebase and sample records: briefing lines and their links, layout at
+  1920×1080, 1600×900 and 1366×768 (no overlap with signs, toolbar or footer), the Repairs view and
+  tabs, hide/show, the bell on a sale and not on a return, the lamp and sign; with the real Firebase
+  modules, one sign-in form and no errors. Test files removed.
 
 ---
 

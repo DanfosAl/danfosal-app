@@ -1,5 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { signedIn } from './signin.js';
 import { getFirestore, collection, doc, addDoc, getDocs, runTransaction, Timestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { firebaseConfig, renderHeader, renderAuroraBackground, escapeHtml, initials, formatDateAlb, nextSequenceNumber, warrantyBadge, confirmAction, announceConnection } from './garanci-shared.js';
 import { loadCustomerDirectory, toMillis } from './garanci-data.js';
@@ -313,4 +314,4 @@ function reportError(error) {
     el('page-error').textContent = 'Të dhënat nuk u ngarkuan. Kontrolloni lidhjen dhe ringarkoni faqen.';
     el('results-list').innerHTML = '';
 }
-auth.onAuthStateChanged(user => { if (user) init().catch(reportError); else signInAnonymously(auth).catch(reportError); });
+signedIn(auth, { name: 'Danfos Garanci', lang: 'sq' }).then(() => init().catch(reportError));

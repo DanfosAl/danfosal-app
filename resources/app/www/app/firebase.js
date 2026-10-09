@@ -1,8 +1,9 @@
-// One Firebase setup for the new app. The classic pages each carry their own copy of this;
-// new screens import it from here instead. Same project, same SDK version (11.6.1) and the
-// same anonymous sign-in as everything else, so Firestore rules apply identically.
+// One Firebase setup for the app: same project and SDK version (11.6.1) as Danfos Garanci and the
+// print page. Firestore lets in only the owner's account (firestore.rules), so the app signs in
+// with the owner's email and password once per device (signin.js) and stays signed in there.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { signedIn, signOutHere } from './signin.js';
 import {
     getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc,
     increment, arrayUnion, arrayRemove, Timestamp, writeBatch, runTransaction, query, where, orderBy, deleteField, onSnapshot
@@ -23,10 +24,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, setDoc, increment, arrayUnion, arrayRemove, Timestamp, writeBatch, runTransaction, query, where, orderBy, deleteField, onSnapshot };
 
-// Resolves once signed in. Firestore rules require an authenticated user, so every read waits on this.
-export const ready = new Promise((resolve, reject) => {
-    const stop = onAuthStateChanged(auth, user => {
-        if (user) { stop(); resolve(user); }
-    });
-    signInAnonymously(auth).catch(reject);
-});
+// Resolves once the owner is signed in (the form shows only when this device isn't yet). Every read
+// waits on this.
+export const ready = signedIn(auth, { name: 'Danfosal App', lang: 'en' });
+export const signOut = () => signOutHere(auth);

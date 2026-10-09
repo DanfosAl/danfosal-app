@@ -4,7 +4,7 @@
 // Dropped on purpose (they did nothing in the dark, desktop app): themes, reading mode, pull to
 // refresh, long-press menus, and the WhatsApp auto-send that no screen used.
 import { bootWorkspace } from './workspace.js';
-import { db, doc, setDoc, arrayRemove } from './firebase.js';
+import { db, auth, doc, setDoc, arrayRemove, signOut } from './firebase.js';
 import { esc, eur, int, icon, plural, ago, day, fold, money2, toast, openModal } from './ui.js';
 import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost
 } from './data.js';
@@ -30,6 +30,10 @@ function renderGeneral(ctx) {
                     <button class="btn" type="button" id="st-update"${window.electronAPI?.checkForUpdates ? '' : ' disabled'}>${icon('system_update')}Check for updates</button>
                     <span class="muted" id="st-update-msg" style="font-size:12.5px">${window.electronAPI ? 'Danfosal App, desktop' : 'Web version: updates arrive when Hosting is deployed'}</span>
                 </div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
+                    <span class="muted" style="font-size:12.5px;flex:1">${icon('lock')} Signed in on this device as <b style="font-weight:500">${esc(auth.currentUser?.email || '?')}</b>. It stays signed in until you sign out.</span>
+                    <button class="btn" type="button" id="st-signout">${icon('logout')}Sign out</button>
+                </div>
             </section>
             <section class="panel" style="display:grid;gap:14px">
                 <h2 class="panel-title" style="margin:0">Lists you have built up</h2>
@@ -45,6 +49,10 @@ function renderGeneral(ctx) {
     $('#st-goal').addEventListener('change', e => { const v = Math.max(0, Math.round(Number(e.target.value) || 0)); store.set('dailyRevenueGoal', v); toast(`Daily goal: ${eur(v)}`); });
     $('#st-notif').addEventListener('change', e => { store.set('notificationsEnabled', e.target.checked); toast(e.target.checked ? 'Sale pop-ups on' : 'Sale pop-ups off'); });
     $('#st-sound').addEventListener('change', e => { store.set('notificationSound', e.target.checked); });
+    $('#st-signout').addEventListener('click', async () => {
+        if (!await openModal({ title: 'Sign out on this device?', confirmLabel: 'Sign out', body: '<p>The app will ask for your email and password the next time it opens here. Your other devices stay signed in.</p>' })) return;
+        await signOut();
+    });
     $('#st-update').addEventListener('click', async () => {
         const msg = $('#st-update-msg'); msg.textContent = 'Checking…';
         try { const info = await window.electronAPI.checkForUpdates(); msg.textContent = info && info.version ? `Version ${info.version} is available.` : 'You have the latest version.'; }

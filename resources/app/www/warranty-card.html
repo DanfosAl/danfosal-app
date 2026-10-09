@@ -485,7 +485,9 @@
             (async () => {
                 try {
                     const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-                    const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                    const { getAuth } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                    // The owner's sign-in, shared with the app on the same site (asked once per browser).
+                    const { signedIn } = await import('./app/signin.js');
                     const { getFirestore, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
                     const firebaseConfig = {
                         apiKey: "AIzaSyDUtblUqNiSCmC4kRjikE7D2kba0Mhxej4",
@@ -499,12 +501,7 @@
                     const db = getFirestore(app);
                     const auth = getAuth(app);
 
-                    await new Promise((resolve) => {
-                        onAuthStateChanged(auth, (user) => {
-                            if (user) resolve();
-                            else signInAnonymously(auth).catch(err => console.error('Auth error:', err));
-                        });
-                    });
+                    await signedIn(auth, { name: 'Warranty card', lang: 'en' });
 
                     const snap = await getDoc(doc(db, 'warrantyCards', cardId));
                     if (!snap.exists()) return;

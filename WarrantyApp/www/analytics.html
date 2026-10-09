@@ -54,7 +54,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { signedIn } from "./js/signin.js";
 import { getFirestore, collection, doc, updateDoc, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { firebaseConfig, renderHeader, renderAuroraBackground, escapeHtml, formatDateAlb, confirmAction, announceConnection } from "./js/garanci-shared.js";
 import { toMillis } from "./js/garanci-data.js";
@@ -249,13 +250,9 @@ document.getElementById('renewals-filter-done').addEventListener('click', () => 
     renderRenewals();
 });
 
-auth.onAuthStateChanged(user => {
-    if (user) {
-        loadReliability().catch(reportError);
-        loadRenewals().catch(reportError);
-    } else {
-        signInAnonymously(auth).catch(reportError);
-    }
+signedIn(auth, { name: 'Danfos Garanci', lang: 'sq' }).then(() => {
+    loadReliability().catch(reportError);
+    loadRenewals().catch(reportError);
 });
 function reportError(err) { console.error(err); announceConnection('error'); const el=document.getElementById('analytics-error'); el.hidden=false; el.textContent='Të dhënat nuk u ngarkuan plotësisht. Kontrolloni lidhjen dhe rifreskoni faqen.'; }
 </script>

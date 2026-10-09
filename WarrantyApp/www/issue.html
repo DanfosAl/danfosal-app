@@ -81,7 +81,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { signedIn } from "./js/signin.js";
 import { getFirestore, collection, doc, getDocs, runTransaction, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { firebaseConfig, renderHeader, renderAuroraBackground, escapeHtml, formatDateAlb, addMonths, nextSequenceNumber, PARTS_MONTHS_DEFAULT, LABOUR_MONTHS_DEFAULT, confirmAction, announceConnection } from "./js/garanci-shared.js";
 import { loadRecentInvoices, toMillis } from "./js/garanci-data.js";
@@ -499,10 +500,7 @@ function reportLoadError(err) {
     error.hidden = false;
     error.textContent = 'Të dhënat nuk u ngarkuan. Kontrolloni lidhjen dhe ringarkoni faqen.';
 }
-auth.onAuthStateChanged(user => {
-    if (user) init().catch(reportLoadError);
-    else signInAnonymously(auth).catch(reportLoadError);
-});
+signedIn(auth, { name: 'Danfos Garanci', lang: 'sq' }).then(() => init().catch(reportLoadError));
 </script>
 </body>
 </html>

@@ -1,21 +1,14 @@
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+import { signedIn } from './signin.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 import { firebaseConfig, announceConnection } from './garanci-shared.js';
 
 export const app = getApps()[0] || initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 const auth = getAuth(app);
-export const ready = new Promise((resolve, reject) => {
-    let signingIn = false;
-    onAuthStateChanged(auth, user => {
-        if (user) { resolve(user); }
-        else if (!signingIn) {
-            signingIn = true;
-            signInAnonymously(auth).catch(error => { announceConnection('error'); reject(error); });
-        }
-    }, reject);
-});
+// Only the owner's account gets in (firestore.rules): asked once on this computer, then remembered.
+export const ready = signedIn(auth, { name: 'Danfos Garanci', lang: 'sq' });
 export function showError(element, error) {
     console.error(error);
     announceConnection(navigator.onLine ? 'error' : 'offline');

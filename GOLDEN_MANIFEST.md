@@ -946,8 +946,9 @@ Garanci - warranties and online orders in particular - and then: OneDrive is nev
 
 **The same afternoon, after the owner reopened HQ from E::** they asked to remove the **3D room** -
 its files (`workshop-3d.*`, `workshop-architecture/benches/equipment.js`, the unused
-`workshop-robot.js`, the `vendor/` 3D library) moved to `E:\Danfos HQ\work\removed-3d-room-2026-10-09`;
-the photo workshop and Explore room stay. They also saw the order cancelled on 28 Sep in the
+`workshop-robot.js`, the `vendor/` 3D library) moved to `E:\Danfos HQ\work\removed-3d-room-2026-10-09` -
+and then **Explore room** too (`room-depth.js/.css` → `...\work\removed-explore-room-2026-10-09`); the
+workshop is the still photo with its four stations, as before 24 Sep. They also saw the order cancelled on 28 Sep in the
 dispatch bay and took it for deleted: it was cancelled on 5 Oct, never deleted (still in
 `onlineOrders`). The dispatch bay now leaves out Cancelled and Returned orders, as Danfosal App's
 sales and its Online orders' default view do, and says how many; deleting one for good stays the

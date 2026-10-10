@@ -894,6 +894,23 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **71. DANFOS HQ: A NEW ROOM PHOTO THAT HOLDS THE OBJECTS; THE BRIEFING STARTS FOLDED** — ✅ **DONE, LIVE IN HQ (October 10, 2026)**
+
+The owner: the briefing should start closed (folded), and the objects of #67-#70 "look like icons
+plastered on top of the picture" - redesign the room so they belong in it. With the owner's go-ahead
+for paid images, the workshop photo was edited with Digital Atelier (GPT Image through its local
+service, five edits plus two asset images): same camera and framing, with the clock, cork boards,
+sticky notes, trophies, tags, mug, radio, phone, printer, robot dock and two floor zones painted in.
+HQ's code was refitted to the photo's coordinates (signs, lamps, windows, desk zones, floor-wash area,
+robot route and cut-outs) and now only animates what changes (hands, glows, steam, LEDs, ink, seals,
+receipt, parcels/pallet and the robot as cut-out photographs, the daylight view from a second
+"day outside" edit of the photo). The OUTGOING/INCOMING words are laid on the floor in perspective
+(a homography, `HQScene.quad`) because the model can't letter that small. The briefing card starts
+folded on every start. Prepared and tested in a staging copy (`E:\Danfos HQ\next`, served on 8768),
+then copied over; the previous HQ is kept in `work\before-new-room-2026-10-10`.
+
+---
+
 #### **70. DANFOS HQ: THE SKY AND WEATHER IN THE WINDOWS, THE SEASONS, AND SMALL TOUCHES** — ✅ **BUILT AND TESTED (October 10, 2026)** — the last of the immersive list
 
 - **Windows** (`scene4.js`): three window panes of the photo get a sky tint by phase (dawn/day/dusk

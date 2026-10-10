@@ -894,6 +894,31 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **67. DANFOS HQ: OPENING AND CLOSING THE SHOP, A RECEIPT PRINTER, REPAIR TAGS, A SHOP ROBOT** — ✅ **BUILT AND TESTED (October 9-10, 2026)**
+
+The owner wanted HQ more fun and immersive while keeping the photo workshop (no camera moves -
+the 3D room and Explore room were removed at their request). First three of the list:
+
+- **Opening/closing rituals** (`shop.js`): once a day the shutter rolls up, lights come on bank by
+  bank, neon flickers on, the briefing prints. *Close shop*: a floor wash (spray the dust off a
+  canvas laid over the photo's floor; 82% clean = "Spotless!"; skippable), signs and lights off,
+  shutter down, the day in chalk (from the briefing's model: sales, best seller by value, cards
+  issued, repairs completed). State per day in `localStorage` `hq-shop`.
+- **Objects in the photo** (`scene.js`, `scene.css`): a layer laid out in the photo's coordinates
+  (1672×941, the same cover-fit as the lamps) right after the photo, so its shading applies. A
+  **receipt printer** on the counter (a receipt per new sale, hover = full receipt, click = the sale
+  in Danfosal) and **repair tags** on the bench edge (amber/swaying when parts are here).
+- **The robot** (`robot.js`): roams two floor zones, routed round a corner; the machines, tool
+  cart and bin are cut from the photo (`clip-path` polygons) and laid over it so it passes behind
+  them; spins on a sale; a fact of the day (`HQBriefing.facts()`); docks in Quiet mode/closed.
+- Sounds are synthesized (Web Audio) and only with Sound on. Everything respects Quiet mode and
+  reduced motion; nothing writes to the business data.
+- Tested with a Firebase stand-in: the rituals frame by frame, the wash to "Spotless!", the chalk
+  summary, reopening, a sale printing its receipt, the tags, the robot's route and its bubble,
+  layouts at 1600×900. Captures with HQ's own Electron (off-screen rendering).
+
+---
+
 #### **66. DANFOS HQ: A BRIEFING, REPAIRS ON THE BENCH, LIGHTING BY THE CLOCK, A TILL BELL** — ✅ **BUILT AND TESTED (October 9, 2026)**
 
 The owner uses HQ as the daily shortcut to everything and chose three of the suggestions; every

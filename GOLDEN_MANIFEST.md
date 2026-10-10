@@ -894,6 +894,20 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **69. DANFOS HQ: A WALL CLOCK, A RADIO, A COFFEE MUG, A PHONE AND A HOSE REEL TO CLICK** — ✅ **BUILT AND TESTED (October 10, 2026)**
+
+Third batch (`scene3.js`): the round caged lamp by the bench became a lit clock with real hands
+(click: today's timeline = `analyze().activity`); a radio on the rack plays procedurally generated
+lo-fi or a time-of-day workshop ambience (Web Audio; `hq-radio`; Quiet mode mutes); a mug on the
+bench drives the Today board's focus timer (`HQBoard.focusToggle()`), steaming while it runs; the
+counter phone lists *who to call today* (`HQBriefing.calls()`: repair finished / parts arrived since
+`lastCustomerContactAt`, warranty ending within 30 days, prepaid goods in stock by product name,
+money owed; phone from the ticket or the customer record - few are saved; "Called" is HQ-local,
+`hq-called`, 14 days); the hose reel sprays water and leaves drops on the "glass". Read-only.
+Tested with the stand-in: each object, the dialogs, the radio cycle, the timer, "Called".
+
+---
+
 #### **68. DANFOS HQ: CERTIFICATES, PARCELS, A KÄRCHER PALLET, STICKY NOTES AND A TROPHY SHELF IN THE PHOTO** — ✅ **BUILT AND TESTED (October 10, 2026)**
 
 Second batch of the immersive list (`scene2.js`, styles in `scene.css`), all read-only:

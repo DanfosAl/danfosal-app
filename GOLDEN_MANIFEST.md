@@ -894,6 +894,22 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **70. DANFOS HQ: THE SKY AND WEATHER IN THE WINDOWS, THE SEASONS, AND SMALL TOUCHES** — ✅ **BUILT AND TESTED (October 10, 2026)** — the last of the immersive list
+
+- **Windows** (`scene4.js`): three window panes of the photo get a sky tint by phase (dawn/day/dusk
+  from Open-Meteo's sunrise/sunset for Tirana, else an approximation) and weather overlays (overcast,
+  fog, rain streaks, snow, storm flashes) from Open-Meteo's current `weather_code` (every 30 min,
+  cached in `hq-weather`; only the city's coordinates are sent). The sky sits in a `scene-glow`
+  layer in front of the room's shading, screen-blended, so daylight reads as daylight.
+- **Seasons**: New Year lights (10 Dec - 7 Jan), frost (Dec - Feb), red/black bunting (25 - 30 Nov),
+  blossoms and petals for Dita e Verës (12 - 15 Mar), along the window sill.
+- **Small touches** (`scene5.js`): tool pointers per sign, a neon hum on hover (Sound on), lamps of
+  the desk under the mouse raise their intensity (`--intensity`; the lamps' flicker owns `filter`).
+- Tested: captures for day, dusk, December snow with lights, 28 November rain with bunting; a live
+  Open-Meteo call ("21° and overcast in Tirana", real sunrise/sunset); nearness for all four desks.
+
+---
+
 #### **69. DANFOS HQ: A WALL CLOCK, A RADIO, A COFFEE MUG, A PHONE AND A HOSE REEL TO CLICK** — ✅ **BUILT AND TESTED (October 10, 2026)**
 
 Third batch (`scene3.js`): the round caged lamp by the bench became a lit clock with real hands

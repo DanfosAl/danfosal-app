@@ -33,6 +33,7 @@ statements are listed at the end of it.
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
 | **Access** | **Owner only** (Finding #64): one Firebase Auth account (email/password); `firestore.rules` allow that uid alone; Anonymous sign-in disabled. Signed in once on each: Danfosal App on the PC, Danfos Garanci, the phone, the browser (print pages), Danfos HQ - each remembers it until Sign out (Settings › General). A request without the sign-in is refused (403). Server keys (chatbot, webhook, EasyPOS bridge, Paper Autopilot) are not affected. |
 | **Danfos HQ** | Separate desktop companion at **`E:\Danfos HQ\app`** (Findings #51, #65; never OneDrive): local server `127.0.0.1:17846` + Electron shell. Signs in with the owner's account; shows the newest orders and sales with Danfosal App's own status, open-order and warranty-card rules, and the current Danfosal App and Garanci inside its monitors (copies refreshed by `sync-apps.py` after each release). |
+| **AI Commerce Manager** | Separate PHP panel on the website's hosting (danfosal.com, v4.10.1, Finding #72) that edits the WooCommerce store with AI - products, prices, stock, orders, articles to WordPress - always plan → preview → confirm. Its source is only on the server. The website's catalogue is not linked to this app's products or stock. |
 | **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore, open only to the owner's account (Finding #64); Auth (email/password, owner only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
 
 ### Where it is installed (9 Oct 2026)
@@ -891,6 +892,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **72. AI COMMERCE MANAGER: AUDITED FROM OUTSIDE; THE WEBSITE'S STOCK AND PRICES DRIFT FROM THE SHOP'S** — 🟡 **UNDERSTOOD, NOT FIXED (October 10, 2026)**
+
+The owner asked for an audit of AI Commerce Manager (the Desktop "AI Commerce" app, HQ's Commerce
+station). It has **no Golden Manifest** and **no source on this PC**: it is a PHP app on the website's
+hosting, installed as a Chrome app; the release zips (v4.5.5-v4.10.1, 10-14 Aug 2026) are gone from
+Downloads. Checked without logging in (the assistant does not use the owner's password):
+
+- **What it is:** an Albanian-language private panel for the danfosal.com WooCommerce store - an AI
+  assistant that finds and edits products, bulk edits, purchase costs, sales and stock insights, CSV
+  export/import, ad copy, order search/status/replies, image analysis, SEO, voice commands, and an AI
+  Content Studio that writes articles with images and publishes them to WordPress. Every change is a
+  plan the owner previews and confirms; history with undo.
+- **Security, from outside: good.** Strict security headers and content policy, a hardened session
+  cookie, CSRF on every call, private files and folders refused, the API refuses calls without a
+  session, HTTP redirects to HTTPS. Minor: no HSTS header. The browser code holds no secrets.
+- **The real gap is between systems:** the website's catalogue (87 products, no product codes) is
+  maintained separately from this app's products (341, real stock from EasyPOS and Kärcher invoices).
+  The Instagram chatbot reads the website's public product data, so customers see the website's stock
+  and prices. On 10 Oct, matched by model: ~12 machines in stock at the shop showed "out of stock"
+  online (K 4 ×3, WD 3 ×6, K 7, HD 5/15 C, NT models…), 2 the reverse (VC 7, BDS 43/150), and ~25
+  prices differed by more than 5% in both directions.
+- **For a code audit**, the owner can download the app's folder from cPanel's File Manager (Compress →
+  Download) and put it on E:.
 
 ---
 

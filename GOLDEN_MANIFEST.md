@@ -916,8 +916,17 @@ Downloads. Checked without logging in (the assistant does not use the owner's pa
   and prices. On 10 Oct, matched by model: ~12 machines in stock at the shop showed "out of stock"
   online (K 4 ×3, WD 3 ×6, K 7, HD 5/15 C, NT models…), 2 the reverse (VC 7, BDS 43/150), and ~25
   prices differed by more than 5% in both directions.
-- **For a code audit**, the owner can download the app's folder from cPanel's File Manager (Compress →
-  Download) and put it on E:.
+- **Code audit (same day):** the owner downloaded the server folder (`E:\danfos-ai-product-manager.zip`,
+  unpacked to `E:\AI Commerce\source-2026-10-10`; full report `E:\AI Commerce\AUDIT-2026-10-10.md`,
+  kept off this public repository because the package holds live credentials). It has its own
+  machine-readable Golden Manifest (v1.1-v1.4), tests and changelogs; deployed version 4.10.1. Sound:
+  hashed password, CSRF everywhere, hardened cookie, HTTPS, server-side credentials, web access
+  refused to config/code/data (verified live), every store change previewed and confirmed with undo,
+  customer replies drafted only. Barely used: 9 store changes (Aug), 2 articles. To act on: no backup
+  or version history (the zip is now the only copy), no lockout on password guessing, an unused Gemini
+  key still configured, old upgrade/video leftovers on the server, the daily briefing has no address
+  to send to, its own docs out of date, and - only if it is sold - the Danfoss trademark and an
+  unreviewed licence.
 
 ---
 

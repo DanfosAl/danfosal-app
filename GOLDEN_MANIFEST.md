@@ -894,6 +894,21 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **68. DANFOS HQ: CERTIFICATES, PARCELS, A KÄRCHER PALLET, STICKY NOTES AND A TROPHY SHELF IN THE PHOTO** — ✅ **BUILT AND TESTED (October 10, 2026)**
+
+Second batch of the immersive list (`scene2.js`, styles in `scene.css`), all read-only:
+today's warranty cards pinned to the pegboard (`state.cardList`, new in `app.js`); open online orders
+as parcels on the dock threshold (Danfosal's open = not Paid/Returned/Cancelled); a Kärcher pallet
+from `HQBriefing.deliveries()` - Danfosal App's own `buildPurchasing` stages (ordered, prepaid,
+warranty replacement claimed, arrived not booked, booked with lines outstanding; 168 + 1 extra reads
+per briefing load); the Today board as sticky notes (`HQBoard.tasks()/toggle()` added to
+`today-board.js`, `hq:board` event; tearing one ticks it); a trophy shelf of kind milestones
+(`HQBriefing.stats()`, HQ's own `hq-stats` for opened days and washed floors; what is already true
+is shelved quietly the first time). Tested with the stand-in: every tip, tearing a note, the shelf
+dialog, the seventh wash earning "Spotless week", placement at 1600×900.
+
+---
+
 #### **67. DANFOS HQ: OPENING AND CLOSING THE SHOP, A RECEIPT PRINTER, REPAIR TAGS, A SHOP ROBOT** — ✅ **BUILT AND TESTED (October 9-10, 2026)**
 
 The owner wanted HQ more fun and immersive while keeping the photo workshop (no camera moves -

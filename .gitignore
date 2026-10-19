@@ -92,3 +92,6 @@ resources/app/exports/
 
 # --- Local-only notes: never uploaded (the repository is public) ---
 *.local.md
+
+# Local settings with secrets (website sync key etc.)
+*.local.json

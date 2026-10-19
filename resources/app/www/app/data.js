@@ -283,8 +283,16 @@ export async function loadAll() {
         if (s.exists()) receiptServices = s.data().services || [];
         if (r.exists()) notSameCustomers = r.data().notSame || [];
     } catch { /* first use: the documents don't exist yet */ }
+    // The website (AI Commerce): prices changed there that wait for Accept / Ignore here, and how
+    // the morning sync went (tools/website-sync). Both are empty until the sync has run once.
+    let websiteProposals = [], websiteSync = null;
+    try {
+        const [props, status] = await Promise.all([all('websitePriceProposals'), getDoc(doc(db, 'websiteSync', 'status'))]);
+        websiteProposals = props;
+        if (status.exists()) websiteSync = status.data();
+    } catch { /* no website sync yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, websiteProposals, websiteSync, loadedAt: Date.now() };
 }
 
 // ---- costs that repeat every month (rent, salaries, the accountant)
@@ -635,6 +643,8 @@ export function analyze(m, now = Date.now()) {
         customers: firstSeen.size, newCustomers30, customerNames: [...firstSeen.values()].map(v => v.name),
         openTickets, openOrders, owed, owedTotal,
         lastEasypos, polluted,
-        activity, lastSale
+        activity, lastSale,
+        websitePrices: (m.websiteProposals || []).filter(p => p.status === 'pending').sort((x, y) => String(x.name).localeCompare(String(y.name))),
+        websiteSync: m.websiteSync || null
     };
 }

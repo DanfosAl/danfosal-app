@@ -8,6 +8,7 @@ import { renderOrderList } from './orderlist.js';
 import { renderReceive } from './receive.js';
 import { renderPurchases } from './purchases.js';
 import { renderPlan } from './plan.js';
+import { renderWebsite } from './website.js';
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -375,6 +376,7 @@ bootWorkspace({
         { id: 'orders', label: 'Order list', icon: 'list_alt', render: ctx => { renderOrderList(ctx); } },
         { id: 'purchases', label: 'Purchases', icon: 'receipt_long', render: ctx => { renderPurchases(ctx); } },
         { id: 'receive', label: 'Receive delivery', icon: 'move_to_inbox', render: renderReceive },
-        { id: 'plan', label: 'Yearly plan', icon: 'event_note', render: renderPlan }
+        { id: 'plan', label: 'Yearly plan', icon: 'event_note', render: renderPlan },
+        { id: 'website', label: 'Website', icon: 'language', render: renderWebsite, count: a => (a.websitePrices || []).length }
     ]
 });

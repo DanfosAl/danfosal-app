@@ -33,7 +33,7 @@ statements are listed at the end of it.
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
 | **Access** | **Owner only** (Finding #64): one Firebase Auth account (email/password); `firestore.rules` allow that uid alone; Anonymous sign-in disabled. Signed in once on each: Danfosal App on the PC, Danfos Garanci, the phone, the browser (print pages), Danfos HQ - each remembers it until Sign out (Settings › General). A request without the sign-in is refused (403). Server keys (chatbot, webhook, EasyPOS bridge, Paper Autopilot) are not affected. |
 | **Danfos HQ** | Separate desktop companion at **`E:\Danfos HQ\app`** (Findings #51, #65; never OneDrive): local server `127.0.0.1:17846` + Electron shell. Signs in with the owner's account; shows the newest orders and sales with Danfosal App's own status, open-order and warranty-card rules, and the current Danfosal App and Garanci inside its monitors (copies refreshed by `sync-apps.py` after each release). |
-| **AI Commerce Manager** | Separate PHP panel on the website's hosting (danfosal.com, v4.10.1, Finding #72) that edits the WooCommerce store with AI - products, prices, stock, orders, articles to WordPress - always plan → preview → confirm. Its source is only on the server. The website's catalogue is not linked to this app's products or stock. |
+| **AI Commerce Manager** | Separate PHP panel on the website's hosting (danfosal.com) that edits the WooCommerce store with AI - products, prices, stock, orders, articles to WordPress, a monthly newsletter for Mailchimp - always plan → preview → confirm. 4.11.0 (Finding #73) links it to this app: a signed daily sync from the shop PC (`tools/website-sync`) compares the website with the shop, website price changes come here as proposals (Stock › Website), website orders become Online orders. Live: 4.11.0 since about 12 Oct 2026; the sync runs every morning on the shop PC. Source and package: `E:\AI Commerce` (not in this repository). |
 | **Firebase project `danfosal-app`** | **Blaze plan since 6 Oct 2026** (Spark's 50k reads/day ran out on 5 Oct). Firestore, open only to the owner's account (Finding #64); Auth (email/password, owner only); Hosting `danfosal-app.web.app` keeping 10 versions; a Cloud Function for the Instagram chatbot. One app load reads ~2,600 documents; cost is cents a day. |
 
 ### Where it is installed (9 Oct 2026)
@@ -895,7 +895,55 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **72. AI COMMERCE MANAGER: AUDITED FROM OUTSIDE; THE WEBSITE'S STOCK AND PRICES DRIFT FROM THE SHOP'S** — 🟡 **UNDERSTOOD, NOT FIXED (October 10, 2026)**
+#### **73. AI COMMERCE LINKED TO DANFOSAL APP; REDESIGNED IN DANFOSAL'S LOOK** — ✅ **LIVE (website 4.11.0 since ~12 Oct; Stock › Website shipped October 19, 2026)**
+
+The owner: link AI Commerce to Danfosal App - "when I do changes on the web, the Danfosal app should
+ask me to change them on the Danfosal, and the sync should happen once a day in the morning"; stock
+differences proposed and confirmed, not automatic; review newsletters, prices, availability and every
+function; redesign it to be friendlier and modern (design approved before building).
+
+- **The link (no Danfosal key on the web server).** `tools/website-sync/website-sync.mjs` runs on the
+  shop PC once a day (07:30 or at logon, at most once; `schedule-sync.ps1`, to be turned on by the
+  owner). It signs every request (HMAC-SHA256, key made in AI Commerce › Cilësimet, kept in a
+  git-ignored `website-sync.local.json`) and: sends the products (code, name, stock, price, landed
+  cost, sold 90 days, on order); reads the website's prices and writes **`websitePriceProposals`**
+  when a website price is new and differs (Accept / Ignore in **Stock › Website**, and a Today item);
+  copies website orders into **`onlineOrders`** (source *Web*, `wooOrderId`, status mapped, does not
+  take stock; a hand-typed duplicate is linked instead); writes **`websiteSync/status`**. Products
+  without a code go out as `id:<doc id>`. Dry-run against the real database: 341 products, 313 with a
+  cost; real names matched 37 website products as suggestions, all plausible.
+- **AI Commerce 4.11.0** (`E:\AI Commerce\dev`, package `E:\AI Commerceeleasesi-commerce-4.11.0.zip`,
+  steps in its `UPGRADE-4.11.md`): `sync.php` for the shop PC; **Produktet** compares every website
+  product with its shop product (stock, both prices, margin, state), links suggested by name and
+  confirmed by the owner; fixing stock, prices or SKUs builds a plan with before → after and an
+  orange confirm, verified per product and undoable; website offers are never overwritten from
+  there. **Margins are now net of VAT on both sides** (they compared VAT-inclusive prices with net
+  costs, overstating every margin by about a sixth). **Newsletter**: monthly email from the newest
+  articles and offers, previewed, copied into Mailchimp (the website's mc4wp list), which sends it
+  with the unsubscribe link; the panel sends nothing. **Login lockout** after repeated wrong
+  passwords. **Redesign**: dark Danfosal look, five sections (Sot, Produktet, Porositë, Përmbajtja,
+  Analiza) with every earlier tool as a tab, one command bar, phone layout.
+- **Tests:** AI Commerce 88/88 unit, 13/13 route, frontend checks, release check 7/7 on the package;
+  end to end on a local stand-in shop (signed snapshot, 401 for a bad signature, links confirmed,
+  an 8-product stock plan published and verified, newsletter generated). Danfosal side: the dry run
+  above, and Stock › Website rendered with test data (Accept writes the product price and the
+  proposal; Ignore only the proposal).
+- **Owner's setup, done by October 12:** 4.11.0 uploaded, key created, `website-sync.local.json`
+  filled, links confirmed (86 of 87 website products), the daily task on.
+- **Follow-up, October 19.** The sync had run every morning (the 18th missed: PC off) and left 48
+  price proposals unanswered, because Stock › Website was not in the installed app yet - shipped
+  with this build. Fixed the same day: a second copy of the settings file named
+  `website-sync.local.json.json` (Windows doubling the extension) was not git-ignored and would have
+  published the key with the next commit - sent to the Recycle Bin; the 07:30 and logon triggers
+  started two runs at once on the 17th - a lock now lets one run at a time; two website products
+  ("NT 22/1 Ap TE L" and "Nt 30/1") linked to the same shop product rewrote one proposal every
+  morning - such products are now skipped and named in the log (*CHECK LINKS*), the owner corrects
+  the link in AI Commerce. Several proposals are website mistakes rather than discounts (NT 30/1:
+  300 € online vs 780 € in the shop): those are corrected on the website, not accepted here.
+
+---
+
+#### **72. AI COMMERCE MANAGER: AUDITED FROM OUTSIDE; THE WEBSITE'S STOCK AND PRICES DRIFT FROM THE SHOP'S** — 🟡 **UNDERSTOOD; ADDRESSED BY #73 (October 10, 2026)**
 
 The owner asked for an audit of AI Commerce Manager (the Desktop "AI Commerce" app, HQ's Commerce
 station). It has **no Golden Manifest** and **no source on this PC**: it is a PHP app on the website's

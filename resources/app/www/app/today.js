@@ -49,6 +49,18 @@ export function needsYou(a) {
             why: `${plural(units, 'unit', 'units')} sold in the last ${SALES_WINDOW_DAYS} days didn't reduce stock or count toward profit. Link each name once and future receipts match by themselves.`,
             action: ['Link', 'stock.html#link'] });
     }
+    if (a.websitePrices && a.websitePrices.length) {
+        const top = a.websitePrices[0];
+        items.push({ sev: 'warn', title: `${plural(a.websitePrices.length, 'price changed', 'prices changed')} on the website`,
+            why: `${esc(top.name)}: €${money2(top.websitePrice)} on danfosal.com${top.onSale ? ' (offer)' : ''}, €${money2(top.shopPrice)} here${a.websitePrices.length > 1 ? `, and ${a.websitePrices.length - 1} more` : ''}. Use the website price here too, or keep yours.`,
+            action: ['Review', 'stock.html#website'] });
+    }
+    const ws = a.websiteSync;
+    if (ws && (ws.error || (a.now - toMs(ws.lastRunAt)) > 36 * 3600000)) {
+        items.push({ sev: 'info', title: ws.error ? 'The website sync failed' : 'The website sync hasn’t run for a while',
+            why: ws.error ? `Last try ${day(toMs(ws.lastRunAt))}: ${esc(ws.error)}` : `Last run ${day(toMs(ws.lastRunAt))}. It runs every morning on the shop PC; check that the PC was on.`,
+            action: ['Details', 'stock.html#website'] });
+    }
     if (a.openTickets.length) {
         const oldest = a.openTickets[0];
         const status = String(oldest.ticket.status || '').replace(/_/g, ' ');

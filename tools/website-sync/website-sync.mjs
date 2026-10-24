@@ -138,7 +138,7 @@ function snapshotFrom({ products, sales, orders, toOrder }) {
 
 function priceProposals(catalogue, products, existing, lastSeen) {
     const byCode = new Map(products.map(p => [fold(codeOf(p)), p]));
-    const out = { create: [], resolve: [], shared: [] };
+    const out = { create: [], resolve: [], shared: [], shopMoved: [] };
     // Two website products linked to one shop product (a wrong link in AI Commerce) would take
     // turns writing the same proposal every morning. Leave that product out and say so instead.
     const uses = new Map();
@@ -159,6 +159,10 @@ function priceProposals(catalogue, products, existing, lastSeen) {
         // Already asked about this exact website price: pending stays, ignored stays ignored.
         if (current && Math.abs(Number(current.websitePrice) - webPrice) <= PRICE_TOLERANCE && current.status !== 'resolved' && current.status !== 'accepted') continue;
         const seen = lastSeen[String(w.id)];
+        // The website still has the price it had at the last run, so it is the shop's price that
+        // moved (Stock › Prices, a delivery, the catalogue). That is a fix for the website - AI
+        // Commerce › Produktet shows the difference - not a question for the shop.
+        if (seen != null && Math.abs(Number(seen) - webPrice) <= PRICE_TOLERANCE) { out.shopMoved.push({ name: p.name, shopPrice, webPrice }); continue; }
         out.create.push({
             id: p._id,
             data: {
@@ -260,6 +264,7 @@ async function main() {
         const orders = orderImports(webOrders, danfosal.orders, danfosal.products);
         prices.create.forEach(p => log(`  price: ${p.data.name}: shop ${p.data.shopPrice} € -> website ${p.data.websitePrice} €${p.data.onSale ? ' (offer)' : ''}`));
         prices.shared.forEach(x => log(`  CHECK LINKS in AI Commerce: ${x.names.join(' and ')} are linked to the same shop product; no price question for them until one is fixed`));
+        prices.shopMoved.forEach(x => log(`  shop price changed: ${x.name}: shop ${x.shopPrice} €, website still ${x.webPrice} € (update it in AI Commerce › Produktet)`));
         orders.create.forEach(o => log(`  new order #${o.data.wooNumber}: ${o.data.items.length} item(s), ${o.data.total} €, ${o.data.status}`));
         orders.update.forEach(o => log(`  order #${o.number}: ${o.from} -> ${o.status}`));
         orders.link.forEach(o => log(`  order #${o.number} was already typed in: linked`));
@@ -281,7 +286,7 @@ async function main() {
 
         Object.assign(status, {
             ok: true, proposalsNew: prices.create.length, proposalsResolved: prices.resolve.length,
-            sharedLinks: prices.shared.map(x => x.names.join(' + ')),
+            sharedLinks: prices.shared.map(x => x.names.join(' + ')), shopPricesMoved: prices.shopMoved.length,
             ordersNew: orders.create.length, ordersUpdated: orders.update.length, ordersLinked: orders.link.length,
             finishedAt: new Date()
         });

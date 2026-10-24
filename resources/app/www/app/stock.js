@@ -1,4 +1,5 @@
-// Stock workspace: Catalogue, Reorder, Link receipt items, Order list, Purchases, Receive delivery.
+// Stock workspace: Catalogue, Prices, Reorder, Link receipt items, Order list, Purchases, Receive
+// delivery, Yearly plan, Website.
 //
 // Writes use exactly the shapes the classic screens use, so the bridge, Danfos Garanci and the
 // classic pages keep reading them: products {name, code, producer, price, baseCost, cost = baseCost
@@ -10,6 +11,8 @@ import { renderPurchases } from './purchases.js';
 import { renderPlan } from './plan.js';
 import { renderWebsite } from './website.js';
 import { loadExtras, askedByProduct } from './dashboard-data.js';
+import { renderPrices, losingCount, explainPrice, euro } from './prices.js';
+import { pricingBasis, suggestPrice, historyEntry, REASONS } from './pricing.js';
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -139,6 +142,7 @@ function productDrawer(ctx, p) {
                 <label class="fld">Price, incl. VAT (€)<input id="pf-price" type="number" min="0" step="0.01" value="${Number(p.price) || ''}"></label>
                 <label class="fld">Net cost, excl. VAT (€)<input id="pf-cost" type="number" min="0" step="0.01" value="${netCost ? r2(netCost) : ''}">
                     <span class="hint" id="pf-cost-hint">${netCost ? `Cost incl. VAT: €${money2(netCost * VAT)}` : 'Missing: profit on this product is unknown until you enter it.'}</span></label>
+                <div class="fld wide price-sug" id="pf-sug" aria-live="polite"></div>
                 <label class="fld wide">In stock
                     <span class="stepper"><button type="button" data-step="-1" aria-label="One less">−</button><input id="pf-stock" type="number" step="1" value="${Number(p.stock) || 0}" aria-label="In stock"><button type="button" data-step="1" aria-label="One more">+</button></span>
                     <span class="hint">${isNew ? 'Units you have now.' : 'Changing this corrects the count. For a delivery, use Receive delivery so it is recorded.'}</span></label>
@@ -157,9 +161,30 @@ function productDrawer(ctx, p) {
     });
 
     const costInput = el.querySelector('#pf-cost');
+    // The suggested price for this cost (Stock › Prices explains the rules).
+    const basis = pricingBasis(ctx.model, ctx.a);
+    let sug = null;
+    const showSuggestion = () => {
+        const cost = Number(costInput.value) || 0;
+        sug = cost > 0 ? suggestPrice(basis, { product: isNew ? null : p, cost, name: el.querySelector('#pf-name').value }) : null;
+        const box = el.querySelector('#pf-sug');
+        if (!sug) { box.innerHTML = ''; return; }
+        box.innerHTML = sug.kind === 'keep'
+            ? `<span class="hint">${icon('check_circle')} The price covers the cost, the running costs and ${Math.round(basis.minProfit * 100)}% profit (at least ${euro(sug.floor)}). <button class="btn ghost small" type="button" data-sug-why>Why?</button></span>`
+            : `<span class="hint">${icon('sell')} Suggested <b>${euro(sug.price)}</b>${sug.reason !== 'similar' ? ` · ${esc(REASONS[sug.reason][0].toLowerCase())}` : ''} · ${Math.round(sug.margin * 100)}% margin
+                <button class="btn small" type="button" data-sug-use>Use ${euro(sug.price)}</button> <button class="btn ghost small" type="button" data-sug-why>Why?</button></span>`;
+    };
+    showSuggestion();
+    el.querySelector('#pf-sug').addEventListener('click', e => {
+        if (!sug) return;
+        if (e.target.closest('[data-sug-use]')) el.querySelector('#pf-price').value = sug.price;
+        if (e.target.closest('[data-sug-why]')) explainPrice(sug, el.querySelector('#pf-name').value || 'This product', basis);
+    });
+    el.querySelector('#pf-name').addEventListener('change', () => { if (isNew) showSuggestion(); });
     costInput.addEventListener('input', () => {
         const v = Number(costInput.value);
         el.querySelector('#pf-cost-hint').textContent = v > 0 ? `Cost incl. VAT: €${money2(v * VAT)}` : 'Missing: profit on this product is unknown until you enter it.';
+        showSuggestion();
     });
     el.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
         const s = el.querySelector('#pf-stock'); s.value = (Number(s.value) || 0) + Number(b.dataset.step);
@@ -179,8 +204,9 @@ function productDrawer(ctx, p) {
         const data = { name, code: v('#pf-code'), producer, price, baseCost, cost: r2(baseCost * VAT), stock };
         const btn = el.querySelector('#pf-save'); btn.disabled = true;
         try {
-            if (isNew) await addDoc(collection(db, 'products'), { ...data, image: '', createdAt: Date.now() });
-            else await updateDoc(doc(db, 'products', p._id), data);
+            // A price change is kept in the product's price history (Stock › Prices shows how it sold since).
+            if (isNew) await addDoc(collection(db, 'products'), { ...data, image: '', createdAt: Date.now(), ...(price > 0 ? { priceHistory: [historyEntry(price, 0, 'New product')] } : {}) });
+            else await updateDoc(doc(db, 'products', p._id), { ...data, ...(Math.abs(price - (Number(p.price) || 0)) >= 0.01 ? { priceHistory: arrayUnion(historyEntry(price, p.price, 'Catalogue')) } : {}) });
             toast(isNew ? `${name} created` : `${name} saved`);
             close(); await ctx.reload();
         } catch (e) { btn.disabled = false; err.textContent = `Couldn't save: ${e.message}`; err.hidden = false; }
@@ -426,6 +452,7 @@ bootWorkspace({
     active: 'stock', title: 'Stock', defaultTab: 'catalogue',
     tabs: [
         { id: 'catalogue', label: 'Catalogue', icon: 'inventory_2', render: renderCatalogue },
+        { id: 'prices', label: 'Prices', icon: 'sell', render: renderPrices, count: losingCount },
         { id: 'reorder', label: 'Reorder', icon: 'local_shipping', render: ctx => { renderReorder(ctx); }, count: a => a.reorder.length },
         { id: 'link', label: 'Link receipt items', icon: 'link', render: renderLink, count: (a, m) => unlinkedReceiptLines(m).length },
         { id: 'orders', label: 'Order list', icon: 'list_alt', render: ctx => { renderOrderList(ctx); } },

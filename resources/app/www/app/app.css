@@ -486,6 +486,61 @@ a.kpi-link:hover { border-color: var(--line-strong); background: var(--panel-2);
 .cbar i { display: block; height: 100%; border-radius: 2px; background: var(--violet); }
 @media (max-width: 1100px) { .kpis-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .stat-grid.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
+/* ---------------------------------------------------------------- suggested prices
+   Stock › Prices (prices.js), the Selling price column of Receive delivery, the product drawer. */
+.dt .sub-n { display: block; margin-top: 2px; color: var(--faint); font-size: 11px; font-family: var(--mono); white-space: nowrap; }
+.dt .sub-n .chip { font-size: 10px; padding: 0 6px; }
+.dt .sub-n .btn.small { padding: 0 6px; font-size: 11px; min-height: 0; }
+.ok-t { color: var(--ok); }
+.dt td.why { min-width: 220px; max-width: 360px; font-size: 12.5px; color: var(--muted); }
+.dt td.why .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; line-height: 1.4; }
+.dt td.why .btn.small { padding: 1px 7px; font-size: 11.5px; }
+.why-steps { margin: 4px 0 14px; padding-left: 20px; display: grid; gap: 8px; line-height: 1.5; color: var(--ink); font-size: 13.5px; }
+.price-sug .hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12.5px; }
+.price-sug .hint b { color: var(--ink); font-weight: 600; font-family: var(--mono); }
+.price-sug .hint .ms { font-size: 16px; color: var(--violet-2); }
+.price-pick { display: inline-flex; align-items: center; gap: 6px; }
+.tick-l { display: inline-flex; align-items: center; gap: 4px; font-family: var(--sans); font-size: 12px; color: var(--muted); cursor: pointer; }
+.tick-l input { accent-color: var(--violet); width: 14px; height: 14px; }
+.row-acts { display: inline-flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.row-acts .btn { justify-content: center; }
+.easypos-due { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-color: #4b3a8f; background: var(--violet-bg); }
+.easypos-due > .ms { color: var(--violet-2); font-size: 22px; }
+
+/* ---------------------------------------------------------------- the EasyPOS price list (pricelist.js)
+   A white sheet for paper: on screen only inside the phone's modal; printed (or saved as PDF) alone. */
+.print-sheet { display: none; }
+.sheet-view { max-height: 60vh; overflow: auto; background: #fff; color: #111; border-radius: 8px; padding: 12px; }
+.print-sheet, .sheet-view { font: 11px/1.35 var(--sans); }
+.print-sheet .ps-head, .sheet-view .ps-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 2px solid #111; }
+.print-sheet .ps-head b, .sheet-view .ps-head b { display: block; font-family: var(--display); font-size: 17px; color: #111; }
+.print-sheet .ps-head span, .sheet-view .ps-head span { color: #555; font-size: 10.5px; }
+.print-sheet table, .sheet-view table { width: 100%; border-collapse: collapse; }
+.print-sheet thead, .sheet-view thead { display: table-header-group; }
+.print-sheet th, .sheet-view th { text-align: left; font: 600 8.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: #555; border-bottom: 1px solid #111; padding: 4px 6px; }
+.print-sheet td, .sheet-view td { padding: 5px 6px; border-bottom: .5px solid #c8c8c8; vertical-align: top; color: #111; }
+.print-sheet tr, .sheet-view tr { break-inside: avoid; }
+.print-sheet tr.chg td, .sheet-view tr.chg td { background: #efefef; }
+.print-sheet tr.chg td:nth-child(3)::before, .sheet-view tr.chg td:nth-child(3)::before { content: "● "; }
+.print-sheet .n, .sheet-view .n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+.print-sheet th.n, .sheet-view th.n { text-align: right; }
+.print-sheet .code, .sheet-view .code { font-family: var(--mono); font-size: 10px; white-space: nowrap; color: #333; }
+.print-sheet .box, .sheet-view .box { width: 16px; padding-right: 0; }
+.print-sheet .box i, .sheet-view .box i { display: inline-block; width: 11px; height: 11px; border: 1px solid #333; border-radius: 2px; }
+.print-sheet .new, .sheet-view .new { font-weight: 700; font-size: 12.5px; }
+.print-sheet .was, .sheet-view .was { color: #777; text-decoration: line-through; }
+.print-sheet .tag, .sheet-view .tag { font-size: 9.5px; border: 1px solid #333; border-radius: 3px; padding: 0 4px; }
+.print-sheet .sub, .sheet-view .sub { display: block; color: #666; font-size: 9.5px; font-weight: 400; font-family: var(--sans); }
+.print-sheet .when, .sheet-view .when { font-size: 10px; color: #333; white-space: nowrap; }
+.print-sheet .flag, .sheet-view .flag { font-size: 12px; }
+.print-sheet .ps-foot, .sheet-view .ps-foot { margin: 10px 0 0; color: #555; font-size: 9.5px; }
+@page sheet { size: A4 portrait; margin: 12mm 11mm 14mm; }
+@media print {
+  html.printing-sheet, html.printing-sheet body { background: #fff !important; color-scheme: light; }
+  body.printing-sheet > :not(.print-sheet) { display: none !important; }
+  body.printing-sheet .print-sheet { display: block; page: sheet; }
+}
+
 /* Export PDF / print: the page without the navigation, same dark look. */
 @media print {
   @page { size: A4 landscape; margin: 10mm; }

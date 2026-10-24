@@ -97,17 +97,26 @@ ipcMain.handle('check-for-updates', async () => {
   return updateInfo;
 });
 
-// Save the current page as a PDF (Insights > Export PDF). The page lays itself out for print
-// with @media print, so what is saved is exactly what the owner sees, minus the navigation.
-ipcMain.handle('save-page-pdf', async (event, suggestedName) => {
+// Save the current page as a PDF (Insights > Export PDF, Stock > Prices > EasyPOS price list). The
+// page lays itself out for print with @media print, so what is saved is exactly what the owner
+// sees, minus the navigation. options: { landscape (default true), folder (a subfolder name) }.
+// PDFs go to E:\Danfos Papers\Reports when that exists: Windows' Documents is redirected into
+// OneDrive on the shop PC, and the owner keeps papers off OneDrive.
+const PAPERS_REPORTS = 'E:\\Danfos Papers\\Reports';
+ipcMain.handle('save-page-pdf', async (event, suggestedName, options = {}) => {
   const win = BrowserWindow.fromWebContents(event.sender);
+  let folder = fs.existsSync(PAPERS_REPORTS) ? PAPERS_REPORTS : app.getPath('documents');
+  if (options && options.folder && folder === PAPERS_REPORTS) {
+    folder = path.join(PAPERS_REPORTS, String(options.folder).replace(/[\\/:*?"<>|.]/g, '-'));
+    fs.mkdirSync(folder, { recursive: true });
+  }
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: 'Save as PDF',
-    defaultPath: path.join(app.getPath('documents'), String(suggestedName || 'Danfosal report').replace(/[\\/:*?"<>|]/g, '-') + '.pdf'),
+    defaultPath: path.join(folder, String(suggestedName || 'Danfosal report').replace(/[\\/:*?"<>|]/g, '-') + '.pdf'),
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (canceled || !filePath) return { saved: false };
-  const pdf = await event.sender.printToPDF({ printBackground: true, landscape: true, pageSize: 'A4', margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } });
+  const pdf = await event.sender.printToPDF({ printBackground: true, landscape: !(options && options.landscape === false), pageSize: 'A4', margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } });
   fs.writeFileSync(filePath, pdf);
   shell.openPath(filePath);
   return { saved: true, filePath };

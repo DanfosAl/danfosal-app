@@ -6,6 +6,24 @@
 
 ---
 
+## [Unreleased] - 2026-10-24 - Suggested selling prices
+
+Full details are in GOLDEN_MANIFEST.md, Finding #75.
+
+### Added
+- Stock › Prices: a suggested price for every product from its cost, the running costs, its sales and how often it is asked for, with why; Use, Keep, filters and the price changes made so far with sales before and since
+- Receive delivery: a Selling price column - the price follows a higher cost (ticked by itself), new products get a suggestion instead of a flat +40%
+- Product drawer: the suggested price for the cost typed
+- Settings › General: the profit a sale should leave after running costs
+- Every price change in the app is kept in the product's price history (the website's Use too)
+- Stock › Prices › EasyPOS price list: the changed prices to type into EasyPOS, or every product's price, as a PDF (desktop) or print (web); "They're in EasyPOS" starts the next list
+
+### Changed
+- Website sync: a new shop price no longer asks "use the website price?" when the website price hasn't changed
+- PDFs are offered in E:\Danfos Papers\Reports instead of Documents (OneDrive)
+
+---
+
 ## [Released] - 2026-10-24 - Insights: the dashboard pages (desktop 1.4.1 rebuild, web, Android)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #74.

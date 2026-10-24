@@ -7,9 +7,10 @@
 // Nothing changes a price without one of those two clicks. The same morning run copies website
 // orders into Online orders and sends the stock, prices and costs to AI Commerce, which shows
 // what differs on the website (and fixes it there, also only after a confirmation).
-import { db, doc, writeBatch } from './firebase.js';
+import { db, doc, writeBatch, arrayUnion } from './firebase.js';
 import { esc, int, icon, plural, day, money2, toast, openModal } from './ui.js';
 import { toMs } from './data.js';
+import { historyEntry } from './pricing.js';
 
 const SHOWN_HISTORY = 15;
 const decided = p => p.status === 'accepted' || p.status === 'ignored' || p.status === 'resolved';
@@ -74,7 +75,8 @@ export function renderWebsite(ctx) {
         list.forEach(p => {
             const here = products.get(p.productId);
             const before = here ? Number(here.price) || 0 : p.shopPrice;
-            if (use && here) batch.update(doc(db, 'products', p.productId), { price: p.websitePrice });
+            // Kept in the price history, so it goes on the EasyPOS price list (Stock › Prices).
+            if (use && here) batch.update(doc(db, 'products', p.productId), { price: p.websitePrice, priceHistory: arrayUnion(historyEntry(p.websitePrice, before, 'Website price')) });
             batch.update(doc(db, 'websitePriceProposals', p._id), { status: use ? 'accepted' : 'ignored', decidedAt: Date.now(), previousShopPrice: before });
         });
         await batch.commit();

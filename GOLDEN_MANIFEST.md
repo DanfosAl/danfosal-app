@@ -25,8 +25,8 @@ statements are listed at the end of it.
 | Part | State |
 |---|---|
 | **Danfosal App** (`resources/app`) | 1.4.1. Electron 37.10.3 (`^37.2.5`), electron-builder 24.13.3, Capacitor 6 (core 6.2.1, android 6.1.2), firebase-admin 12.7 (Node tools only), tesseract.js 5.1.1, pdf.js 3.11.174 (CDN). One codebase in `www/` for desktop, web and Android. |
-| **Screens** (`www/*.html` + `www/app/*.js`) | Today (`index.html`) · Sell: All sales, New sale (till), Online orders, Instagram, Import invoice · Stock: Catalogue, Reorder, Link receipt items, Order list, Purchases, Receive delivery, Yearly plan, Website · Customers: Customers, Win back, Review names · Service: Repairs, Warranty cards · Money: Owed to you, You owe, Expenses, Next 30 days · Insights: Overview, Money, Stock, Customers, Instagram, Purchasing, Your apps (Finding #74) · Settings: General, Data health, Tools · print page `warranty-card.html`. The pre-September pages (business-intelligence.js, ai-agent.js, advanced-analytics.js, smart-inventory.js, invoice-ocr.js, ai-chatbot.js, the fiscal/store scanners, compiled Tailwind) are **gone**: the September redesign (Findings #25-#30) replaced them and Finding #30 retired them to quarantine (the repository cleanup is Finding #22). |
-| **Modules** (`www/app`) | data.js (one meaning for every number), firebase.js, workspace.js/shell.js (frame, nav, Ctrl K), ui.js; today, sell (+ online, leads, importpdf, invoice-text, prepayment), stock (+ orderlist, receive, purchases, purchasing, karcher-invoice, plan, planmodel), customers, service (+ warranty, warrantyreturn), money (+ payables), insights (+ dashboard, dashboard-data, charts), settings, autopilot-run, website. Plus `www/manual-pdf-processor.js` (invoice reader, shared with the tools) and `smart-inventory-scanner.js`. |
+| **Screens** (`www/*.html` + `www/app/*.js`) | Today (`index.html`) · Sell: All sales, New sale (till), Online orders, Instagram, Import invoice · Stock: Catalogue, Prices (Finding #75), Reorder, Link receipt items, Order list, Purchases, Receive delivery, Yearly plan, Website · Customers: Customers, Win back, Review names · Service: Repairs, Warranty cards · Money: Owed to you, You owe, Expenses, Next 30 days · Insights: Overview, Money, Stock, Customers, Instagram, Purchasing, Your apps (Finding #74) · Settings: General, Data health, Tools · print page `warranty-card.html`. The pre-September pages (business-intelligence.js, ai-agent.js, advanced-analytics.js, smart-inventory.js, invoice-ocr.js, ai-chatbot.js, the fiscal/store scanners, compiled Tailwind) are **gone**: the September redesign (Findings #25-#30) replaced them and Finding #30 retired them to quarantine (the repository cleanup is Finding #22). |
+| **Modules** (`www/app`) | data.js (one meaning for every number), firebase.js, workspace.js/shell.js (frame, nav, Ctrl K), ui.js; today, sell (+ online, leads, importpdf, invoice-text, prepayment), stock (+ prices, pricing, orderlist, receive, purchases, purchasing, karcher-invoice, plan, planmodel), customers, service (+ warranty, warrantyreturn), money (+ payables), insights (+ dashboard, dashboard-data, charts), settings, autopilot-run, website. Plus `www/manual-pdf-processor.js` (invoice reader, shared with the tools) and `smart-inventory-scanner.js`. |
 | **Desktop main process** | `main.js`: one window; IPC `check-for-updates`, `download-update`, `fetch-url`, `save-page-pdf`, `paper-autopilot-run` (→ `autopilot-runner.js`); preload exposes `electronAPI` and the bridge events in `api`. |
 | **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
@@ -892,6 +892,84 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **75. SUGGESTED SELLING PRICES: ON EVERY DELIVERY, AND A PRICE REVIEW FROM THE SALES** — ✅ **BUILT AND TESTED, NOT YET RELEASED (October 24, 2026)**
+
+The owner asked (24 Oct 2026) that importing goods suggest the selling price from the products'
+cost, the shop's running costs, the products' sales history and demand, and that the sales
+recommend price adjustments. Until now a new product got cost + VAT + 40% whatever it was, and a
+delivery never looked at an existing product's price - even when its cost went up.
+
+- **What the data said** (read-only study of the live database, 24 Oct; the figures stay out of
+  this public repository - Stock › Prices shows them to the owner): rent, the only repeating cost
+  recorded, takes a large share of a 2026 month's sales (2026 is the baseline, owner, 22 Sep), so a
+  sale must keep a good part of its price before it makes any profit; margins differ a lot by kind
+  of product (supplies and detergents far above machines); EasyPOS often charged less than today's
+  price; more than half the catalogue has not sold for half a year, most of it priced like its peers.
+- **The rules** (`www/app/pricing.js`, pure, every step kept so the screens can say why):
+  1. Start from today's price; when a delivery costs more, carry the price up with the cost so the
+     margin stays. A product with no price starts from the median margin of **similar products**
+     (same family, half to twice the cost, the ones that sell first).
+  2. **Demand:** sells 3+ in 90 days at full price, or 5+ chatbot questions in 6 months (and it
+     sells) → up to +5% (rounded down, never overshooting). Priced above its peers by 5+ points,
+     no sale for 6 months, €100+ standing at cost → a little less, never under the peers' margin.
+     After a change, 60 days of sales at the new price come first (`settling`).
+  3. **Floors:** a sale must pay its cost and its share of the running costs (**loses money**
+     below that) and should leave the profit asked (**profit too thin** below that) - after the
+     discount the product (or its family) usually gets, counted at most 15%. Sales are compared
+     with the price they had that day (`priceHistory`), so a raise doesn't make the sales before it
+     look discounted and lift the next suggestion again.
+  4. Rounded the shop's way (halves under €10, whole euros to €100, fives to €300, tens to
+     €1,000, fifties above). Under 2%, or rounding alone: keep the price.
+- **Stock › Prices** (new tab, `prices.js`): what the rules stand on (running costs, sales a month,
+  share per € sold, profit asked, what a sale should keep, the real 12-month margin), then every
+  product whose price should change, worst first, with filters (Loses money, Check the data,
+  Profit too thin, Sells well, Not selling, Kept), *Why?*, **Use** (writes the price and a
+  `priceHistory` entry) and **Keep** (`settings/pricing.kept`, asked again only when the suggestion
+  changes); *Use all shown* per filter. A price far under its cost (a hose priced at a fifth of its cost) is
+  **Check the data**, not a tenfold raise. Below: the price changes made in the app, with units
+  sold before and since (*selling less* when they halved). The tab's badge counts products that
+  lose money.
+- **Receive delivery:** a **Selling price** column. Existing products show today's price → the
+  suggestion (editable) with a *change* tick - ticked by itself when the delivery's cost went up or
+  the price no longer pays its costs, left for the owner when it's only demand. New products get
+  the suggestion instead of the flat +40%. The confirmation lists the new prices; each is kept in
+  `priceHistory` ("Delivery <invoice>").
+- **Product drawer:** the suggested price for the cost typed, *Use* (fills the field) and *Why?*;
+  saving a new price adds to `priceHistory` ("Catalogue").
+- **Settings › General:** "Profit a sale should leave after running costs" (`settings/pricing.
+  minProfitPct`, default 10%), with the running-cost figures it works from.
+- **EasyPOS price list** (asked the same day: the prices chosen here must reach EasyPOS, which the
+  app never changes - it is the official fiscal till): `pricelist.js`. Stock › Prices shows
+  *"N prices changed here: type them into EasyPOS"* and an **EasyPOS price list** button, with two
+  lists: **changed prices** since the list was last marked entered (old → new, the name EasyPOS
+  prints, and ✓ when an EasyPOS sale after the change already charged the new price) or **every
+  product's price** (optionally only what's in stock; changed ones shaded; ≠ where EasyPOS's last
+  sale after the price was set charged something else), by name or by code, with a tick box per
+  line. White A4 portrait sheet, nothing else on it. Desktop saves it as a PDF, the web prints it,
+  the phone shows it. **They're in EasyPOS** stores `settings/pricing.easyposDoneAt`; the next
+  list starts there. Every price change now lands in `priceHistory`, the website's *Use* too.
+- **PDFs** (this list and Insights › Export PDF) are offered in `E:\Danfos Papers\Reports` (price
+  lists in `Price lists` under it) when that exists, not in Documents, which Windows redirects into
+  OneDrive on the shop PC. `save-page-pdf` takes `{ landscape, folder }` (main.js, preload.js).
+- **Website sync:** a website price that hasn't changed since the last run no longer becomes a
+  "use the website price?" question when the shop's price moves - that is a fix for the website,
+  logged as *shop price changed* (AI Commerce › Produktet shows it). README updated.
+- **On the live data** (10% profit): a handful of products lose money, two have a price far under
+  their cost (to check), most suggestions are *profit too thin* - Kärcher machines at their usual
+  dealer margin leave little after rent (lower the profit asked in Settings to see fewer) - and a
+  few sell well or stand still. Products without a cost get no suggestion.
+- **Checked:** the rules on the live database (read-only); the screens in a local test copy fed
+  a snapshot (no sign-in, writes kept in memory and inspected): Use, Keep, filters, *Why?*, the
+  drawer, Receive (cost up → the new price ticked; untick → price unchanged; typed price used; new
+  product at the suggestion; history entries), Settings; desktop and phone width; bridge test
+  passes; website sync dry run unchanged. The price lists printed to PDF (headless Edge and the
+  app's own Electron, portrait) from seeded changes: a change and change-back is left out, the ✓
+  and ≠ marks, EasyPOS names, sorting; *They're in EasyPOS* writes the mark and empties the panel.
+- **Release needs:** desktop rebuild + reinstall, Hosting, Android (`www` changed); the website
+  sync change works on the shop PC at its next run.
 
 ---
 

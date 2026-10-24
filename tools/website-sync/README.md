@@ -62,6 +62,9 @@ node website-sync.mjs --daily       the same, skipped if today's run already suc
 - **Prices:** a proposal is made when the website price differs from the shop's by more than
   €0.50. *Keep* is remembered: you are asked again only when the website price changes. When the
   two prices match again, an open proposal closes itself.
+- **A new shop price** (Stock › Prices, a delivery, the catalogue) is not a question for the shop:
+  when the website still has the price it had at the last run, the log says *shop price changed*
+  and AI Commerce › Produktet shows the difference to fix on the website.
 - **Orders:** website statuses map to the app's: pending/on hold → Pending, processing →
   Processing, completed → Paid, cancelled/failed → Cancelled, refunded → Returned. The last 45
   days are read each morning, so a status change on the website follows into the app.

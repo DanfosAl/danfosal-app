@@ -9,6 +9,10 @@
 // batches: +{quantity, cost, date, supplier, invoice}, lastRestockDate}; new products get the
 // classic product shape. Order-list lines for the same products are ticked off, and an invoice to
 // pay later goes to Money > You owe. Everything except the You owe record is one atomic batch.
+// Each line also gets a suggested selling price (pricing.js): from the new cost, the running
+// costs, how the product sold and how often it is asked for. A price changes only where its box
+// is ticked - ticked by itself when the new cost makes the old price too low - and the change is
+// kept in the product's priceHistory.
 // Fixes the classic page's duplicate batches (the same invoice saved three times on one product):
 // an invoice number that is already booked is refused unless the owner insists.
 import { db, collection, doc, writeBatch, increment, arrayUnion } from './firebase.js';
@@ -18,11 +22,14 @@ import { loadOrderLines, outstanding, productForLine } from './orderlist.js';
 import { addSupplierInvoice } from './payables.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
 import { parseKarcher } from './karcher-invoice.js';
+import { pricingBasis, suggestPrice, historyEntry, REASONS } from './pricing.js';
+import { explainPrice, euro } from './prices.js';
+import { loadExtras, askedByProduct, askedByModel, modelsIn } from './dashboard-data.js';
 export { parseKarcher };
 
 const r2 = n => Math.round(n * 100) / 100;
 const normCode = c => String(c || '').toLowerCase().replace(/[.\-\s]/g, '');
-const MARKUP = 1.4;   // classic rule for a new product's price: cost incl. VAT + 40%
+const MARKUP = 1.4;   // classic rule for a new product's price (cost incl. VAT + 40%), only when there is no cost to price from
 
 // ------------------------------------------------------------------ reading the invoice
 
@@ -120,7 +127,7 @@ function matchLine(item, products) {
     return { product: null, guess: guess || null, how: 'none' };
 }
 
-const rcv = { invoice: null, lines: null, prepay: false, pay: 'paid', due: '', force: false, busy: false, status: '', pending: null };
+const rcv = { invoice: null, lines: null, prepay: false, pay: 'paid', due: '', force: false, busy: false, status: '', pending: null, asked: null, perModel: null };
 
 // Stock > Purchases hands over an invoice it has already read, linked and costed: lines at landed
 // cost (invoiceUnit + extraUnit for customs), and inv.fromPurchase saying whether it is paid.
@@ -185,10 +192,38 @@ async function startReview(ctx, inv) {
         const m = matchLine(it, ctx.model.products);
         return { ...it, product: m.product, how: m.how, guess: m.guess, action: m.product ? 'stock' : 'new', newName: it.name, newPrice: 0 };
     });
+    // What people ask the chatbot for feeds the price suggestions; read once per session, then the
+    // review is drawn again - unless the owner is typing in it.
+    if (!rcv.asked) loadExtras(['events']).then(x => {
+        rcv.asked = askedByProduct(ctx.model.products, x.events, ctx.a.now); rcv.perModel = askedByModel(x.events, ctx.a.now);
+        if (rcv.invoice && ctx.tab === 'receive' && !ctx.body.contains(document.activeElement)) renderReceive(ctx);
+    }).catch(() => { rcv.asked = new Map(); rcv.perModel = {}; });
     renderReceive(ctx);
 }
 
 function lineCost(l) { return r2(l.unitCost * (rcv.prepay && rcv.invoice.prepayPct ? 1 - rcv.invoice.prepayPct / 100 : 1)); }
+
+// The suggested selling price for a line at this delivery's cost, or null (a free line, a skipped
+// one, or no product picked yet).
+function lineSuggestion(ctx, l) {
+    const c = lineCost(l);
+    if (!(c > 0) || l.action === 'skip') return null;
+    const basis = pricingBasis(ctx.model, ctx.a);
+    if (l.action === 'stock' && l.product) {
+        const q = rcv.asked ? rcv.asked.get(l.product._id) : null;
+        return suggestPrice(basis, { product: l.product, cost: c, asked: rcv.asked ? (q ? q.questions_6m : 0) : null });
+    }
+    if (l.action === 'new') {
+        const mm = modelsIn(l.newName || l.name)[0];
+        return suggestPrice(basis, { cost: c, name: l.newName || l.name, asked: rcv.perModel ? (mm && rcv.perModel[mm] ? rcv.perModel[mm].six : 0) : null });
+    }
+    return null;
+}
+// Ticked by itself when the delivery's cost makes today's price too low (it went up, or the price
+// no longer pays its costs); a suggestion from demand alone waits for the owner's tick.
+const priceTicked = (l, sug) => l.priceOn ?? !!(sug && sug.kind !== 'keep' && sug.steps.some(x => x.key === 'cost' || x.key === 'floor'));
+const chosenPrice = (l, sug) => l.priceSet ?? sug.price;
+const marginAt = (price, cost) => price > 0 ? Math.round(((price / VAT - cost) / (price / VAT)) * 100) + '%' : '–';
 
 // Two guards against booking the same delivery twice:
 // - exact: a product already has a purchase with this invoice number;
@@ -223,6 +258,8 @@ function renderReview(ctx) {
     if (lines.some(l => l.action === 'new' && !(l.newName || '').trim())) problems.push('Give every new product a name.');
     if (booked.any && !rcv.force) problems.push('This delivery looks already booked (see above).');
     const diff = inv.net && Math.abs(inv.net - lines.reduce((a, l) => a + l.unitCost * l.quantity, 0)) > 0.05;
+    const sugs = lines.map(l => lineSuggestion(ctx, l));
+    const priceChanges = lines.filter((l, i) => l.action === 'stock' && l.product && sugs[i] && sugs[i].kind !== 'keep' && priceTicked(l, sugs[i])).length;
 
     ctx.body.innerHTML = `
         ${booked.any ? `<div class="error-box" style="align-items:flex-start">${icon('content_copy')}<div style="flex:1">
@@ -241,10 +278,18 @@ function renderReview(ctx) {
                 · unit costs are <b style="font-weight:500">landed</b>: invoice price${inv.fromPurchase.customs ? ` + customs ${esc(inv.fromPurchase.customs)} (duty and fees; VAT is reclaimed)` : ' (no customs declaration linked yet)'}</p>` : ''}
             ${inv.prepayPct ? `<label class="check" style="margin-top:10px"><input type="checkbox" id="rc-prepay"${rcv.prepay ? ' checked' : ''}><span><b style="font-weight:500">Paid in advance: take the ${inv.prepayPct}% prepayment discount off the costs</b><br><span class="empty" style="padding:0">The invoice offers €${money2(inv.prepayAmount)} instead of €${money2(inv.net)} when paid in advance. Tick it if you paid that way, so each product's cost is what you really paid.</span></span></label>` : ''}
         </section>
-        <div class="table-wrap"><table class="dt"><thead><tr><th>On the invoice</th><th class="n">Qty</th><th class="n">Unit cost</th><th>Book it as</th><th class="n">Cost change</th><th class="n">Stock after</th><th></th></tr></thead>
+        <div class="table-wrap"><table class="dt"><thead><tr><th>On the invoice</th><th class="n">Qty</th><th class="n">Unit cost</th><th>Book it as</th><th class="n">Cost change</th><th class="n">Selling price</th><th class="n">Stock after</th><th></th></tr></thead>
         <tbody id="rc-lines">${lines.map((l, i) => {
             const p = l.action === 'stock' ? l.product : null, old = p ? productNetCost(p) : null, c = lineCost(l);
-            const change = old && c ? (c - old) / old : null, o = orderHit(l);
+            const change = old && c ? (c - old) / old : null, o = orderHit(l), sg = sugs[i];
+            const why = `<button class="btn ghost small" type="button" data-why="${i}">Why?</button>`;
+            const sell = !sg ? '<span class="muted">–</span>'
+                : l.action === 'new' ? `<input class="inp" type="number" min="0" step="0.01" data-np="${i}" value="${l.newPrice || sg.price}" style="width:96px;text-align:right" aria-label="Selling price incl. VAT">
+                    <span class="sub-n">${l.newPrice && Math.abs(l.newPrice - sg.price) >= 0.01 ? `suggested ${euro(sg.price)} · ` : ''}${marginAt(l.newPrice || sg.price, c)} margin ${why}</span>`
+                : sg.kind === 'keep' ? `${euro(sg.current)}<span class="sub-n">keep · ${marginAt(sg.current, c)} margin ${why}</span>`
+                : `<span class="price-pick"><span class="muted">${euro(sg.current)} →</span> <input class="inp" type="number" min="0" step="0.01" data-sp="${i}" value="${chosenPrice(l, sg)}" style="width:90px;text-align:right" aria-label="New selling price incl. VAT">
+                    <label class="tick-l"><input type="checkbox" data-pu="${i}"${priceTicked(l, sg) ? ' checked' : ''}> change</label></span>
+                    <span class="sub-n"><span class="chip ${REASONS[sg.reason][1]}">${esc(REASONS[sg.reason][0])}</span> ${marginAt(chosenPrice(l, sg), c)} margin (now ${marginAt(sg.current, c)}) ${why}</span>`;
             return `<tr data-i="${i}" style="cursor:default${l.action === 'skip' ? ';opacity:.45' : ''}">
                 <td class="name"><b>${esc(l.name || '(no description)')}</b><span>${esc([l.code, l.discount ? `${l.discount}% discount` : '', l.free ? 'free of charge (replacement)' : ''].filter(Boolean).join(' · '))}</span></td>
                 <td class="n"><input class="inp" type="number" min="1" step="1" data-q="${i}" value="${l.quantity}" style="width:70px;text-align:right" aria-label="Quantity"></td>
@@ -256,15 +301,15 @@ function renderReview(ctx) {
                         <option value="skip"${l.action === 'skip' ? ' selected' : ''}>Skip this line</option></select>
                     ${p ? `<span class="muted" style="display:block;font-size:11.5px;margin-top:3px">${l.how === 'code' ? 'matched by product code' : l.how === 'name' ? 'matched by name' : 'chosen by you'}${o ? ` · <span style="color:var(--violet-2)">on the order list (${outstanding(o)} waiting)</span>` : ''}</span>` : ''}
                     ${l.action === 'stock' && !p && l.guess ? `<button class="btn ghost small" type="button" data-guess="${i}" style="margin-top:3px">Use ${esc(l.guess.name)}?</button>` : ''}
-                    ${l.action === 'new' ? `<div style="display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:6px;margin-top:6px"><input class="inp" data-nn="${i}" value="${esc(l.newName)}" aria-label="New product name">
-                        <input class="inp" type="number" min="0" step="0.01" data-np="${i}" value="${l.newPrice || r2(c * VAT * MARKUP)}" aria-label="Selling price incl. VAT" title="Selling price incl. VAT (cost + VAT + 40%)"></div>` : ''}</td>
+                    ${l.action === 'new' ? `<input class="inp" data-nn="${i}" value="${esc(l.newName)}" aria-label="New product name" style="width:100%;margin-top:6px">` : ''}</td>
                 <td class="n">${change === null ? (l.action === 'new' ? '<span class="chip vio">new</span>' : '–') : Math.abs(change) < 0.005 ? '<span class="muted">same</span>' : `<span class="chip ${change > 0 ? 'bad' : 'ok'}" title="Was €${money2(old)}">${change > 0 ? '+' : ''}${Math.round(change * 100)}%</span>`}</td>
+                <td class="n">${sell}</td>
                 <td class="n">${p ? `${int(Number(p.stock) || 0)} → <b>${int((Number(p.stock) || 0) + l.quantity)}</b>` : l.action === 'new' ? `<b>${int(l.quantity)}</b>` : '–'}</td>
                 <td class="n"><button class="btn ghost small" type="button" data-rm="${i}" aria-label="Remove line">${icon('close')}</button></td></tr>`;
         }).join('')}</tbody></table>
-        <div class="table-foot" style="display:flex;justify-content:space-between;align-items:center"><button class="btn small" type="button" id="rc-add">${icon('add')}Add a line</button><span>Costs are net of VAT, per unit.</span></div></div>
+        <div class="table-foot" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><button class="btn small" type="button" id="rc-add">${icon('add')}Add a line</button><span>Costs are net of VAT, per unit. Selling prices include VAT; a price changes only where “change” is ticked (<a href="#prices" style="color:var(--violet-2)">how prices are worked out</a>).</span></div></div>
         <section class="panel" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-            <div class="summary"><span>Lines <b>${int(lines.filter(l => l.action !== 'skip').length)}</b></span><span>Units <b>${int(units)}</b></span><span>Stock value added <b>${eur(total, 2)}</b></span></div>
+            <div class="summary"><span>Lines <b>${int(lines.filter(l => l.action !== 'skip').length)}</b></span><span>Units <b>${int(units)}</b></span><span>Stock value added <b>${eur(total, 2)}</b></span>${priceChanges ? `<span>Prices changed <b>${int(priceChanges)}</b></span>` : ''}</div>
             <div class="seg" role="group" aria-label="Payment" style="margin-left:auto"><button type="button" data-pay="paid" aria-pressed="${rcv.pay === 'paid'}">Already paid</button><button type="button" data-pay="later" aria-pressed="${rcv.pay === 'later'}">Pay later</button></div>
             ${rcv.pay === 'later' ? `<label class="fld" style="grid-auto-flow:column;align-items:center;gap:8px">Due<input id="rc-due" type="date" value="${esc(rcv.due)}"></label><span class="muted" style="font-size:12.5px">€${money2(toPay)} goes to Money › You owe</span>` : ''}
             <button class="btn money" type="button" id="rc-save"${problems.length ? ' disabled' : ''}>${icon('move_to_inbox')}Book into stock</button>
@@ -282,9 +327,12 @@ function renderReview(ctx) {
     ctx.body.querySelectorAll('[data-pay]').forEach(b => b.addEventListener('click', () => { rcv.pay = b.dataset.pay; rerender(); }));
     const tb = $('#rc-lines');
     tb.addEventListener('change', async e => {
-        const t = e.target, i = Number(t.dataset.q ?? t.dataset.c ?? t.dataset.a ?? t.dataset.nn ?? t.dataset.np); const l = lines[i]; if (!l) return;
+        const t = e.target, i = Number(t.dataset.q ?? t.dataset.c ?? t.dataset.a ?? t.dataset.nn ?? t.dataset.np ?? t.dataset.sp ?? t.dataset.pu); const l = lines[i]; if (!l) return;
         if (t.dataset.q !== undefined) l.quantity = Math.max(1, Math.round(Number(t.value) || 1));
-        if (t.dataset.c !== undefined) l.unitCost = r2(Number(t.value) || 0);
+        // A new cost means a new suggestion: a price typed for the old cost goes.
+        if (t.dataset.c !== undefined) { l.unitCost = r2(Number(t.value) || 0); l.priceSet = undefined; }
+        if (t.dataset.sp !== undefined) { l.priceSet = r2(Number(t.value) || 0); l.priceOn = l.priceSet > 0; }
+        if (t.dataset.pu !== undefined) l.priceOn = t.checked;
         if (t.dataset.nn !== undefined) l.newName = t.value.trim();
         if (t.dataset.np !== undefined) l.newPrice = r2(Number(t.value) || 0);
         if (t.dataset.a !== undefined) {
@@ -294,6 +342,8 @@ function renderReview(ctx) {
         rerender();
     });
     tb.addEventListener('click', e => {
+        const w = e.target.closest('[data-why]');
+        if (w) { const l = lines[Number(w.dataset.why)], sg = sugs[Number(w.dataset.why)]; if (sg) explainPrice(sg, l.product && l.action === 'stock' ? l.product.name : (l.newName || l.name), pricingBasis(ctx.model, ctx.a)); return; }
         const g = e.target.closest('[data-guess]'), rm = e.target.closest('[data-rm]');
         if (g) { const l = lines[Number(g.dataset.guess)]; l.product = l.guess; l.how = 'chosen'; rerender(); }
         if (rm) { lines.splice(Number(rm.dataset.rm), 1); rerender(); }
@@ -329,16 +379,20 @@ async function save(ctx, toPay) {
     // Two invoice lines for the same product become one update.
     const perProduct = new Map();
     use.filter(l => l.action === 'stock').forEach(l => {
-        const x = perProduct.get(l.product._id) || { p: l.product, qty: 0, value: 0, inv: 0, extra: 0, code: l.code };
+        const x = perProduct.get(l.product._id) || { p: l.product, qty: 0, value: 0, inv: 0, extra: 0, code: l.code, price: null };
         x.qty += l.quantity; x.value += lineCost(l) * l.quantity; perProduct.set(l.product._id, x);
         x.inv += (l.invoiceUnit ?? lineCost(l)) * l.quantity; x.extra += (l.extraUnit || 0) * l.quantity;
+        const sg = lineSuggestion(ctx, l);
+        if (sg && sg.kind !== 'keep' && priceTicked(l, sg) && chosenPrice(l, sg) > 0) x.price = chosenPrice(l, sg);
     });
+    const repriced = [...perProduct.values()].filter(x => x.price && Math.abs(x.price - (Number(x.p.price) || 0)) >= 0.01);
     // From Purchases, each purchase record also says what the cost is made of.
     const fp = inv.fromPurchase;
     const detail = (invUnit, extraUnit) => fp ? { invoiceCost: r2(invUnit), extraCost: r2(extraUnit), orderNo: fp.orderNo, ...(fp.customs ? { customs: fp.customs } : {}) } : {};
     const ok = await openModal({
         title: `Book invoice ${inv.invoiceNumber} into stock?`, confirmLabel: 'Book into stock', confirmClass: 'money',
-        body: `<p>${[perProduct.size ? `${plural(perProduct.size, 'product gets', 'products get')} more stock` : '', use.some(l => l.action === 'new') ? `${plural(use.filter(l => l.action === 'new').length, 'new product is', 'new products are')} created` : ''].filter(Boolean).join(' and ')}; each keeps this delivery as a purchase record with its cost.${rcv.pay === 'later' ? ` €${money2(toPay)} is added to what you owe ${esc(inv.supplier)}.` : ''}</p>`
+        body: `<p>${[perProduct.size ? `${plural(perProduct.size, 'product gets', 'products get')} more stock` : '', use.some(l => l.action === 'new') ? `${plural(use.filter(l => l.action === 'new').length, 'new product is', 'new products are')} created` : ''].filter(Boolean).join(' and ')}; each keeps this delivery as a purchase record with its cost.${rcv.pay === 'later' ? ` €${money2(toPay)} is added to what you owe ${esc(inv.supplier)}.` : ''}</p>
+            ${repriced.length ? `<p>New selling prices: ${repriced.map(x => `${esc(x.p.name)} ${euro(Number(x.p.price) || 0)} → <b>${euro(x.price)}</b>`).join('; ')}.</p>` : ''}`
     });
     if (!ok) return;
     const batch = writeBatch(db);
@@ -349,14 +403,17 @@ async function save(ctx, toPay) {
         // A free replacement (warranty, or a free-of-charge line) comes in at 0: it adds stock but
         // must not make the product's cost price 0.
         if (unit > 0) Object.assign(update, { baseCost: unit, cost: r2(unit * VAT) });
+        if (repriced.includes(x)) Object.assign(update, { price: x.price, priceHistory: arrayUnion(historyEntry(x.price, x.p.price, `Delivery ${inv.invoiceNumber}`)) });
         if (!x.p.code && x.code) update.code = x.code;
         batch.update(doc(db, 'products', x.p._id), update);
     });
     const created = [];
     use.filter(l => l.action === 'new').forEach(l => {
-        const c = lineCost(l), ref = doc(collection(db, 'products'));
+        const c = lineCost(l), ref = doc(collection(db, 'products')), sg = lineSuggestion(ctx, l);
+        const price = l.newPrice || (sg ? sg.price : r2(c * VAT * MARKUP));
         batch.set(ref, { code: l.code || '', name: l.newName, producer: inv.supplier, baseCost: c, cost: r2(c * VAT),
-            price: l.newPrice || r2(c * VAT * MARKUP), stock: l.quantity, image: '', batches: [{ quantity: l.quantity, cost: c, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(l.invoiceUnit ?? c, l.extraUnit || 0) }], createdAt: Date.now() });
+            price, stock: l.quantity, image: '', batches: [{ quantity: l.quantity, cost: c, date: when, supplier: inv.supplier, invoice: inv.invoiceNumber, ...detail(l.invoiceUnit ?? c, l.extraUnit || 0) }], createdAt: Date.now(),
+            ...(price > 0 ? { priceHistory: [historyEntry(price, 0, `New product, delivery ${inv.invoiceNumber}`)] } : {}) });
         created.push({ l, ref });
     });
     // Tick off the order list: oldest waiting line first, never beyond what was ordered.
@@ -386,7 +443,7 @@ async function save(ctx, toPay) {
             try { await addSupplierInvoice({ supplier: inv.supplier, invoiceNumber: inv.invoiceNumber, totalAmount: toPay, date: inv.date, dueDate: rcv.due, creditors: ctx.model.creditors }); owedNote = `, €${money2(toPay)} added to You owe`; }
             catch (e) { owedNote = `. Stock is booked, but the amount to pay couldn't be recorded (${e.message}): add it in Money › You owe`; }
         }
-        toast(`Invoice ${inv.invoiceNumber} booked: ${plural(use.reduce((a, l) => a + l.quantity, 0), 'unit', 'units')}${ticked ? `, ${plural(ticked, 'order line', 'order lines')} ticked off` : ''}${owedNote}`);
+        toast(`Invoice ${inv.invoiceNumber} booked: ${plural(use.reduce((a, l) => a + l.quantity, 0), 'unit', 'units')}${ticked ? `, ${plural(ticked, 'order line', 'order lines')} ticked off` : ''}${repriced.length ? `, ${plural(repriced.length, 'new price', 'new prices')}` : ''}${owedNote}`);
         Object.assign(rcv, { invoice: null, lines: null, status: `Last booked: invoice ${inv.invoiceNumber} from ${inv.supplier}.` });
         await ctx.reload();
     } catch (e) { toast(`Couldn't book the delivery: ${e.message}`, { bad: true }); }

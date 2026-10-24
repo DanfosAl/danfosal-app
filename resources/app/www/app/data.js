@@ -324,13 +324,15 @@ export async function loadAll() {
         invoices.forEach(i => debts.push({ _id: i.id, debtorId: d.id, debtor: d.data().name || '', ...i.data() }));
     }));
     // Owner decisions kept in settings: receipt names that are services (Stock > Link receipt
-    // items), and lookalike customer names confirmed to be different people (Customers > Review).
-    let receiptServices = [], notSameCustomers = [], monthlyTarget = MONTHLY_TARGET_DEFAULT;
+    // items), lookalike customer names confirmed to be different people (Customers > Review), and
+    // how prices are suggested (the profit asked for, and suggestions kept as they were).
+    let receiptServices = [], notSameCustomers = [], monthlyTarget = MONTHLY_TARGET_DEFAULT, pricing = {};
     try {
-        const [s, r, g] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview')), getDoc(doc(db, 'settings', 'targets'))]);
+        const [s, r, g, pr] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview')), getDoc(doc(db, 'settings', 'targets')), getDoc(doc(db, 'settings', 'pricing'))]);
         if (s.exists()) receiptServices = s.data().services || [];
         if (r.exists()) notSameCustomers = r.data().notSame || [];
         if (g.exists() && Number(g.data().monthlyRevenueNet) > 0) monthlyTarget = Number(g.data().monthlyRevenueNet);
+        if (pr.exists()) pricing = pr.data();
     } catch { /* first use: the documents don't exist yet */ }
     // The website (AI Commerce): prices changed there that wait for Accept / Ignore here, and how
     // the morning sync went (tools/website-sync). Both are empty until the sync has run once.
@@ -341,7 +343,7 @@ export async function loadAll() {
         if (status.exists()) websiteSync = status.data();
     } catch { /* no website sync yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, monthlyTarget, websiteProposals, websiteSync, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, monthlyTarget, pricing, websiteProposals, websiteSync, loadedAt: Date.now() };
 }
 
 // ---- costs that repeat every month (rent, salaries, the accountant)

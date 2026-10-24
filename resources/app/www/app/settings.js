@@ -8,6 +8,7 @@ import { db, auth, doc, setDoc, arrayRemove, signOut } from './firebase.js';
 import { esc, eur, int, icon, plural, ago, day, fold, money2, toast, openModal } from './ui.js';
 import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost,
     MONTHLY_TARGET_DEFAULT } from './data.js';
+import { pricingBasis } from './pricing.js';
 
 const store = {
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
@@ -19,6 +20,7 @@ const store = {
 function renderGeneral(ctx) {
     ctx.setSub('Preferences for this computer, and lists you have built up');
     const services = ctx.model.receiptServices || [], notSame = ctx.model.notSameCustomers || [];
+    const pricing = pricingBasis(ctx.model, ctx.a);
     ctx.body.innerHTML = `
         <div class="cols">
             <section class="panel" style="display:grid;gap:14px">
@@ -37,8 +39,9 @@ function renderGeneral(ctx) {
             </section>
             <div class="stack">
             <section class="panel" style="display:grid;gap:14px">
-                <h2 class="panel-title" style="margin:0">Targets · every device</h2>
+                <h2 class="panel-title" style="margin:0">Targets and prices · every device</h2>
                 <label class="fld">Monthly revenue target (€, net of VAT)<input id="st-target" type="number" min="0" step="500" value="${esc(String(ctx.model.monthlyTarget || MONTHLY_TARGET_DEFAULT))}"><span class="hint">The dashed line on Insights' monthly chart and the pace on Insights › Money. Stored in the database, so the phone shows the same target.</span></label>
+                <label class="fld">Profit a sale should leave after running costs (% of its net price)<input id="st-profit" type="number" min="0" max="40" step="1" value="${Math.round(pricing.minProfit * 100)}"><span class="hint">For the suggested prices (Stock › Prices, Receive delivery). Running costs are ${eur(pricing.runningMonthly)} a month, ${Math.round(pricing.overhead * 100)}% of the ${eur(pricing.revenueMonthly)} sold in a month, so with this profit a sale should keep ${Math.round(pricing.floorMargin * 100)}% of its net price after the goods.</span></label>
             </section>
             <section class="panel" style="display:grid;gap:14px">
                 <h2 class="panel-title" style="margin:0">Lists you have built up</h2>
@@ -53,6 +56,12 @@ function renderGeneral(ctx) {
         </div>`;
     const $ = s => ctx.body.querySelector(s);
     $('#st-goal').addEventListener('change', e => { const v = Math.max(0, Math.round(Number(e.target.value) || 0)); store.set('dailyRevenueGoal', v); toast(`Daily goal: ${eur(v)}`); });
+    $('#st-profit').addEventListener('change', async e => {
+        const v = Math.round(Number(e.target.value));
+        if (!(v >= 0 && v <= 40)) { e.target.value = String(Math.round(pricing.minProfit * 100)); toast('Enter 0 to 40%', { bad: true }); return; }
+        try { await setDoc(doc(db, 'settings', 'pricing'), { minProfitPct: v, updatedAt: Date.now() }, { merge: true }); toast(`Suggested prices now leave ${v}% profit after running costs`); await ctx.reload(); }
+        catch (err) { toast(`Couldn't save: ${err.message}`, { bad: true }); }
+    });
     $('#st-target').addEventListener('change', async e => {
         const v = Math.round(Number(e.target.value) || 0);
         if (!(v > 0)) { e.target.value = String(ctx.model.monthlyTarget || MONTHLY_TARGET_DEFAULT); toast('Enter a target above zero', { bad: true }); return; }

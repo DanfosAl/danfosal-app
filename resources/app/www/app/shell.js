@@ -16,6 +16,7 @@ export const NAV = [
         ['Import invoice (PDF)', 'sell.html#import', 'document_scanner']] },
     { id: 'stock', label: 'Stock', icon: 'inventory_2', href: 'stock.html', pages: [
         ['Catalogue', 'stock.html#catalogue', 'inventory_2'],
+        ['Prices', 'stock.html#prices', 'sell'],
         ['Reorder', 'stock.html#reorder', 'local_shipping'],
         ['Link receipt items', 'stock.html#link', 'link'],
         ['Order list', 'stock.html#orders', 'list_alt'],
@@ -127,6 +128,7 @@ const SYNONYMS = {
     'sell.html#new': 'sell till pos cash register shitje arka new sale',
     'sell.html#sales': 'sales receipts invoices history shitjet fatura',
     'stock.html#catalogue': 'products stock inventory produkte magazina catalogue prices cost',
+    'stock.html#prices': 'prices price suggestion margin markup raise lower cmimi cmime çmimi fitim running costs pricing',
     'stock.html#reorder': 'reorder order purchase buy porosit furnizim unsold dead stock',
     'stock.html#link': 'link map receipt unmatched unlinked lidh',
     'sell.html#import': 'pdf scan scanner fature e-invoice platforma import invoice',

@@ -133,14 +133,19 @@ export function machinesByModel(products) {
     });
     return map;
 }
-// How often people asked the chatbot about each catalogue machine (by its model), all time and in
-// the last 6 months. Used by Stock › Reorder for products that are out of stock but asked for.
-export function askedByProduct(products, events, now = Date.now()) {
+// How often people asked the chatbot about each model, all time and in the last 6 months.
+export function askedByModel(events, now = Date.now()) {
     const since6 = dayKey(now - 183 * DAY);
     const perModel = {};
     inquiries(events).forEach((q) => new Set(modelsIn(q.text)).forEach((mm) => {
         const x = perModel[mm] || (perModel[mm] = { all: 0, six: 0 }); x.all++; if (q.d >= since6) x.six++;
     }));
+    return perModel;
+}
+// The same for each catalogue machine (by its model). Used by Stock › Reorder for products that
+// are out of stock but asked for, and by the price suggestions (Stock › Prices).
+export function askedByProduct(products, events, now = Date.now()) {
+    const perModel = askedByModel(events, now);
     const out = new Map();
     machinesByModel(products).forEach((ps, mm) => { if (perModel[mm]) ps.forEach((p) => out.set(p._id, { model: mm, questions: perModel[mm].all, questions_6m: perModel[mm].six })); });
     return out;

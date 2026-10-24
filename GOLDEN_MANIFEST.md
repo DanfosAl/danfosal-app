@@ -980,7 +980,8 @@ delivery never looked at an existing product's price - even when its cost went u
 The owner built a "Danfosal overview" dashboard with Claude (23 Oct 2026, from a read-only snapshot)
 and asked for it inside the app, live, in the app's design, wherever it fits best, without
 compromising the app. The handoff (page reference, data builder, definitions and check figures)
-is in `docs/records/claude-dashboard/`, which stays out of this public repository.
+was kept in `docs/records/claude-dashboard/`, out of this public repository; once the pages were
+live the owner had it sent to the Recycle Bin (24 Oct 2026) - `dashboard-data.js` is now the reference.
 
 - **Where:** six new tabs of **Insights**, beside Overview: **Money** (this month against the
   target, gross profit against running costs, the Kärcher account since the last statement, who

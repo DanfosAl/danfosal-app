@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **74. INSIGHTS GETS THE "DANFOSAL OVERVIEW" DASHBOARD AS LIVE PAGES; AVERAGE SALE AND REORDER FIXED** — ✅ **BUILT AND TESTED, NOT YET RELEASED (October 24, 2026)**
+#### **74. INSIGHTS GETS THE "DANFOSAL OVERVIEW" DASHBOARD AS LIVE PAGES; AVERAGE SALE AND REORDER FIXED** — ✅ **LIVE (October 24, 2026)**
 
 The owner built a "Danfosal overview" dashboard with Claude (23 Oct 2026, from a read-only snapshot)
 and asked for it inside the app, live, in the app's design, wherever it fits best, without
@@ -943,7 +943,10 @@ is in `docs/records/claude-dashboard/`, which stays out of this public repositor
   hidden). The screens were then driven in a local test copy fed the same snapshot (no sign-in
   used): every page's figures match, group switch, slider, chart click and both searches work, no
   page wrote anything, the phone layout holds (tables scroll inside their card). Bridge test passes.
-- **Release needs:** desktop rebuild + reinstall, Hosting, Android (`www` changed).
+- **Released 24 Oct 2026:** desktop rebuilt and reinstalled (installed `app.asar` identical to the
+  build), Hosting deployed (`dashboard.js`, `dashboard-data.js` and `charts.js` served live), Android
+  debug APK built after `cap sync` (sideload `android/app/build/outputs/apk/debug/app-debug.apk`),
+  Danfos HQ's app copies refreshed with `sync-apps.py`.
 
 ---
 

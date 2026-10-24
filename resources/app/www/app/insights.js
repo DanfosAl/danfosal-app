@@ -5,13 +5,15 @@
 // only has till sales, and from Feb 2026 EasyPOS and PDF invoices record the shop. Without that
 // band, the drop from 2025 to 2026 would look like a collapse in sales rather than a change in
 // what was recorded. Charts are hand-drawn SVG: no library, works offline, prints to PDF.
+//
+// Besides Overview, Insights has the dashboard pages (Money, Stock, Customers, Instagram,
+// Purchasing, Your apps): dashboard.js, from the same data, read live when Insights opens.
 import { bootWorkspace } from './workspace.js';
 import { esc, eur, int, icon, plural, fold, toast } from './ui.js';
-import {
-    DAY, RESTOCK_DAYS, SALES_WINDOW_DAYS, saleTime, orderTime, orderTotal, netRevenue, lineNetCost, lineNetRevenues,
-    productFamily, productIdOfLine, productNetCost, saleSource, VAT,
-    productNameIndex, returnTime, returnNet, returnLines, soldOrder
-} from './data.js';
+import { DAY, RESTOCK_DAYS, SALES_WINDOW_DAYS, productNetCost, salesLedger } from './data.js';
+import { niceScale, ramp, wireTooltip, tipRow } from './charts.js';
+import { DASHBOARD_PAGES, renderDashboardPage } from './dashboard.js';
+import { dashboardFor, mtdChange, slowShare, pace } from './dashboard-data.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -28,42 +30,9 @@ const monthLabel = mk => `${MONTHS[mk % 12]} ${Math.floor(mk / 12)}`;
 
 function prepare(m) {
     if (m._insights) return m._insights;
-    const knownIds = new Set(m.products.map(p => p._id));
-    const productById = new Map(m.products.map(p => [p._id, p]));
-    const sales = [], lines = [], orders = [];
-    m.sales.filter(s => !s.isReturn).forEach(s => {
-        const t = saleTime(s); if (isNaN(t)) return;
-        const items = s.items || [];
-        const nets = lineNetRevenues(s);
-        let cost = 0, costed = items.length > 0;
-        items.forEach((it, i) => {
-            const c = lineNetCost(it), qty = Number(it.quantity) || 1;
-            if (c === null) costed = false; else cost += c * qty;
-            const pid = productIdOfLine(it, knownIds);
-            const name = (pid && productById.get(pid).name) || it.name || it.productName || '?';
-            lines.push({ t, net: nets[i], cost: c === null ? null : c * qty, qty, pid, name, family: productFamily(name, it), src: saleSource(s) });
-        });
-        sales.push({ t, net: netRevenue(s), cost: costed ? cost : null, src: saleSource(s), easypos: s.type === 'easypos' });
-    });
-    m.orders.filter(soldOrder).forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT }); });
-
-    // Refunds are negative sales, entered in the same lists so every chart below takes the money
-    // off the month it went back out, and the units off the product that came back.
-    const byName = productNameIndex(m.products);
-    (m.returns || []).forEach(r => {
-        const t = returnTime(r); if (isNaN(t)) return;
-        const rows = returnLines(r, byName);
-        let cost = 0, costed = rows.length > 0;
-        rows.forEach(l => {
-            const c = l.product ? productNetCost(l.product) : null;
-            if (!c) costed = false; else cost += c * l.units;
-            const name = l.product ? l.product.name : l.name;
-            lines.push({ t, net: -l.net, cost: c ? -c * l.units : null, qty: -l.units, pid: l.product ? l.product._id : null,
-                name, family: productFamily(name, {}), src: 'Refund' });
-        });
-        sales.push({ t, net: -returnNet(r), cost: costed ? -cost : null, src: 'Refund', easypos: false, refund: true });
-    });
-
+    // Sales, sale lines and online orders, with refunds as negative sales: data.js builds the list
+    // once for every chart (salesLedger), so Overview and the dashboard pages can't disagree.
+    const { sales, lines, orders } = salesLedger(m);
     // Month by month, from the first recorded sale to this month.
     const first = Math.min(...sales.map(s => s.t), ...orders.map(o => o.t));
     const nowMk = monthKey(Date.now());
@@ -99,20 +68,6 @@ const PERIODS = ['90d', '12m', 'ytd', 'ly', 'all'];
 
 // ================================================================== small chart helpers
 
-function niceScale(max, ticks = 4) {
-    if (!(max > 0)) return { top: 1, step: 1 };
-    const raw = max / ticks, mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => s >= raw);
-    return { top: Math.ceil(max / step) * step, step };
-}
-
-// Violet ramp from the panel colour to the accent, for heatmaps and the treemap.
-function ramp(f) {
-    const a = [24, 27, 51], b = [139, 92, 246], c = [214, 202, 255];
-    const mix = (x, y, t) => x.map((v, i) => Math.round(v + (y[i] - v) * t));
-    const rgb = f <= 0.75 ? mix(a, b, f / 0.75) : mix(b, c, (f - 0.75) / 0.25);
-    return `rgb(${rgb.join(',')})`;
-}
 // Margin colour: low margins warm, healthy margins violet, unknown grey.
 function marginColor(mg) {
     if (mg === null || isNaN(mg)) return '#3a3d5c';
@@ -156,33 +111,12 @@ function treemap(items, x, y, w, h) {
     return out;
 }
 
-// One floating tooltip for every chart: any element with data-tip shows it on hover.
-function wireTooltip(root) {
-    if (root._tipWired) return;
-    root._tipWired = true;
-    let tip = document.getElementById('viz-tip');
-    if (!tip) { tip = document.createElement('div'); tip.id = 'viz-tip'; tip.className = 'viz-tip'; tip.hidden = true; document.body.appendChild(tip); }
-    root.addEventListener('mousemove', e => {
-        const t = e.target.closest('[data-tip]');
-        if (!t) { tip.hidden = true; return; }
-        tip.innerHTML = t.getAttribute('data-tip');
-        tip.hidden = false;
-        const r = tip.getBoundingClientRect();
-        let left = e.clientX + 14, top = e.clientY + 14;
-        if (left + r.width > window.innerWidth - 8) left = e.clientX - r.width - 14;
-        if (top + r.height > window.innerHeight - 8) top = e.clientY - r.height - 14;
-        tip.style.left = left + 'px'; tip.style.top = top + 'px';
-    });
-    root.addEventListener('mouseleave', () => { tip.hidden = true; });
-}
-const tipRow = (label, value, swatch) => `<div class="tr">${swatch ? `<i style="background:${swatch}"></i>` : ''}<span>${esc(label)}</span><b>${value}</b></div>`;
-
 // ================================================================== charts
 
-function monthlyChart(el, months, range) {
+function monthlyChart(el, months, range, target) {
     const W = Math.max(320, el.clientWidth), H = 300;
     const L = 52, R = 8, T = 14, B = 58, ch = H - T - B;
-    const { top, step } = niceScale(Math.max(...months.map(x => x.total), 1));
+    const { top, step } = niceScale(Math.max(...months.map(x => x.total), target ? target * 1.05 : 0, 1));
     const bw = (W - L - R) / months.length, gap = Math.min(6, bw * 0.22);
     const y = v => T + ch - (v / top) * ch;
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net revenue and gross profit by month">
@@ -201,6 +135,8 @@ function monthlyChart(el, months, range) {
         if (x.mk % 12 === 0 || i === 0 || bw > 34 || (bw > 17 && x.mk % 2 === 0) || (bw > 11 && x.mk % 3 === 0))
             s += `<text x="${bx + w / 2}" y="${T + ch + 16}" class="ax" text-anchor="middle">${MONTHS[x.mk % 12]}${x.mk % 12 === 0 || i === 0 ? ' ' + String(Math.floor(x.mk / 12)).slice(2) : ''}</text>`;
     });
+    // The monthly target (Settings › General), net of VAT like the bars.
+    if (target) s += `<line x1="${L}" x2="${W - R}" y1="${y(target)}" y2="${y(target)}" class="ref" pointer-events="none"/><text x="${W - R - 2}" y="${y(target) - 5}" class="ax ref-t" text-anchor="end">target ${k(target)}</text>`;
     // Coverage band: how each month was recorded, merged into runs.
     let i = 0;
     while (i < months.length) {
@@ -306,6 +242,9 @@ function renderInsights(ctx) {
     const inR = t => t >= range[0] && t < range[1];
     const sales = d.sales.filter(s => inR(s.t)), orders = d.orders.filter(o => inR(o.t)), lines = d.lines.filter(l => inR(l.t));
     const salesNet = sales.reduce((x, s) => x + s.net, 0), onlineNet = orders.reduce((x, o) => x + o.net, 0);
+    // Refunds are in the list as negative sales so revenue loses them, but they aren't sales: the
+    // count and the average leave them out (it read €235 over 534 "sales" = 515 receipts + 19 refunds).
+    const receipts = sales.filter(s => !s.refund), receiptsNet = receipts.reduce((x, s) => x + s.net, 0);
     const costed = sales.filter(s => s.cost !== null);
     const costedNet = costed.reduce((x, s) => x + s.net, 0), cost = costed.reduce((x, s) => x + s.cost, 0);
     const profit = costedNet - cost, margin = costedNet > 0 ? profit / costedNet : null;
@@ -368,22 +307,33 @@ function renderInsights(ctx) {
     actions.querySelector('#export-pdf').addEventListener('click', () => exportPdf(range[2]));
 
     const mixNote = coverages.size > 1 ? `<span class="chip warn" data-tip="${esc('<b>Mixed recording</b><div class="tn">This period includes months recorded in different ways (see the band under the monthly chart), so compare months within the same band.</div>')}">mixed recording</span>` : coverages.has('gap') ? '<span class="chip warn">incomplete months</span>' : '';
+    // This month and the last 12 months, whatever the period: from the same figures as the
+    // dashboard pages (no extra reads - Overview needs nothing beyond the app's own load).
+    const dash = (ctx.model._dash && ctx.model._dash.out) || dashboardFor(ctx.model, {}, a.now);
+    const snap = dash.snapshot[0], target = dash.summary2[0].target, p = pace(snap, target, a.now), mtd = mtdChange(snap);
     ctx.body.innerHTML = `
         <div class="print-head"><b>Danfosal · Insights</b><span>${esc(range[2])} · printed ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · amounts net of VAT</span></div>
+        <p class="takeaway"><b>${esc(eur(snap.revenue_12m))}</b> net revenue in the last 12 months at a <b>${esc(snap.margin_12m == null ? '–' : Math.round(100 * snap.margin_12m) + '%')}</b> margin, but <b>${esc(eur(snap.slow_stock_value))}</b> of stock, ${esc(slowShare(snap) == null ? '' : Math.round(100 * slowShare(snap)) + '% of everything on the shelves,')} hasn't sold in 3 months or more.</p>
+        <div class="kpis kpis-3">
+            <div class="kpi"><small>This month so far</small><span class="v">${eur(snap.month_to_date)}</span><span class="d ${mtd > 0 ? 'up' : mtd < 0 ? 'down' : ''}">${mtd == null ? 'nothing to compare yet' : `${mtd > 0 ? '+' : mtd < 0 ? '−' : ''}${Math.round(Math.abs(mtd) * 100)}% vs the same days last month`}</span></div>
+            <a class="kpi kpi-link" href="#money"><small>Monthly target · ${esc(eur(target))}</small><span class="v">${p.pace == null ? '–' : Math.round(100 * p.pace) + '%'}</span><span class="d">of the pace needed by today · heading for ${esc(eur(p.projected))}</span>
+                <span class="goal"><i class="${p.month_to_date >= target ? 'done' : ''}" style="width:${Math.min(100, 100 * p.month_to_date / target).toFixed(1)}%"></i></span></a>
+            <a class="kpi kpi-link" href="money.html#owed"><small>Owed to you</small><span class="v">${eur(snap.owed_to_you)}</span><span class="d">on ${plural(snap.owed_invoices, 'open invoice', 'open invoices')}, as invoiced</span></a>
+        </div>
         <div class="kpis kpis-6">
-            <div class="kpi"><small>Net revenue ${mixNote}</small><span class="v">${eur(salesNet + onlineNet)}</span><span class="d">${plural(sales.length, 'sale', 'sales')}${orders.length ? ` + ${plural(orders.length, 'online order', 'online orders')}` : ''}</span></div>
+            <div class="kpi"><small>Net revenue ${mixNote}</small><span class="v">${eur(salesNet + onlineNet)}</span><span class="d">${plural(receipts.length, 'sale', 'sales')}${orders.length ? ` + ${plural(orders.length, 'online order', 'online orders')}` : ''}</span></div>
             <div class="kpi"><small>Gross profit</small><span class="v">${eur(profit)}</span><span class="d">on sales with a known cost</span></div>
             <div class="kpi"><small>Margin</small><span class="v">${margin === null ? '–' : Math.round(100 * margin) + '%'}</span><span class="d">net, after cost of goods</span></div>
-            <div class="kpi"><small>Average sale</small><span class="v">${sales.length ? eur(salesNet / sales.length) : '–'}</span><span class="d">net, per receipt or invoice</span></div>
+            <div class="kpi"><small>Average sale</small><span class="v">${receipts.length ? eur(receiptsNet / receipts.length) : '–'}</span><span class="d">net, per receipt or invoice, refunds left out</span></div>
             <div class="kpi"><small>Costed</small><span class="v">${salesNet ? Math.round(100 * costedNet / salesNet) + '%' : '–'}</span><span class="d">of revenue has a cost price</span></div>
             <div class="kpi"><small>Stock at cost</small><span class="v">${eur(stockTotal)}</span><span class="d">${stockTotal ? Math.round(100 * (buckets[2].value + buckets[3].value + buckets[4].value + buckets[5].value) / stockTotal) + '% unsold for 3+ months' : ''}</span></div>
         </div>
 
         <section class="panel viz" aria-labelledby="h-month">
             <div class="viz-head"><h2 class="panel-title" id="h-month">Revenue and profit, month by month</h2>
-                <div class="legend"><span><i style="background:#8b5cf6"></i>Gross profit</span><span><i style="background:#2e3260"></i>Cost of goods</span><span><i class="hatch"></i>Cost unknown</span><span><i style="background:#38bdf8"></i>Online orders</span></div></div>
+                <div class="legend"><span><i style="background:#8b5cf6"></i>Gross profit</span><span><i style="background:#2e3260"></i>Cost of goods</span><span><i class="hatch"></i>Cost unknown</span><span><i style="background:#38bdf8"></i>Online orders</span><span><i class="dsh"></i>Target</span></div></div>
             <div class="chart" id="c-month"></div>
-            <p class="chart-note">The band shows how each month was recorded. Compare months within one band: the 2025 history was imported in bulk, the two till-only months are incomplete, and EasyPOS records the shop from February 2026. The selected period is highlighted.</p>
+            <p class="chart-note">The band shows how each month was recorded. Compare months within one band: the 2025 history was imported in bulk, the two till-only months are incomplete, and EasyPOS records the shop from February 2026. The selected period is highlighted. The dashed line is your monthly target (<a href="settings.html#general">Settings › General</a>).</p>
         </section>
 
         <div class="cols" style="grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)">
@@ -437,11 +387,11 @@ function renderInsights(ctx) {
             <section class="panel viz" aria-labelledby="h-sup">
                 <div class="viz-head"><h2 class="panel-title" id="h-sup">Supplier price changes</h2></div>
                 ${costChanges.length ? `<div class="lines">${costChanges.slice(0, 10).map(c => `<div class="line"><div><b>${esc(c.p.name)}</b><span>€${c.from.cost.toFixed(2)} → €${c.to.cost.toFixed(2)}${c.to.supplier ? ' · ' + esc(c.to.supplier) : ''}${c.to.date ? ' · ' + new Date(c.to.date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''}</span></div><span class="n"><span class="chip ${c.change > 0 ? 'bad' : 'ok'}">${c.change > 0 ? '+' : ''}${Math.round(100 * c.change)}%</span></span></div>`).join('')}</div>`
-                : `<p class="empty">No product has been bought at two different prices yet. Only ${plural(ctx.model.products.filter(p => (p.batches || []).length).length, 'product has', 'products have')} a recorded purchase; each delivery received through Receive delivery adds one, and price rises will show here.</p>`}
+                : `<p class="empty">No product has been bought at two different prices through Receive delivery yet. The cost changes on your Kärcher invoices are in <a href="#stock">Insights › Stock</a>.</p>`}
             </section></div>
         </div>`;
 
-    monthlyChart(ctx.body.querySelector('#c-month'), d.months, range);
+    monthlyChart(ctx.body.querySelector('#c-month'), d.months, range, target);
     familyTreemap(ctx.body.querySelector('#c-fam'), fams.filter(f => f.net > 0), state.family);
     calendarChart(ctx.body.querySelector('#c-cal'), d.sales, d.orders, a.now);
     hoursChart(ctx.body.querySelector('#c-hours'), d.sales, range);
@@ -492,6 +442,7 @@ window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer
 bootWorkspace({
     active: 'insights', title: 'Insights', defaultTab: 'overview',
     tabs: [
-        { id: 'overview', label: 'Overview', icon: 'insights', render: renderInsights }
+        { id: 'overview', label: 'Overview', icon: 'insights', render: renderInsights },
+        ...DASHBOARD_PAGES.map(def => ({ id: def.id, label: def.label, icon: def.icon, render: ctx => { renderDashboardPage(ctx, def); } }))
     ]
 });

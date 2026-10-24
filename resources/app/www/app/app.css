@@ -447,6 +447,45 @@ select.inp { appearance: auto; }
 .print-head { display: none; }
 @media (max-width: 1300px) { .kpis-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
+/* ---------------------------------------------------------------- Insights dashboard pages
+   Money, Stock, Customers, Instagram, Purchasing, Your apps (dashboard.js) and Overview's extras.
+   Same panels, tiles and tables as the rest of Insights; these are only the pieces they add. */
+.takeaway { margin: 0; max-width: 980px; font-size: 16px; line-height: 1.55; color: var(--ink); }
+.takeaway b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.takeaway a, .chart-note a, .kpi .d a { color: var(--violet-2); }
+.takeaway .good, .kpi .good { color: var(--ok); }
+.takeaway .bad, .kpi .bad, .stat-grid b.bad { color: var(--bad); }
+.kpis-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+a.kpi-link { text-decoration: none; transition: border-color .12s, background .12s; }
+a.kpi-link:hover { border-color: var(--line-strong); background: var(--panel-2); }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; align-items: start; }
+.dash-grid > .wide { grid-column: 1 / -1; }
+.dash-section { margin: 10px 0 -4px; font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; }
+.dash-sub { margin: 4px 0 0; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dash-multi { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.dash-search { flex: 0 1 300px; min-width: 200px; padding: 5px 10px; }
+.stat-grid.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.range { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; }
+.range input { width: min(220px, 50vw); accent-color: var(--violet); }
+.range output { min-width: 3.5ch; font-family: var(--mono); color: var(--ink); }
+.chart .hov { fill: var(--panel-2); opacity: 0; }
+.chart g.col:hover .hov, .chart rect.hov:hover { opacity: .75; }
+.chart rect.hov[data-disc] { cursor: pointer; }
+.chart g.col[data-href] { cursor: pointer; }
+.chart .axis { stroke: var(--line-strong); stroke-width: 1; }
+.chart .ref { stroke: #e9e9f5; stroke-opacity: .7; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.chart .ref-t { fill: var(--muted); }
+.chart .bracket { fill: none; stroke: var(--line-strong); }
+.chart .lab { fill: var(--ink); font-family: var(--sans); font-size: 12px; }
+.chart .end { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+.legend i.ln { height: 2px; width: 14px; border-radius: 1px; }
+.legend i.dsh { height: 0; width: 14px; border-radius: 0; border-top: 2px dashed rgba(233, 233, 245, .7); background: none; }
+.dt.ro tbody tr { cursor: default; }
+.dt tbody tr[hidden] { display: none; }
+.cbar { display: block; width: 72px; height: 4px; margin: 4px 0 0 auto; border-radius: 2px; background: var(--panel-3); overflow: hidden; }
+.cbar i { display: block; height: 100%; border-radius: 2px; background: var(--violet); }
+@media (max-width: 1100px) { .kpis-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .stat-grid.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
 /* Export PDF / print: the page without the navigation, same dark look. */
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
@@ -460,6 +499,7 @@ select.inp { appearance: auto; }
   .panel, .kpi { break-inside: avoid; }
   .cols { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) !important; }
   .kpis.kpis-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .dash-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 @media (max-width: 1100px) {
@@ -510,6 +550,11 @@ select.inp { appearance: auto; }
 
   /* Two figures across, not four. */
   .kpis, .kpis-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .kpis-3 { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .stat-grid.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .takeaway { font-size: 14.5px; }
+  .dash-search { flex: 1 1 100%; }
+  .cbar { width: 48px; }
   .kpi { padding: 11px 12px; }
   .kpi .v { font-size: 20px; }
   .kpi small { font-size: 11.5px; }

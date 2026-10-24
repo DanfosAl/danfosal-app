@@ -6,6 +6,24 @@
 
 ---
 
+## [Unreleased] - 2026-10-24 - Insights: the dashboard pages
+
+Full details are in GOLDEN_MANIFEST.md, Finding #74.
+
+### Added
+- Insights › Money, Stock, Customers, Instagram, Purchasing and Your apps: the "Danfosal overview" dashboard as live pages, read from the database when Insights opens (read-only, Refresh to read again)
+- Insights › Overview: 12-month summary line, this month vs the same days last month, pace to the monthly target, owed to you, and the target on the monthly chart
+- Settings › General: monthly revenue target (net of VAT), shared by every device
+- Stock › Reorder: "Out of stock, still wanted" - best sellers that ran out and models people ask the chatbot for
+
+### Fixed
+- Insights' Average sale counted refunds as sales; refunds now leave the total and the count
+
+### Changed
+- One list of sales and refunds (`salesLedger()` in data.js) for Insights and the new pages; chart helpers shared in charts.js
+
+---
+
 ## [Maintenance] - 2026-09-14 - Repository cleanup
 
 Full details are in GOLDEN_MANIFEST.md, Finding #22.

@@ -34,7 +34,13 @@ export const NAV = [
         ['Expenses', 'money.html#expenses', 'payments'],
         ['Next 30 days', 'money.html#outlook', 'date_range']] },
     { id: 'insights', label: 'Insights', icon: 'insights', href: 'insights.html', pages: [
-        ['Overview', 'insights.html#overview', 'insights']] }
+        ['Overview', 'insights.html#overview', 'insights'],
+        ['Money', 'insights.html#money', 'payments'],
+        ['Stock', 'insights.html#stock', 'inventory_2'],
+        ['Customers', 'insights.html#customers', 'group'],
+        ['Instagram', 'insights.html#instagram', 'forum'],
+        ['Purchasing', 'insights.html#purchasing', 'receipt_long'],
+        ['Your apps', 'insights.html#apps', 'apps']] }
 ];
 export const SETTINGS_NAV = { id: 'settings', label: 'Settings', icon: 'settings', href: 'settings.html', pages: [
     ['General', 'settings.html#general', 'tune'],
@@ -138,7 +144,13 @@ const SYNONYMS = {
     'money.html#expenses': 'expenses shpenzime costs rent qira salaries paga net profit',
     'money.html#outlook': 'cash flow forecast next 30 days outlook upcoming payments',
     'money.html#owe': 'creditors suppliers furnizues detyrime you owe pay supplier invoice',
-    'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers',
+    'insights.html#overview': 'reports raporte charts analytics profit margin pdf export best sellers dashboard',
+    'insights.html#money': 'target pace month running costs break even karcher balance owe duty landed margin import dashboard',
+    'insights.html#stock': 'clearance discount slow stock aging seasonality demand asked chatbot cost changes running out dashboard',
+    'insights.html#customers': 'win back lapsed regulars business private buyers bought together loyalty new returning dashboard',
+    'insights.html#instagram': 'chatbot bot messages funnel best time to post asked online orders dashboard',
+    'insights.html#purchasing': 'purchases invoices payments customs suppliers kärcher karcher dashboard',
+    'insights.html#apps': 'easypos receipts warranty certificates website prices sync data health your apps dashboard',
 };
 let index = NAV.flatMap(n => (n.pages || [[n.label, n.href, n.icon]]).map(([label, href, ic]) => ({ group: 'Go to', label, sub: n.pages ? n.label : '', href, ic, text: fold(`${label} ${n.label} ${SYNONYMS[href] || ''}`) })))
     .concat(SETTINGS_NAV.pages.map(([label, href, ic]) => ({ group: 'Go to', label, sub: 'Settings', href, ic, text: fold(`${label} settings ${SYNONYMS[href] || ''}`) })));

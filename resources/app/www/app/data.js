@@ -10,6 +10,9 @@ export const VAT = 1.2;                  // Albanian standard VAT, 20%
 export const RESTOCK_DAYS = 42;          // a Kärcher restock takes ~6 weeks (owner, 21 Sep 2026)
 export const SALES_WINDOW_DAYS = 90;     // "how fast does it sell" looks back this far
 export const MIN_UNITS_FOR_TREND = 2;    // one sale in 90 days is not a trend
+// The owner's monthly revenue target, net of VAT (23 Oct 2026). Settings › General changes it;
+// it is stored in settings/targets so every device shows the same target.
+export const MONTHLY_TARGET_DEFAULT = 12000;
 export const DAY = 86400000;
 const CLOSED_TICKET = new Set(['completed', 'cancelled', 'rejected', 'delivered', 'closed']);
 const CLOSED_ORDER = new Set(['Paid', 'Returned', 'Cancelled']);
@@ -241,6 +244,51 @@ export function productIdOfLine(item, knownIds) {
     return null;
 }
 
+// ------------------------------------------------------------------ the sales ledger
+
+// What was sold and what was handed back, as one list per receipt and one per sale line, for every
+// screen that charts sales (Insights and its dashboard pages). A refund is a negative sale - and
+// negative lines - on the day it was refunded, so a month loses the money it gave back and a
+// product the units that came back. Built once per data load.
+export function salesLedger(m) {
+    if (m._ledger) return m._ledger;
+    const knownIds = new Set(m.products.map(p => p._id));
+    const productById = new Map(m.products.map(p => [p._id, p]));
+    const sales = [], lines = [], orders = [];
+    m.sales.filter(s => !s.isReturn).forEach(s => {
+        const t = saleTime(s); if (isNaN(t)) return;
+        const items = s.items || [];
+        const nets = lineNetRevenues(s);
+        const src = saleSource(s);
+        let cost = 0, costed = items.length > 0;
+        items.forEach((it, i) => {
+            const c = lineNetCost(it), qty = Number(it.quantity) || 1;
+            if (c === null) costed = false; else cost += c * qty;
+            const pid = productIdOfLine(it, knownIds);
+            const name = String((pid && productById.get(pid).name) || it.name || it.productName || '?').trim();
+            lines.push({ t, net: nets[i], cost: c === null ? null : c * qty, qty, pid, name, family: productFamily(name, it), src,
+                isService: !!it.isService, pre: !!(it.isPrepayment || it.isPrepaymentDeduction), saleId: s._id });
+        });
+        sales.push({ t, net: netRevenue(s), cost: costed ? cost : null, src, easypos: s.type === 'easypos', s });
+    });
+    m.orders.filter(soldOrder).forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT, o }); });
+    const byName = productNameIndex(m.products);
+    (m.returns || []).forEach(r => {
+        const t = returnTime(r); if (isNaN(t)) return;
+        const rows = returnLines(r, byName);
+        let cost = 0, costed = rows.length > 0;
+        rows.forEach(l => {
+            const c = l.product ? productNetCost(l.product) : null;
+            if (!c) costed = false; else cost += c * l.units;
+            const name = l.product ? l.product.name : l.name;
+            lines.push({ t, net: -l.net, cost: c ? -c * l.units : null, qty: -l.units, pid: l.product ? l.product._id : null,
+                name, family: productFamily(name, {}), src: 'Refund', refund: true });
+        });
+        sales.push({ t, net: -returnNet(r), cost: costed ? -cost : null, src: 'Refund', easypos: false, refund: true });
+    });
+    return (m._ledger = { sales, lines, orders });
+}
+
 // ------------------------------------------------------------------ loading
 
 export async function loadAll() {
@@ -277,11 +325,12 @@ export async function loadAll() {
     }));
     // Owner decisions kept in settings: receipt names that are services (Stock > Link receipt
     // items), and lookalike customer names confirmed to be different people (Customers > Review).
-    let receiptServices = [], notSameCustomers = [];
+    let receiptServices = [], notSameCustomers = [], monthlyTarget = MONTHLY_TARGET_DEFAULT;
     try {
-        const [s, r] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview'))]);
+        const [s, r, g] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview')), getDoc(doc(db, 'settings', 'targets'))]);
         if (s.exists()) receiptServices = s.data().services || [];
         if (r.exists()) notSameCustomers = r.data().notSame || [];
+        if (g.exists() && Number(g.data().monthlyRevenueNet) > 0) monthlyTarget = Number(g.data().monthlyRevenueNet);
     } catch { /* first use: the documents don't exist yet */ }
     // The website (AI Commerce): prices changed there that wait for Accept / Ignore here, and how
     // the morning sync went (tools/website-sync). Both are empty until the sync has run once.
@@ -292,7 +341,7 @@ export async function loadAll() {
         if (status.exists()) websiteSync = status.data();
     } catch { /* no website sync yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, websiteProposals, websiteSync, loadedAt: Date.now() };
+    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, monthlyTarget, websiteProposals, websiteSync, loadedAt: Date.now() };
 }
 
 // ---- costs that repeat every month (rent, salaries, the accountant)
@@ -462,7 +511,7 @@ export function analyze(m, now = Date.now()) {
     const dayOfMonth = startOfToday.getDate();
     const prevMonthSameDay = Math.min(new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 0).getDate(), dayOfMonth);
     const prevMonthCutoff = new Date(startOfToday.getFullYear(), startOfToday.getMonth() - 1, prevMonthSameDay + 1).getTime();
-    const since30 = now - 30 * DAY, sinceWindow = now - SALES_WINDOW_DAYS * DAY;
+    const since30 = now - 30 * DAY, sinceWindow = now - SALES_WINDOW_DAYS * DAY, since12 = now - 365 * DAY;
 
     const productById = new Map(m.products.map(p => [p._id, p]));
     const knownIds = new Set(productById.keys());
@@ -512,7 +561,7 @@ export function analyze(m, now = Date.now()) {
     const refunded12m = refunds.filter(r => r._t >= now - 365 * DAY).reduce((a, r) => a + returnTotal(r), 0);
 
     // ---- stock: how fast each product sells, what to reorder, what isn't moving
-    const soldUnits = {}, lastSoldAt = {};
+    const soldUnits = {}, soldUnits12 = {}, lastSoldAt = {};
     const countLines = (list, timeOf) => list.forEach(rec => {
         const t = timeOf(rec);
         (rec.items || []).forEach(item => {
@@ -520,14 +569,18 @@ export function analyze(m, now = Date.now()) {
             if (!pid) return;
             if (t > (lastSoldAt[pid] || 0)) lastSoldAt[pid] = t;
             if (t >= sinceWindow) soldUnits[pid] = (soldUnits[pid] || 0) + (Number(item.quantity) || 1);
+            if (t >= since12) soldUnits12[pid] = (soldUnits12[pid] || 0) + (Number(item.quantity) || 1);
         });
     });
     countLines(sales, saleTime);
     countLines(orders, orderTime);
     // Units that came back are not units sold. Never below zero: the sale itself may be older
     // than the 90-day window while the refund falls inside it.
-    refunds.forEach(r => { if (r._t >= sinceWindow) returnLines(r, byName).forEach(l => {
-        if (l.product) soldUnits[l.product._id] = Math.max(0, (soldUnits[l.product._id] || 0) - l.units);
+    refunds.forEach(r => { if (r._t >= since12) returnLines(r, byName).forEach(l => {
+        if (!l.product) return;
+        const id = l.product._id;
+        soldUnits12[id] = Math.max(0, (soldUnits12[id] || 0) - l.units);
+        if (r._t >= sinceWindow) soldUnits[id] = Math.max(0, (soldUnits[id] || 0) - l.units);
     }); });
     // Only recent unlinked lines are "needs you"; the Link screen shows them all.
     const unmatched = unlinkedReceiptLines(m).filter(g => g.last >= sinceWindow).map(g => [g.name, g.units]);
@@ -548,6 +601,11 @@ export function analyze(m, now = Date.now()) {
     });
     reorder.sort((a, b) => a.daysLeft - b.daysLeft);
     unsold.sort((a, b) => b.value - a.value);
+    // Out of stock, yet sold in the last 12 months: the reorder rule above only sees products still
+    // selling now, and a product with no stock can't sell - so SC 3 and SC 2 never showed up there.
+    const outOfStockWanted = m.products.filter(p => (Number(p.stock) || 0) <= 0 && (soldUnits12[p._id] || 0) >= MIN_UNITS_FOR_TREND)
+        .map(p => ({ product: p, units12: soldUnits12[p._id], lastSold: lastSoldAt[p._id] || null }))
+        .sort((a, b) => b.units12 - a.units12);
 
     // Products the 14 Sep correction couldn't fix (more sold than ever held), still at the
     // stock they had then - i.e. nobody has counted them yet.
@@ -636,7 +694,7 @@ export function analyze(m, now = Date.now()) {
         refunds, refunds30, refunded30, refunded12m, productNames: byName, botMissing,
         warrantyToFix: refundsNeedingWarranty(m),
         monthGross, monthRunning, monthProfit, monthMargin, breakEven,
-        soldUnits, lastSoldAt, reorder, unsold, unsoldValue, stockValue, soldWithoutCost,
+        soldUnits, soldUnits12, lastSoldAt, reorder, outOfStockWanted, unsold, unsoldValue, stockValue, soldWithoutCost,
         unmatched,
         productsSold: Object.keys(soldUnits).length,
         needsCount,

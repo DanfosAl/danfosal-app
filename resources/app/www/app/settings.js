@@ -6,8 +6,8 @@
 import { bootWorkspace } from './workspace.js';
 import { db, auth, doc, setDoc, arrayRemove, signOut } from './firebase.js';
 import { esc, eur, int, icon, plural, ago, day, fold, money2, toast, openModal } from './ui.js';
-import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost
-} from './data.js';
+import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost,
+    MONTHLY_TARGET_DEFAULT } from './data.js';
 
 const store = {
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
@@ -35,6 +35,11 @@ function renderGeneral(ctx) {
                     <button class="btn" type="button" id="st-signout">${icon('logout')}Sign out</button>
                 </div>
             </section>
+            <div class="stack">
+            <section class="panel" style="display:grid;gap:14px">
+                <h2 class="panel-title" style="margin:0">Targets · every device</h2>
+                <label class="fld">Monthly revenue target (€, net of VAT)<input id="st-target" type="number" min="0" step="500" value="${esc(String(ctx.model.monthlyTarget || MONTHLY_TARGET_DEFAULT))}"><span class="hint">The dashed line on Insights' monthly chart and the pace on Insights › Money. Stored in the database, so the phone shows the same target.</span></label>
+            </section>
             <section class="panel" style="display:grid;gap:14px">
                 <h2 class="panel-title" style="margin:0">Lists you have built up</h2>
                 <div><b style="font-weight:500">Receipt names that are services</b> <span class="muted">(${int(services.length)})</span>
@@ -44,9 +49,16 @@ function renderGeneral(ctx) {
                     <p class="empty" style="margin:2px 0 6px">From Customers › Review names; these pairs aren't suggested again.</p>
                     ${notSame.length ? `<div class="filters">${notSame.map(k => `<span class="chip">${esc(k.replace('|', ' ≠ '))} <button type="button" class="btn ghost small" data-ns="${esc(k)}" aria-label="Suggest this pair again" style="padding:0 2px">${icon('close')}</button></span>`).join('')}</div>` : '<p class="empty" style="margin:0">None yet.</p>'}</div>
             </section>
+            </div>
         </div>`;
     const $ = s => ctx.body.querySelector(s);
     $('#st-goal').addEventListener('change', e => { const v = Math.max(0, Math.round(Number(e.target.value) || 0)); store.set('dailyRevenueGoal', v); toast(`Daily goal: ${eur(v)}`); });
+    $('#st-target').addEventListener('change', async e => {
+        const v = Math.round(Number(e.target.value) || 0);
+        if (!(v > 0)) { e.target.value = String(ctx.model.monthlyTarget || MONTHLY_TARGET_DEFAULT); toast('Enter a target above zero', { bad: true }); return; }
+        try { await setDoc(doc(db, 'settings', 'targets'), { monthlyRevenueNet: v, updatedAt: Date.now() }, { merge: true }); ctx.model.monthlyTarget = v; toast(`Monthly target: ${eur(v)} net of VAT`); }
+        catch (err) { toast(`Couldn't save: ${err.message}`, { bad: true }); }
+    });
     $('#st-notif').addEventListener('change', e => { store.set('notificationsEnabled', e.target.checked); toast(e.target.checked ? 'Sale pop-ups on' : 'Sale pop-ups off'); });
     $('#st-sound').addEventListener('change', e => { store.set('notificationSound', e.target.checked); });
     $('#st-signout').addEventListener('click', async () => {

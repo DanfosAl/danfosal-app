@@ -9,6 +9,7 @@ import { renderReceive } from './receive.js';
 import { renderPurchases } from './purchases.js';
 import { renderPlan } from './plan.js';
 import { renderWebsite } from './website.js';
+import { loadExtras, askedByProduct } from './dashboard-data.js';
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
 import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
@@ -221,7 +222,28 @@ async function renderReorder(ctx) {
     const urgent = selling.filter(r => r.daysLeft < RESTOCK_DAYS);
     const unsoldTotal = a.unsoldValue;
 
+    // Best sellers that ran out never reach the list below: with no stock they can't sell, so their
+    // 90-day sales fall to nothing (SC 3 and SC 2, Oct 2026). These are out of stock but sold 2+ in
+    // the last 12 months, or people ask the Instagram chatbot for them (its log is read after the
+    // screen shows, and kept for this session).
+    const wanted = new Map(a.outOfStockWanted.map(w => [w.product._id, { p: w.product, units12: w.units12, last: w.lastSold, asked: null }]));
+    const wantQty = w => Math.max(1, Math.ceil(((w.units12 || 0) / 365) * (RESTOCK_DAYS + 30)));
+    const wantRows = () => [...wanted.values()]
+        .sort((x, y) => (y.units12 || 0) - (x.units12 || 0) || ((y.asked && y.asked.questions) || 0) - ((x.asked && x.asked.questions) || 0))
+        .map(w => `<tr data-id="${esc(w.p._id)}"><td class="name"><b>${esc(w.p.name)}</b><span>${esc(w.p.code || '')}</span></td>
+            <td class="n zero">${int(Number(w.p.stock) || 0)}</td><td class="n">${w.units12 ? int(w.units12) : '<span class="muted">–</span>'}</td>
+            <td class="n">${w.asked === null ? '<span class="muted">…</span>' : w.asked ? `${int(w.asked.questions)} <span class="muted">· ${esc(w.asked.model)}</span>` : '<span class="muted">–</span>'}</td>
+            <td class="n muted">${w.last ? day(w.last) : 'never'}</td>
+            <td class="n">${onList.has(fold(w.p.name)) ? '<span class="chip vio">on list</span>' : `<button class="btn small" type="button" data-want="${esc(w.p._id)}" data-qty="${wantQty(w)}">Add ${wantQty(w)}</button>`}</td></tr>`).join('')
+        || `<tr><td colspan="6" class="muted" style="padding:16px">No best seller is out of stock.</td></tr>`;
+
     ctx.body.innerHTML = `
+        <section class="panel" aria-labelledby="want-h">
+            <h2 class="panel-title" id="want-h">Out of stock, still wanted<span id="want-n">${int(wanted.size)}</span></h2>
+            <p class="empty" style="margin:-4px 0 10px">A product with no stock can't sell, so a best seller that ran out disappears from the list below. These sold ${MIN_UNITS_FOR_TREND}+ units in the last 12 months, or people asked the Instagram chatbot for them twice or more.</p>
+            <div class="table-wrap" style="max-height:360px"><table class="dt"><thead><tr><th>Product</th><th class="n">In stock</th><th class="n">Sold 12 months</th><th class="n">Asked the chatbot</th><th class="n">Last sold</th><th class="n">Order</th></tr></thead>
+            <tbody id="want-body">${wantRows()}</tbody></table></div>
+        </section>
         <div class="cols" style="grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)">
             <section class="panel" aria-labelledby="sell-h">
                 <h2 class="panel-title" id="sell-h">Products that sell, by stock left<span>${int(selling.length)}</span></h2>
@@ -244,7 +266,40 @@ async function renderReorder(ctx) {
             </section>
         </div>`;
 
+    // What the chatbot is asked for: models people want that the shop has run out of.
+    loadExtras(['events']).then(x => {
+        if (ctx.tab !== 'reorder' || !ctx.body.querySelector('#want-body')) return;
+        const asked = askedByProduct(ctx.model.products, x.events, a.now);
+        asked.forEach((q, id) => {
+            const p = ctx.model.products.find(pr => pr._id === id);
+            if (!p || (Number(p.stock) || 0) > 0 || q.questions < 2 || wanted.has(id)) return;
+            wanted.set(id, { p, units12: a.soldUnits12[id] || 0, last: a.lastSoldAt[id] || null, asked: q });
+        });
+        wanted.forEach(w => { if (w.asked === null) w.asked = asked.get(w.p._id) || 0; });
+        ctx.body.querySelector('#want-body').innerHTML = wantRows();
+        ctx.body.querySelector('#want-n').textContent = int(wanted.size);
+    }).catch(() => {
+        wanted.forEach(w => { if (w.asked === null) w.asked = 0; });
+        const tb = ctx.body.querySelector('#want-body'); if (tb) tb.innerHTML = wantRows();
+    });
+    ctx.body.querySelector('#want-body').addEventListener('click', async e => {
+        const add = e.target.closest('[data-want]'); if (!add) return;
+        const w = wanted.get(add.dataset.want); const qty = Number(add.dataset.qty);
+        add.disabled = true;
+        try {
+            await addDoc(collection(db, 'toOrder'), {
+                name: w.p.name, quantity: qty, supplier: w.p.producer || '', quantityReceived: 0, smartSuggestion: true, urgency: 'high', daysUntilStockout: 0,
+                reason: `Out of stock; sold ${w.units12 || 0} in the last 12 months${w.asked ? `, asked about ${w.asked.questions} times on Instagram` : ''}.`,
+                estimatedCost: r2(qty * (productNetCost(w.p) || 0)), addedAt: Date.now()
+            });
+            onList.add(fold(w.p.name));
+            toast(`${qty} × ${w.p.name} added to the order list`);
+            add.outerHTML = '<span class="chip vio">on list</span>';
+        } catch (err) { add.disabled = false; toast(`Couldn't add: ${err.message}`, { bad: true }); }
+    });
+
     ctx.body.querySelectorAll('tbody').forEach(tb => tb.addEventListener('click', async e => {
+        if (e.target.closest('[data-want]')) return;
         const add = e.target.closest('[data-add]');
         if (add) {
             e.stopPropagation();

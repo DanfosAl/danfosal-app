@@ -25,8 +25,8 @@ statements are listed at the end of it.
 | Part | State |
 |---|---|
 | **Danfosal App** (`resources/app`) | 1.4.1. Electron 37.10.3 (`^37.2.5`), electron-builder 24.13.3, Capacitor 6 (core 6.2.1, android 6.1.2), firebase-admin 12.7 (Node tools only), tesseract.js 5.1.1, pdf.js 3.11.174 (CDN). One codebase in `www/` for desktop, web and Android. |
-| **Screens** (`www/*.html` + `www/app/*.js`) | Today (`index.html`) · Sell: All sales, New sale (till), Online orders, Instagram, Import invoice · Stock: Catalogue, Reorder, Link receipt items, Order list, Purchases, Receive delivery, Yearly plan · Customers: Customers, Win back, Review names · Service: Repairs, Warranty cards · Money: Owed to you, You owe, Expenses, Next 30 days · Insights · Settings: General, Data health, Tools · print page `warranty-card.html`. The pre-September pages (business-intelligence.js, ai-agent.js, advanced-analytics.js, smart-inventory.js, invoice-ocr.js, ai-chatbot.js, the fiscal/store scanners, compiled Tailwind) are **gone**: the September redesign (Findings #25-#30) replaced them and Finding #30 retired them to quarantine (the repository cleanup is Finding #22). |
-| **Modules** (`www/app`) | data.js (one meaning for every number), firebase.js, workspace.js/shell.js (frame, nav, Ctrl K), ui.js; today, sell (+ online, leads, importpdf, invoice-text, prepayment), stock (+ orderlist, receive, purchases, purchasing, karcher-invoice, plan, planmodel), customers, service (+ warranty, warrantyreturn), money (+ payables), insights, settings, autopilot-run. Plus `www/manual-pdf-processor.js` (invoice reader, shared with the tools) and `smart-inventory-scanner.js`. |
+| **Screens** (`www/*.html` + `www/app/*.js`) | Today (`index.html`) · Sell: All sales, New sale (till), Online orders, Instagram, Import invoice · Stock: Catalogue, Reorder, Link receipt items, Order list, Purchases, Receive delivery, Yearly plan, Website · Customers: Customers, Win back, Review names · Service: Repairs, Warranty cards · Money: Owed to you, You owe, Expenses, Next 30 days · Insights: Overview, Money, Stock, Customers, Instagram, Purchasing, Your apps (Finding #74) · Settings: General, Data health, Tools · print page `warranty-card.html`. The pre-September pages (business-intelligence.js, ai-agent.js, advanced-analytics.js, smart-inventory.js, invoice-ocr.js, ai-chatbot.js, the fiscal/store scanners, compiled Tailwind) are **gone**: the September redesign (Findings #25-#30) replaced them and Finding #30 retired them to quarantine (the repository cleanup is Finding #22). |
+| **Modules** (`www/app`) | data.js (one meaning for every number), firebase.js, workspace.js/shell.js (frame, nav, Ctrl K), ui.js; today, sell (+ online, leads, importpdf, invoice-text, prepayment), stock (+ orderlist, receive, purchases, purchasing, karcher-invoice, plan, planmodel), customers, service (+ warranty, warrantyreturn), money (+ payables), insights (+ dashboard, dashboard-data, charts), settings, autopilot-run, website. Plus `www/manual-pdf-processor.js` (invoice reader, shared with the tools) and `smart-inventory-scanner.js`. |
 | **Desktop main process** | `main.js`: one window; IPC `check-for-updates`, `download-update`, `fetch-url`, `save-page-pdf`, `paper-autopilot-run` (→ `autopilot-runner.js`); preload exposes `electronAPI` and the bridge events in `api`. |
 | **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
@@ -892,6 +892,58 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
+
+---
+
+#### **74. INSIGHTS GETS THE "DANFOSAL OVERVIEW" DASHBOARD AS LIVE PAGES; AVERAGE SALE AND REORDER FIXED** — ✅ **BUILT AND TESTED, NOT YET RELEASED (October 24, 2026)**
+
+The owner built a "Danfosal overview" dashboard with Claude (23 Oct 2026, from a read-only snapshot)
+and asked for it inside the app, live, in the app's design, wherever it fits best, without
+compromising the app. The handoff (page reference, data builder, definitions and check figures)
+is in `docs/records/claude-dashboard/`, which stays out of this public repository.
+
+- **Where:** six new tabs of **Insights**, beside Overview: **Money** (this month against the
+  target, gross profit against running costs, the Kärcher account since the last statement, who
+  was paid, margin before and after import duty), **Stock** (clearance planner with group and
+  discount, what people ask the chatbot for vs what's on the shelf, questions by type, stock by last
+  sale, when each family sells, Kärcher cost changes, running out, money standing still),
+  **Customers** (businesses vs private buyers, win-back list with search, bought together, new vs
+  returning, how often they buy, when the shop sells), **Instagram** (bot orders arrived vs missing,
+  best time to post, messages heatmap, month by month, funnel, most asked, online orders by channel),
+  **Purchasing** (invoices, payments and customs by month) and **Your apps** (EasyPOS per day,
+  warranty certificates, data health, website prices waiting, with search). Deep links
+  (`insights.html#money` ...), the sidebar's Insights menu and Ctrl K reach each page.
+- **Overview** keeps its cards and gains the 12-month takeaway, "this month so far vs the same days
+  last month", the pace to the monthly target, "owed to you", and the target as a dashed line on
+  the monthly chart.
+- **Live, read-only:** `dashboard-data.js` works the pages out from Firestore when Insights opens,
+  through `data.js` - revenue, cost, margin, customers and refunds are not defined a second time.
+  The list of sales and refunds that Insights built for itself moved into `data.js`
+  (`salesLedger()`), so Overview and the new pages share one copy. `loadAll()` is read once per
+  visit; the chatbot log (`analytics_events`, ~7,000 documents, only the fields used) and
+  `purchaseDocs` are read only for the pages that need them and kept 15 minutes in the window's
+  session; **Refresh** reads everything again. The pages never write.
+- **Look:** app.css only - dark, violet the one accent, sky blue as the second series (as Insights'
+  online orders), green/amber/red only for state. Charts are hand-drawn SVG (`charts.js`, shared
+  with Overview's tooltip), so they work offline on Windows and Android. Names reach the page only
+  through `esc()`; the win-back list shows customer names, never phones or addresses.
+- **Monthly target** is a setting (Settings › General, "Targets · every device"), stored in
+  `settings/targets` (`monthlyRevenueNet`, default 12,000 net of VAT), not a constant.
+- **Average sale** on Insights counted refunds as sales (515 receipts + 19 refunds = 534): refunds
+  now leave both the total and the count, and the sale count under Net revenue is the receipts.
+- **Reorder** could never show a best seller that ran out - with no stock it can't sell, so its
+  90-day sales fall to nothing (SC 3, SC 2). Stock › Reorder now opens with **"Out of stock, still
+  wanted"**: products with no stock that sold 2+ in the last 12 months (`analyze().outOfStockWanted`,
+  `soldUnits12`), or that people asked the chatbot about twice or more, with "Add" to the order list.
+  Today's "runs out before a restock" item and the Stock badge keep their meaning.
+- **Checked:** the new `dashboard-data.js`, run on the live database (read-only, admin key) at the
+  moment of the 23 Oct check, reproduced **every** check figure in the handoff, identical to the
+  reference builder; the only differences are deliberate (the out-of-stock list, the website-price
+  table's own below-cost count beside the sync's, cost changes sorted rises first, `id:` codes
+  hidden). The screens were then driven in a local test copy fed the same snapshot (no sign-in
+  used): every page's figures match, group switch, slider, chart click and both searches work, no
+  page wrote anything, the phone layout holds (tables scroll inside their card). Bridge test passes.
+- **Release needs:** desktop rebuild + reinstall, Hosting, Android (`www` changed).
 
 ---
 

@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **75. SUGGESTED SELLING PRICES: ON EVERY DELIVERY, AND A PRICE REVIEW FROM THE SALES** — ✅ **BUILT AND TESTED, NOT YET RELEASED (October 24, 2026)**
+#### **75. SUGGESTED SELLING PRICES: ON EVERY DELIVERY, AND A PRICE REVIEW FROM THE SALES** — ✅ **LIVE (October 24, 2026)**
 
 The owner asked (24 Oct 2026) that importing goods suggest the selling price from the products'
 cost, the shop's running costs, the products' sales history and demand, and that the sales
@@ -968,8 +968,10 @@ delivery never looked at an existing product's price - even when its cost went u
   passes; website sync dry run unchanged. The price lists printed to PDF (headless Edge and the
   app's own Electron, portrait) from seeded changes: a change and change-back is left out, the ✓
   and ≠ marks, EasyPOS names, sorting; *They're in EasyPOS* writes the mark and empties the panel.
-- **Release needs:** desktop rebuild + reinstall, Hosting, Android (`www` changed); the website
-  sync change works on the shop PC at its next run.
+- **Released 24 Oct 2026** (commit 28ecbe3): desktop rebuilt and reinstalled (installed
+  `app.asar` identical to the build, with the portrait/E: PDF saving), Hosting deployed (the new
+  modules served live), Android debug APK built after `cap sync`, Danfos HQ's app copies
+  refreshed. The website sync change works on the shop PC from its next morning run.
 
 ---
 

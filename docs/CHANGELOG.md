@@ -6,7 +6,7 @@
 
 ---
 
-## [Unreleased] - 2026-10-24 - Suggested selling prices
+## [Released] - 2026-10-24 - Suggested selling prices and the EasyPOS price list (desktop 1.4.1 rebuild, web, Android)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #75.
 

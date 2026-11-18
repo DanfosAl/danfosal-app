@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.1  
+**Application Version:** 1.4.2 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -894,6 +894,60 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
 
 ---
+
+#### **78. EVERY DEVICE UPDATES ITSELF: GITHUB RELEASES, ELECTRON-UPDATER, LIVE SCREENS ON THE PHONES** — ✅ **LIVE (November 18, 2026, version 1.4.2)**
+
+The owner asked (18 Nov 2026) that devices with the app installed receive new builds over the
+internet instead of the app being shared by hand. Devices: the shop PC (where releases are built),
+another Windows PC, the owner's phone and another Android device; the web version already updates
+with every Hosting deploy. Owner's choices: publish on **GitHub Releases** of this (public)
+repository; phones get **screen updates silently, a new APK with one tap**.
+
+- **What was there:** `main.js` checked a Firebase Storage `updates/update-manifest.json` that never
+  existed (404), so no update was ever offered; electron-updater was a dependency with a GitHub
+  `publish` config but was never asked to check; the phone app had no check at all and the
+  `app-version.json` meant for it (February, version 1.4.1 / versionCode 3) was never on Hosting.
+  The only GitHub release was v1.0.2 (Aug 2025). The version stayed 1.4.1 across every release, which
+  an updater can't work with. The installer carries no admin key (checked again: only library
+  placeholder keys), and Firestore admits only the owner's account, so a public installer opens
+  nothing by itself.
+- **Desktop** (`main.js`): electron-updater checks GitHub 10 s after start and every 4 hours,
+  downloads in the background - only the changed blocks, now that the installer gets its
+  `.blockmap` (`nsis.differentialPackage` was false) - and installs when the app closes, or at
+  once on *Restart now*. Settings › Check for updates shows the state. The installer is now
+  `Danfosal-App-Setup-<version>.exe` (no spaces, the name `latest.yml` points to); releases are
+  published, not drafts (`publish.releaseType`).
+- **Phones** (`www/app/updates.js`, loaded on its own by every page, so it also runs on the sign-in
+  form and offline): the live-update plugin `@capgo/capacitor-updater` 6.53.0 (MPL-2.0), with
+  Capgo's online service off in `capacitor.config.ts` (no automatic checks, `statsUrl`/`updateUrl`/
+  `channelUrl` empty - its code skips statistics when the URL is empty). Every start confirms the
+  screens started (`notifyAppReady`; otherwise the plugin goes back to the APK's own). At most
+  hourly it reads `https://danfosal-app.web.app/app-version.json`: newer screens that this APK can
+  run (its native version ≥ the manifest's `minNative`) are downloaded once, checked against their
+  SHA-256 and used from the next start; a release that needs a newer APK shows a bar whose Install
+  opens the APK's download in the browser (Android asks to install; Later hides it for a day). A new
+  APK drops downloaded screens (`resetWhenUpdate`). Settings shows the version and checks on demand.
+  The plugin needs `compileSdkVersion` 35 (target stays 34) and Android 6.0 or newer (`minSdkVersion`
+  22 → 23); its added permissions are the background-work ones (network state, wake lock, boot,
+  foreground service), none asking the user.
+- **Releasing** (`tools/release/release.mjs`, one command): next version in package.json,
+  package-lock.json, build.gradle (versionCode + 1) and `www/app-version.json`; desktop installer,
+  APK and the screens' zip; commit + push; GitHub release `v<version>` (a draft until all five files
+  are up: installer, blockmap, latest.yml, APK, zip); Hosting deploy (the manifest goes live last, so
+  a phone never looks for files that aren't there); install on this PC; Danfos HQ refreshed.
+  `--native` when a release changes the APK's native side (a plugin, capacitor.config.ts, the
+  manifest): phones are then asked to install the APK. GitHub sign-in: `GH_TOKEN`, else the
+  credential git already uses to push from this PC (scopes repo; never printed). The repository's
+  `app-version.json` at `resources/app/` (stale) is gone; old scripts under `scripts/deploy` that
+  wrote it are superseded.
+- **Checked:** `updates.js` against a fake Android app (up to date; newer screens downloaded once
+  with their checksum and set for the next start, not downloaded again; a newer-APK release shows the
+  bar and downloads nothing; offline; not Android); `cap sync` lists the plugin and the APK builds;
+  the merged manifest's permissions; the GitHub sign-in can write the repository; main.js, preload,
+  settings syntax. The first release, 1.4.2, is below.
+- **One manual step left per device:** the devices still on 1.4.1 have no working updater; each needs
+  1.4.2 installed once (Windows: `Danfosal-App-Setup-1.4.2.exe`; Android: `Danfosal-App-1.4.2.apk`,
+  same signing key, so it installs over the old app). From then on they update themselves.
 
 #### **77. KÄRCHER'S "ORDER CONFIRMATION" FILED AND READ; A PART PAYMENT AGAINST AN ORDER LEAVES THE REST OPEN** — ✅ **LIVE (November 18, 2026)**
 

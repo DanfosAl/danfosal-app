@@ -1,7 +1,6 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const https = require('https');
 const fs = require('fs');
 const { runAutopilot } = require('./autopilot-runner');
 
@@ -39,62 +38,43 @@ function createWindow() {
   mainWindow.loadFile('www/index.html');
 }
 
-// Manual Update Check from Web App
-async function checkForWebUpdates() {
-  const updateUrl = 'https://firebasestorage.googleapis.com/v0/b/danfosal-app.appspot.com/o/updates%2Fupdate-manifest.json?alt=media';
-  
-  return new Promise((resolve) => {
-    https.get(updateUrl, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        try {
-          const manifest = JSON.parse(data);
-          const currentVersion = app.getVersion();
-          
-          // Check if windows update info exists
-          if (!manifest.windows || !manifest.windows.version) {
-            console.log('No windows update info found');
-            resolve(null);
-            return;
-          }
-          
-          const latestVersion = manifest.windows.version;
-          
-          if (compareVersions(latestVersion, currentVersion) > 0) {
-            resolve(manifest.windows);
-          } else {
-            resolve(null);
-          }
-        } catch (error) {
-          console.error('Update check error:', error);
-          resolve(null);
-        }
-      });
-    }).on('error', (error) => {
-      console.error('Update check error:', error);
-      resolve(null);
-    });
+// Updates (Finding #78): the installed app updates itself from GitHub Releases (DanfosAl/danfosal-app,
+// published by tools/release/release.mjs). electron-updater reads resources/app-update.yml, which
+// electron-builder writes from build.publish; it checks shortly after start and every 4 hours,
+// downloads only the changed blocks in the background (the .blockmap beside the installer), and
+// installs when the app closes - or at once if the owner picks Restart now.
+const UPDATE_EVERY = 4 * 60 * 60 * 1000;
+let updateState = { status: 'idle' };
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.on('update-available', info => { updateState = { status: 'downloading', version: info.version }; });
+autoUpdater.on('update-not-available', () => { updateState = { status: 'latest', current: app.getVersion() }; });
+autoUpdater.on('error', err => {
+  updateState = { status: 'error', error: String((err && err.message) || err).split(/\r?\n/)[0].slice(0, 200) };
+  console.error('Update error:', err);
+});
+autoUpdater.on('update-downloaded', async info => {
+  updateState = { status: 'ready', version: info.version };
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const r = await dialog.showMessageBox(mainWindow, {
+    type: 'info', title: 'Update ready', message: `Danfosal App ${info.version} is ready`,
+    detail: 'Restart now to use it, or it installs itself when you close the app.',
+    buttons: ['Restart now', 'Later'], defaultId: 0, cancelId: 1
   });
+  if (r.response === 0) autoUpdater.quitAndInstall(true, true);
+});
+
+function checkForUpdates() {
+  if (!app.isPackaged) return Promise.resolve(null);       // running from the source folder
+  if (['downloading', 'ready'].includes(updateState.status)) return Promise.resolve(null);
+  return autoUpdater.checkForUpdates().catch(err => { console.error('Update check failed:', err && err.message); return null; });
 }
 
-function compareVersions(v1, v2) {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-  
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const p1 = parts1[i] || 0;
-    const p2 = parts2[i] || 0;
-    if (p1 > p2) return 1;
-    if (p1 < p2) return -1;
-  }
-  return 0;
-}
-
-// Manual update check from web app
+// Settings > Check for updates.
 ipcMain.handle('check-for-updates', async () => {
-  const updateInfo = await checkForWebUpdates();
-  return updateInfo;
+  if (!app.isPackaged) return { status: 'dev', current: app.getVersion() };
+  await checkForUpdates();
+  return { current: app.getVersion(), ...updateState };
 });
 
 // Save the current page as a PDF (Insights > Export PDF, Stock > Prices > EasyPOS price list). The
@@ -215,104 +195,13 @@ ipcMain.handle('fetch-url', async (event, url) => {
   });
 });
 
-ipcMain.handle('download-update', async (event, updateInfo) => {
-  const result = await dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Available',
-    message: `Version ${updateInfo.version} is available!`,
-    detail: updateInfo.releaseNotes,
-    buttons: ['Download & Install', 'Later']
-  });
-  
-  if (result.response === 0) {
-    // User clicked "Download & Install"
-    require('electron').shell.openExternal(updateInfo.url);
-  }
-});
-
-// Auto Updater Events (fallback for electron-updater if configured)
-autoUpdater.on('checking-for-update', () => {
-  console.log('Checking for updates...');
-});
-
-autoUpdater.on('update-available', (info) => {
-  console.log('Update available:', info.version);
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Available',
-    message: `A new version (${info.version}) is available!`,
-    detail: 'The update will be downloaded in the background.',
-    buttons: ['OK']
-  });
-});
-
-autoUpdater.on('update-not-available', (info) => {
-  console.log('Up to date. Current version:', info.version);
-});
-
-autoUpdater.on('error', (err) => {
-  console.error('Update error:', err);
-});
-
-autoUpdater.on('download-progress', (progressObj) => {
-  let log_message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`;
-  console.log(log_message);
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-  console.log('Update downloaded:', info.version);
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Ready',
-    message: 'A new version has been downloaded!',
-    detail: 'The application will restart to apply the update.',
-    buttons: ['Restart Now', 'Later']
-  }).then((result) => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall(false, true);
-    }
-  });
-});
-
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
 
-  // Check for updates after 3 seconds (web-based update check)
-  setTimeout(async () => {
-    const updateInfo = await checkForWebUpdates();
-    if (updateInfo && mainWindow) {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `Version ${updateInfo.version} is available!`,
-        detail: updateInfo.releaseNotes,
-        buttons: ['Download', 'Later']
-      });
-      
-      if (result.response === 0) {
-        require('electron').shell.openExternal(updateInfo.url);
-      }
-    }
-  }, 3000);
-
-  // Check for updates every hour
-  setInterval(async () => {
-    const updateInfo = await checkForWebUpdates();
-    if (updateInfo && mainWindow) {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `Version ${updateInfo.version} is available!`,
-        detail: updateInfo.releaseNotes,
-        buttons: ['Download', 'Later']
-      });
-      
-      if (result.response === 0) {
-        require('electron').shell.openExternal(updateInfo.url);
-      }
-    }
-  }, 60 * 60 * 1000);
+  // Updates: a first check once the window is up, then every 4 hours.
+  setTimeout(checkForUpdates, 10 * 1000);
+  setInterval(checkForUpdates, UPDATE_EVERY);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

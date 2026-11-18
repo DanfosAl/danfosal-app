@@ -9,6 +9,7 @@ import { esc, eur, int, icon, plural, ago, day, fold, money2, toast, openModal }
 import { saleInvoiceNumber, shortInvoice, saleTime, orderTime, orderTotal, customerDirectory, lookalikeCustomers, VAT, productNetCost,
     MONTHLY_TARGET_DEFAULT } from './data.js';
 import { pricingBasis } from './pricing.js';
+import { checkNow, runningVersion } from './updates.js';
 
 const store = {
     get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
@@ -16,6 +17,8 @@ const store = {
 };
 
 // ================================================================== general
+
+const isPhone = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 
 function renderGeneral(ctx) {
     ctx.setSub('Preferences for this computer, and lists you have built up');
@@ -29,8 +32,8 @@ function renderGeneral(ctx) {
                 <label class="check"><input type="checkbox" id="st-notif"${store.get('notificationsEnabled', 'true') !== 'false' ? ' checked' : ''}><span><b style="font-weight:500">Pop-up when a sale arrives</b><br><span class="empty" style="padding:0">A desktop notification for every new EasyPOS receipt.</span></span></label>
                 <label class="check"><input type="checkbox" id="st-sound"${store.get('notificationSound', 'true') !== 'false' ? ' checked' : ''}><span><b style="font-weight:500">With a sound</b></span></label>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                    <button class="btn" type="button" id="st-update"${window.electronAPI?.checkForUpdates ? '' : ' disabled'}>${icon('system_update')}Check for updates</button>
-                    <span class="muted" id="st-update-msg" style="font-size:12.5px">${window.electronAPI ? 'Danfosal App, desktop' : 'Web version: updates arrive when Hosting is deployed'}</span>
+                    <button class="btn" type="button" id="st-update"${window.electronAPI?.checkForUpdates || isPhone() ? '' : ' disabled'}>${icon('system_update')}Check for updates</button>
+                    <span class="muted" id="st-update-msg" style="font-size:12.5px">${window.electronAPI ? 'Desktop app: updates install themselves' : isPhone() ? 'Phone app: updates install themselves' : 'Web version: updates arrive when Hosting is deployed'}</span>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
                     <span class="muted" style="font-size:12.5px;flex:1">${icon('lock')} Signed in on this device as <b style="font-weight:500">${esc(auth.currentUser?.email || '?')}</b>. It stays signed in until you sign out.</span>
@@ -74,10 +77,24 @@ function renderGeneral(ctx) {
         if (!await openModal({ title: 'Sign out on this device?', confirmLabel: 'Sign out', body: '<p>The app will ask for your email and password the next time it opens here. Your other devices stay signed in.</p>' })) return;
         await signOut();
     });
+    runningVersion().then(v => { const m = $('#st-update-msg'); if (v && m && !m.dataset.done) m.textContent = `Version ${v} · ${m.textContent}`; });
+    // Desktop: electron-updater (main.js); phone: updates.js. Both download in the background.
     $('#st-update').addEventListener('click', async () => {
-        const msg = $('#st-update-msg'); msg.textContent = 'Checking…';
-        try { const info = await window.electronAPI.checkForUpdates(); msg.textContent = info && info.version ? `Version ${info.version} is available.` : 'You have the latest version.'; }
-        catch (e) { msg.textContent = `Couldn't check: ${e.message}`; }
+        const msg = $('#st-update-msg'); msg.dataset.done = '1'; msg.textContent = 'Checking…';
+        try {
+            const r = window.electronAPI ? await window.electronAPI.checkForUpdates() : await checkNow({ asked: true });
+            const v = r.version || r.latest || '';
+            msg.textContent = {
+                latest: `You have the latest version${r.current || r.mine ? ` (${r.current || r.mine})` : ''}.`,
+                downloading: `Version ${v} found: downloading in the background. It installs when you close the app.`,
+                ready: `Version ${v} is downloaded: it installs when you close the app.`,
+                'next-start': `Version ${v} is downloaded: it is used the next time you open the app.`,
+                'needs-apk': `Version ${v} needs a new install: tap Install in the bar below.`,
+                offline: 'Couldn’t reach the update server. Check the internet connection.',
+                dev: 'Running from the source folder: no updates here.',
+                error: `Couldn’t check: ${r.error || 'unknown error'}`
+            }[r.status] || 'You have the latest version.';
+        } catch (e) { msg.textContent = `Couldn’t check: ${e.message}`; }
     });
     ctx.body.querySelectorAll('[data-svc]').forEach(b => b.addEventListener('click', async () => {
         if (!await openModal({ title: `“${b.dataset.svc}” is not a service?`, confirmLabel: 'Remove from services', body: '<p>Future receipts with this name will show up in Link receipt items again. Sale lines already marked keep their mark.</p>' })) return;

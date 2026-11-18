@@ -1,8 +1,24 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.1  
+**Version:** 1.4.2  
 **Last Updated:** November 18, 2026
+
+---
+
+## [Released] - 2026-11-18 - Every device updates itself (version 1.4.2)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #78.
+
+### Added
+- Desktop app: updates itself from GitHub Releases (checks at start and every 4 hours, downloads only what changed, installs on close or Restart now)
+- Phone app: new screens download in the background and are used from the next start; a release that needs a new APK shows an Install bar
+- Settings: the version, and Check for updates on desktop and phone
+- tools/release/release.mjs: one command builds and publishes a release to every device
+
+### Changed
+- Every release now has its own version (1.4.2 is the first); the installer is named Danfosal-App-Setup-<version>.exe
+- Android: compiled against SDK 35; needs Android 6.0 or newer
 
 ---
 

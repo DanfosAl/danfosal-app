@@ -1,0 +1,11 @@
+{
+  "version": "1.4.2",
+  "date": "2026-11-18",
+  "notes": "Every device updates itself",
+  "minNative": "1.4.2",
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.2/Danfosal-App-1.4.2.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.2/danfosal-www-1.4.2.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.2/Danfosal-App-Setup-1.4.2.exe",
+  "bundleSha256": "5a6a790f526f22ad0b5847b8edec3003831644bb94ec3e1c21d92c798e658040",
+  "bundleBytes": 377921
+}

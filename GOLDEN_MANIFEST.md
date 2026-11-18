@@ -927,6 +927,9 @@ bank payment beside them was filed, the two Kärcher papers were not.
   catalogue). `buildPurchasing` on the live papers is identical with the old and the new code; with
   a made-up invoice for the part-paid order added in memory, the invoice is *part* and the account
   shows the rest open (the old code: prepaid, nothing open).
+- **Released 18 Nov 2026** (commit 144ce80): filing and reading worked at once (the autopilot runs
+  from the repository); Stock › Purchases' part payments on the desktop (reinstalled, `app.asar`
+  identical to the build), Hosting (served files equal to local), the Android APK and Danfos HQ.
 
 #### **76. E-INVOICES MADE IN EASYPOS GO INTO SALES; THE IMPORT READER'S CRASH FIXED** — ✅ **LIVE (November 17, 2026)**
 
@@ -961,6 +964,10 @@ pressed *Check Downloads now*, and the sale never reached Sales.
   from the previous day's till receipt and written onto that sale, as the bridge now does itself.
 - **Note:** the bridge change takes effect when the bridge restarts (DanfosalStartup.bat restarts a
   bridge older than its file at the next start of the PC).
+- **Released 18 Nov 2026** (commit 144ce80, with Finding #77): the Paper Autopilot runs from the
+  repository, so the import worked from the day; desktop rebuilt and reinstalled (installed
+  `app.asar` identical to the build) for the reader fix, Hosting deployed (files served live equal
+  to local), Android debug APK built after `cap sync`, Danfos HQ's app copies refreshed.
 
 ---
 

@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.2 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78)  
+**Application Version:** 1.4.3 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **79. STOCK › NEXT ORDER: ONE PROPOSAL FOR THE NEXT KÄRCHER ORDER, READY FOR THE PORTAL; KÄRCHER'S DELIVERY DATES ON EVERY LINE** — ✅ **BUILT AND TESTED (November 18, 2026); not released yet**
+#### **79. STOCK › NEXT ORDER: ONE PROPOSAL FOR THE NEXT KÄRCHER ORDER, READY FOR THE PORTAL; KÄRCHER'S DELIVERY DATES ON EVERY LINE** — ✅ **LIVE (November 18, 2026, version 1.4.3)**
 
 From the deep dive of 18 Nov 2026 the owner chose two things only: deciding what to order from
 Kärcher, and entering it (their words: deciding and entering the order are among the slowest
@@ -942,6 +942,10 @@ material numbers.
   read-only on the live data in Node (16 Kärcher lines, every one with a material number); the
   screen in a stubbed preview with made-up data (proposal, quantities and ticks updating the totals,
   put on the list, ready for the portal, placed, the order-list chips, Today's line, phone width).
+- **Released as 1.4.3** the same day (`tools/release/release.mjs`): GitHub release v1.4.3 with the
+  installer, blockmap, latest.yml, APK and screens zip; Hosting serves the new manifest and screen;
+  installed on the shop PC (archive identical to the build); Danfos HQ refreshed. Devices on 1.4.2
+  update themselves (desktop within 4 hours or at the next start, phones at the next start).
 - **Not done (owner's choice):** the other ideas of the deep dive (clearance, arrival in one step,
   month-end, Garanci merge) wait.
 

@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.2  
+**Version:** 1.4.3  
 **Last Updated:** November 18, 2026
 
 ---
 
-## [Unreleased] - 2026-11-18 - Stock › Next order: one proposal for the next Kärcher order, ready for the portal
+## [Released] - 2026-11-18 - Stock › Next order: one proposal for the next Kärcher order, Excel for the order page (version 1.4.3)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #79.
 

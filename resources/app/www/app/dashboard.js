@@ -209,7 +209,7 @@ function stock_page(ds, ctx) {
                 <div id="clr-table"></div>
             </section>
             ${card({ id: 'demand', title: 'What people ask for vs what’s on the shelf', wide: true,
-                note: 'Kärcher models named in Instagram chatbot questions, with your stock and sales. A model that is out of stock can’t sell, so the “runs out” list never shows it; this list does, and so does <a href="stock.html#reorder">Stock › Reorder</a>.',
+                note: 'Kärcher models named in Instagram chatbot questions, with your stock and sales. A model that is out of stock can’t sell, so the “runs out” list never shows it; this list does, and so does <a href="stock.html#reorder">Stock › Next order</a>.',
                 body: table(ds.demand_stock, [
                     { h: 'Model', f: 'model' }, { h: 'Questions', f: 'questions', num: true, fmt: int, bar: true }, { h: 'Last 6 months', f: 'questions_6m', num: true, fmt: int },
                     { h: 'In stock', f: 'in_stock', num: true, fmt: int }, { h: 'Sold 12m', f: 'units_12m', num: true, fmt: int },
@@ -227,7 +227,7 @@ function stock_page(ds, ctx) {
                     { h: 'Margin then', f: 'margin_then', num: true, fmt: pctF }, { h: 'Margin now', f: 'margin_now', num: true, fmt: pctF }, { h: 'Sold 12m', f: 'units_12m', num: true, fmt: int }],
                 { maxH: 420, href: productHref, empty: 'No product has been invoiced at two different costs yet.' }) })}
             ${card({ id: 'reorder', title: 'Running out',
-                note: `Products selling fast enough (2+ units in 90 days) to run out before a Kärcher restock arrives, about 6 weeks. ${ds.out_of_stock_wanted.length ? `${esc(plural(ds.out_of_stock_wanted.length, 'best seller is', 'best sellers are'))} already out of stock: see <a href="stock.html#reorder">Stock › Reorder</a>.` : ''}`,
+                note: `Products selling fast enough (2+ units in 90 days) to run out before a Kärcher restock arrives, about 6 weeks. ${ds.out_of_stock_wanted.length ? `${esc(plural(ds.out_of_stock_wanted.length, 'best seller is', 'best sellers are'))} already out of stock: see <a href="stock.html#reorder">Stock › Next order</a>.` : ''}`,
                 body: table(ds.reorder, [
                     { h: 'Product', f: 'product' }, { h: 'Code', f: 'code', cls: 'muted' }, { h: 'In stock', f: 'in_stock', num: true, fmt: int },
                     { h: 'Sold 90d', f: 'sold_90d', num: true, fmt: int }, { h: 'Days left', f: 'days_left', num: true, fmt: v => (v <= 0 ? 'out now' : int(Math.round(v))) }],

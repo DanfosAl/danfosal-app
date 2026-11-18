@@ -11,11 +11,11 @@ import { amount, iso } from './classify.js';
 const r2 = n => Math.round(n * 100) / 100;
 const dmy = s => { const m = String(s || '').match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/); return m ? iso(m[3], m[2], m[1]) : ''; };
 const text = lines => lines.join('\n');
-const CODE = '\\d\\.\\d{3}-\\d{3}\\.\\d';           // Kärcher material number, 1.512-600.0
+const CODE = '\\d\\.\\d{3}-\\d{3}\\.\\d';           // Kärcher material number, 1.000-001.0
 
 // ------------------------------------------------------------------ Kärcher orders
 
-// Proforma: "010 1.533-228.0 1.00 0.00 5,842.02 4,790.46" (ordered, confirmed, unit price, line
+// Proforma: "010 1.000-004.0 1.00 0.00 2,000.00 1,700.00" (ordered, confirmed, unit price, line
 // total after the contract discount), the description on the lines below it.
 export function readKarcherProforma(lines) {
     const t = text(lines);
@@ -25,11 +25,12 @@ export function readKarcherProforma(lines) {
 
 // Kärcher Zagreb's own order form, shared by the proforma and the "Order Confirmation" (an order
 // on account, "Within 30 days"). A confirmed line carries its delivery date between the
-// quantities and the price: "010 1.081-150.0 6.00 6.00 19.11.2026 207.03 1,117.96".
+// quantities and the price: "010 1.000-001.0 5.00 5.00 09.11.2026 100.00 450.00" (ordered,
+// confirmed, delivery date). A line Kärcher hasn't confirmed yet reads "... 3.00 0.00 20.00 ...".
 function karcherOrderForm(lines, source) {
     const t = text(lines);
     const m = t.match(/\b(757\d{7})\s+(\d\d)\.(\d\d)\.(\d{4})/);
-    const itemRe = new RegExp(`^(\\d{3}) (${CODE}) ([\\d.,]+) ([\\d.,]+)(?: \\S+)? ([\\d.,]+) ([\\d.,]+)$`);
+    const itemRe = new RegExp(`^(\\d{3}) (${CODE}) ([\\d.,]+) ([\\d.,]+)(?: (\\S+))? ([\\d.,]+) ([\\d.,]+)$`);
     const items = [];
     lines.forEach((l, i) => {
         const x = l.match(itemRe); if (!x) return;
@@ -38,8 +39,9 @@ function karcherOrderForm(lines, source) {
             if (itemRe.test(lines[j]) || /^(EAN|Statistic number|Country of origin|Contract discount|Rounding difference|Pri pla|Order No\.|Carriage|Kupac|_{3,}|K[aä]rcher d\.o\.o\.,)/.test(lines[j])) break;
             name.push(lines[j]);
         }
-        const qty = amount(x[3]), total = amount(x[6]);
-        items.push({ pos: x[1], code: x[2], name: name.join(' ').replace(/\s*\+\s*/g, '+').trim(), qty, unitPrice: amount(x[5]), total, unitCost: qty ? r2(total / qty) : 0 });
+        const qty = amount(x[3]), total = amount(x[7]);
+        items.push({ pos: x[1], code: x[2], name: name.join(' ').replace(/\s*\+\s*/g, '+').trim(), qty, unitPrice: amount(x[6]), total, unitCost: qty ? r2(total / qty) : 0,
+            confirmed: amount(x[4]) || 0, deliveryDate: dmy(x[5]) });
     });
     const net = amount((lines[lines.findIndex(l => /Net Amount/.test(l)) + 1] || '').split(/\s+/)[0]);
     const cash = t.match(/with ([\d.,]+) ?% cash discount\s+([\d.,]+)/);
@@ -50,7 +52,7 @@ function karcherOrderForm(lines, source) {
 }
 
 // Order confirmation: Kärcher Zagreb's "Order Confirmation" form (above), or the Kärcher portal's
-// summary: "000010 1.512-600.0 SC 2 EasyFix *EU 24 2,004.96 EUR".
+// summary: "000010 1.000-001.0 K 9 Test *EU 2 900.00 EUR".
 export function readKarcherOrderConfirmation(lines) {
     const t = text(lines);
     if (/^Order Confirmation\b/m.test(t) && /k[aä]rcher d\.o\.o\./i.test(t)) return karcherOrderForm(lines, 'confirmation');

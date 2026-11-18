@@ -6,6 +6,20 @@
 
 ---
 
+## [Unreleased] - 2026-11-18 - Stock › Next order: one proposal for the next Kärcher order, ready for the portal
+
+Full details are in GOLDEN_MANIFEST.md, Finding #79.
+
+### Added
+- Stock › Next order (replaces Reorder, same address): one proposal from what runs out within the 6-week restock, what is out of stock but sold or asked for, and the yearly plan at its real pace, less what is on the shelf and the order list; quantities to change, lines to untick, products to add; the total at Kärcher's prices and the cash it takes with customs
+- One click puts the proposal on the order list; those lines download as an Excel file (Name, SKU, Quantity) to type into Kärcher's order page, and can be marked as placed
+- Kärcher's order confirmation: the delivery date per line is read and shown on the order list ("due 19 Nov", "was due", "not confirmed yet") and on Today ("lines from Kärcher due this week")
+
+### Changed
+- Paper Autopilot: a filed Kärcher order gives its number to the lines already planned for those products instead of adding a second line; `--reread-orders` re-reads the order papers already filed
+
+---
+
 ## [Released] - 2026-11-18 - Every device updates itself (version 1.4.2)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #78.

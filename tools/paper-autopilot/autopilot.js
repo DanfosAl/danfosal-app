@@ -13,6 +13,8 @@
 //   --sync                             put the filed purchase papers into the app (purchaseDocs),
 //                                      and new orders onto the order list (the sweep does this too)
 //   --resync                           the same, re-reading every paper (after a reader improved)
+//   --reread-orders                    re-read only the filed Kärcher order papers (delivery dates);
+//                                      the order list is left as it is
 //
 // Options: --source <folder> (default Downloads), --dest <folder> (default E:\Danfos Papers),
 // --out <folder> for plans, reports and journals, --settle <minutes> (sweep only, 15).
@@ -33,7 +35,7 @@ import { importSales } from './sales-import.js';
 // The owner's choice (26 Sep 2026): the E: drive, not Documents, which Windows syncs to OneDrive.
 const { values: opt, positionals } = parseArgs({ allowPositionals: true, options: {
     apply: { type: 'boolean' }, undo: { type: 'boolean' }, sweep: { type: 'boolean' }, now: { type: 'boolean' },
-    weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' }, 'no-sync': { type: 'boolean' },
+    weekly: { type: 'boolean' }, shortcuts: { type: 'boolean' }, sync: { type: 'boolean' }, resync: { type: 'boolean' }, 'reread-orders': { type: 'boolean' }, 'no-sync': { type: 'boolean' },
     sales: { type: 'boolean' }, dry: { type: 'boolean' }, include: { type: 'string', multiple: true },
     source: { type: 'string', default: join(homedir(), 'Downloads') },
     dest: { type: 'string', default: 'E:\\Danfos Papers' },
@@ -131,9 +133,9 @@ if (opt.apply) {
     const r = await importSales({ dest: opt.dest, out: opt.out, dry: !!opt.dry, log: say, include: opt.include || [] });
     say(JSON.stringify(r, null, 1));
 
-} else if (opt.sync || opt.resync) {
+} else if (opt.sync || opt.resync || opt['reread-orders']) {
     // ------------------------------------------------------------ purchase papers to the app
-    const r = await syncPurchases({ dest: opt.dest, downloads: opt.source, out: opt.out, resync: !!opt.resync, log: say });
+    const r = await syncPurchases({ dest: opt.dest, downloads: opt.source, out: opt.out, resync: !!opt.resync, rereadOrders: !!opt['reread-orders'], log: say });
     say(`Synced ${r.synced} purchase papers ${JSON.stringify(r.byKind)}; ${r.orderLines} order-list lines added.`);
 
 } else if (opt.shortcuts) {

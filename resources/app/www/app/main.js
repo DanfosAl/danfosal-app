@@ -4,14 +4,18 @@ import { loadAll, analyze, saleTime } from './data.js';
 import { planAttention } from './planmodel.js';
 import { renderToday, renderLoading, renderError } from './today.js';
 import { db } from './firebase.js';
+import { loadExtras } from './dashboard-data.js';
+import { deliveryDates, arrivingSoon } from './purchasing.js';
 
 const content = mountShell({ active: 'today' });
 let model = null;
+let purchaseDocs = [];   // for Kärcher's confirmed delivery dates
 let loading = false;
 
 function paint() {
     const a = analyze(model);
     a.plan = planAttention(model, a.now);   // products off this year's purchase plan
+    a.arriving = arrivingSoon(model.orderLines, deliveryDates(purchaseDocs), a.now);   // Kärcher lines due this week
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
     setPipelineStatus(a.lastEasypos, a.now);
@@ -23,7 +27,9 @@ async function refresh({ quiet = false } = {}) {
     loading = true;
     if (!quiet || !model) renderLoading(content);
     try {
-        model = await loadAll();
+        const [m, x] = await Promise.all([loadAll(), loadExtras(['purchaseDocs']).catch(() => ({}))]);
+        model = m;
+        purchaseDocs = x.purchaseDocs || purchaseDocs;
         setSearchData(model);
         paint();
     } catch (error) {

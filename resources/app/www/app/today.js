@@ -26,7 +26,7 @@ export function needsYou(a) {
         const names = a.reorder.slice(0, 3).map(r => r.product.name).join(', ');
         items.push({ sev: 'crit', title: `${plural(a.reorder.length, 'product runs', 'products run')} out before a restock could arrive`,
             why: `Based on the last ${SALES_WINDOW_DAYS} days of sales and a ${RESTOCK_DAYS / 7}-week restock: ${names}${a.reorder.length > 3 ? '…' : ''}.`,
-            action: ['Reorder', 'stock.html#reorder'] });
+            action: ['Next order', 'stock.html#reorder'] });
     }
     const quietHours = a.lastEasypos ? (a.now - a.lastEasypos) / 3600000 : Infinity;
     if (quietHours >= 96) {
@@ -88,6 +88,16 @@ export function needsYou(a) {
         items.push({ sev: 'crit', title: `${plural(a.botMissing.length, 'Instagram order', 'Instagram orders')} the chatbot took ${a.botMissing.length === 1 ? 'is' : 'are'} not in the app`,
             why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
             action: ['Open Instagram', 'sell.html#leads'] });
+    }
+    // Kärcher's confirmation says when each ordered line arrives (Stock › Next order, Finding #79).
+    if (a.arriving && a.arriving.length) {
+        const byDay = new Map();
+        a.arriving.forEach(x => { if (!byDay.has(x.date)) byDay.set(x.date, []); byDay.get(x.date).push(x); });
+        const late = a.arriving.filter(x => x.late).length;
+        const when = iso => day(new Date(iso + 'T12:00').getTime());
+        items.push({ sev: late ? 'warn' : 'info', title: `${plural(a.arriving.length, 'line', 'lines')} from Kärcher due ${late === a.arriving.length ? 'already' : 'this week'}${late && late < a.arriving.length ? `, ${late} overdue` : ''}`,
+            why: [...byDay].map(([d, list]) => `${list[0].late ? 'was due ' : ''}${when(d)}: ${list.slice(0, 3).map(x => `${x.name} ×${x.qty}`).join(', ')}${list.length > 3 ? ` and ${list.length - 3} more` : ''}`).join(' · ') + '.',
+            action: ['Order list', 'stock.html#orders'] });
     }
     if (a.openOrders.length) {
         const oldest = a.openOrders[0];

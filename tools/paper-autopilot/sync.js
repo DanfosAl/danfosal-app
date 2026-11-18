@@ -10,6 +10,8 @@
 // waiting and, once paid, prepaid. Older orders are left for the owner to add from Purchases.
 // A warranty claim with goods coming back (a replacement machine, repair parts) goes on too,
 // at cost 0 and marked as a claim: the owner counts those as waiting as well (26 Sep 2026).
+// A line the owner already put on the list for that product (Stock › Next order, or by hand) is
+// the same thing ordered: it gets the order number instead of a second line beside it.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, relative } from 'node:path';
@@ -34,7 +36,9 @@ const clean = o => JSON.parse(JSON.stringify(o));      // Firestore refuses unde
 
 // resync: read every paper again and rewrite its record (after a reader got better). Records are
 // keyed by the file's hash, so this overwrites, never duplicates.
-export async function syncPurchases({ dest, downloads, out, resync = false, log = () => {} }) {
+// rereadOrders: read only the Kärcher order papers again (the delivery dates, 18 Nov 2026), and
+// leave the order list alone - those orders are on it already, or were dealt with by the owner.
+export async function syncPurchases({ dest, downloads, out, resync = false, rereadOrders = false, log = () => {} }) {
     const statePath = join(out, 'purchases-sync.json');
     let state = { synced: {} };
     try { if (!resync) state = JSON.parse(readFileSync(statePath, 'utf8')); } catch { }
@@ -44,7 +48,7 @@ export async function syncPurchases({ dest, downloads, out, resync = false, log 
 
     // 1. The papers not synced yet.
     const jobs = [];
-    for (const [place, pick] of PLACES) for (const f of walk(join(dest, place)).filter(f => /\.pdf$/i.test(f))) jobs.push({ f, read: pick(f) });
+    for (const [place, pick] of PLACES) for (const f of walk(join(dest, place)).filter(f => /\.pdf$/i.test(f))) jobs.push({ f, read: pick(f), again: rereadOrders && place === 'Kärcher/Orders' });
     const statements = [...walk(join(dest, 'Kärcher/Statements')), ...readdirSync(downloads).map(n => join(downloads, n))]
         .filter(f => /\.xlsx$/i.test(f) && /balance|statement|kartel/i.test(f));
     const fresh = [];
@@ -52,7 +56,7 @@ export async function syncPurchases({ dest, downloads, out, resync = false, log 
         if (!job.statement && !job.read) continue;
         const hash = await sha256(job.f);
         const where = job.f.startsWith(dest) ? relative(dest, job.f) : job.f;
-        if (state.synced[hash]) {
+        if (state.synced[hash] && !job.again) {
             // Same paper, new place (the statement filed out of Downloads): keep its location current.
             const was = state.synced[hash];
             if (was.kind !== 'none' && was.file !== where) {
@@ -78,8 +82,19 @@ export async function syncPurchases({ dest, downloads, out, resync = false, log 
     writeFileSync(statePath, JSON.stringify(state));
 
     // 2. New orders onto the order list.
-    const added = await orderLinesFor(db, fresh.filter(r => r.kind === 'order'), log);
+    const added = rereadOrders ? 0 : await orderLinesFor(db, fresh.filter(r => r.kind === 'order'), log);
     return { synced: fresh.length, byKind: fresh.reduce((m, r) => (m[r.kind] = (m[r.kind] || 0) + 1, m), {}), orderLines: added };
+}
+
+const norm = c => String(c || '').replace(/[.\-\s]/g, '');
+const nameKey = s => String(s || '').trim().toLowerCase();
+
+// The waiting line already on the list for this product and not tied to an order yet: put there
+// by Stock › Next order (or by hand), and now actually ordered. Matched by material number, else
+// by the product it was planned for.
+export function plannedLineFor(planned, item, product) {
+    return planned.findIndex(l => (l.code && norm(l.code) === norm(item.code))
+        || (product && (l.productId === product._id || nameKey(l.name) === nameKey(product.name))));
 }
 
 async function orderLinesFor(db, orders, log) {
@@ -87,24 +102,37 @@ async function orderLinesFor(db, orders, log) {
     const cutoff = new Date(Date.now() - NEW_ORDER_DAYS * 86400000).toISOString().slice(0, 10);
     const all = (await db.collection('purchaseDocs').get()).docs.map(d => d.data());
     const invoicedOrders = new Set(all.flatMap(d => d.kind === 'invoice' ? d.orderNos || [] : d.kind === 'statement' ? (d.lines || []).filter(l => l.type === 'RV').map(l => l.orderNo) : []));
-    const onList = new Set((await db.collection('toOrder').get()).docs.map(d => d.data().orderNo).filter(Boolean));
+    const listDocs = (await db.collection('toOrder').get()).docs;
+    const onList = new Set(listDocs.map(d => d.data().orderNo).filter(Boolean));
+    const planned = listDocs.map(d => ({ ref: d.ref, ...d.data() }))
+        .filter(l => !l.orderNo && /k[aä]rcher/i.test(l.supplier || '') && (Number(l.quantity) || 0) > (Number(l.quantityReceived) || 0));
     const products = (await db.collection('products').get()).docs.map(d => ({ _id: d.id, ...d.data() }));
-    const norm = c => String(c || '').replace(/[.\-\s]/g, '');
     let added = 0;
     const seen = new Set();
     for (const o of orders.filter(o => o.orderNo && o.date >= cutoff && o.items.length).sort((a, b) => b.items.length - a.items.length)) {
         if (seen.has(o.orderNo) || onList.has(o.orderNo) || invoicedOrders.has(o.orderNo)) continue;
         seen.add(o.orderNo);
         const batch = db.batch();
+        let tied = 0;
         for (const it of o.items) {
             const p = products.find(x => x.code && norm(x.code) === norm(it.code));
+            const cost = Math.round(it.total * 100) / 100;
+            const i = o.source === 'warranty' ? -1 : plannedLineFor(planned, it, p);
+            if (i >= 0) {
+                // What Kärcher took is what counts: the quantity becomes the ordered one.
+                const l = planned.splice(i, 1)[0];
+                batch.update(l.ref, clean({ code: it.code, quantity: (Number(l.quantityReceived) || 0) + it.qty, estimatedCost: cost, orderNo: o.orderNo,
+                    orderSource: o.source, productId: p ? p._id : l.productId || null, orderedAt: Date.now() }));
+                tied++;
+                continue;
+            }
             batch.set(db.collection('toOrder').doc(), clean({ name: p ? p.name : it.name, code: it.code, quantity: it.qty, supplier: 'Karcher', quantityReceived: 0,
-                smartSuggestion: false, estimatedCost: Math.round(it.total * 100) / 100, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.source, productId: p ? p._id : null,
+                smartSuggestion: false, estimatedCost: cost, addedAt: Date.now(), orderNo: o.orderNo, orderSource: o.source, productId: p ? p._id : null,
                 ...(o.source === 'warranty' ? { reason: `Warranty claim ${o.orderNo}${o.machine ? ` (${o.machine.name}, S/N ${o.machine.serial})` : ''}` } : {}) }));
             added++;
         }
         await batch.commit();
-        log(`  ${o.source === 'warranty' ? 'warranty claim' : 'order'} ${o.orderNo} (${o.date}) put on the order list: ${o.items.length} line(s)`);
+        log(`  ${o.source === 'warranty' ? 'warranty claim' : 'order'} ${o.orderNo} (${o.date}) put on the order list: ${o.items.length} line(s)${tied ? `, ${tied} of them already planned there` : ''}`);
     }
     return added;
 }

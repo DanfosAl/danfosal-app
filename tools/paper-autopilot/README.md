@@ -148,11 +148,12 @@ ignores `.lnk` files.
 
 `node autopilot.js --sync` (and every weekly sweep, after filing) reads the purchasing papers in
 the archive and writes what each says to Firestore **`purchaseDocs`**, one document per paper,
-keyed by the file's SHA-256 (`--resync` re-reads them all after a reader improves):
+keyed by the file's SHA-256 (`--resync` re-reads them all after a reader improves;
+`--reread-orders` re-reads only the Kärcher order papers and leaves the order list alone):
 
 | Paper | Read by (`purchase-read.js`) | What it gives |
 |---|---|---|
-| Kärcher proforma / order confirmation | `readKarcherProforma`, `readKarcherOrderConfirmation` (Kärcher Zagreb's "Order Confirmation" form - the proforma's form for an order on account - or the portal's "Your Order Summary") | order number, lines, total, cash-discount price |
+| Kärcher proforma / order confirmation | `readKarcherProforma`, `readKarcherOrderConfirmation` (Kärcher Zagreb's "Order Confirmation" form - the proforma's form for an order on account - or the portal's "Your Order Summary") | order number, lines, total, cash-discount price; on Zagreb's confirmation, per line how many Kärcher confirmed and the delivery date |
 | Kärcher invoice | `readKarcherInvoice` (on the app's `parseKarcher`) | order number(s), delivery note, lines with origin, EU preference and serials |
 | Kärcher credit note | `readKarcherCreditNote` | the invoices it refunds (usually the 3% cash discount) |
 | Kärcher warranty claim ("Gewa") | `readKarcherWarrantyClaim` | the claim as an order: the replacement machine or parts coming back, and the labour credited |
@@ -163,7 +164,11 @@ keyed by the file's SHA-256 (`--resync` re-reads them all after a reader improve
 The app links them in `resources/app/www/app/purchasing.js` and shows them in **Stock ›
 Purchases**. A new order (under 60 days old, nothing invoiced) also goes onto the order list with
 its order number, and so does a new warranty claim with goods coming back (at cost 0, marked as
-a claim). Wages, rent and tax payments are not read, nor the customer named on a claim.
+a claim). A line already on the list for the same product and not tied to an order yet - put
+there by Stock › Next order, or by hand - gets the order number and the ordered quantity
+instead of a second line beside it (`plannedLineFor` in `sync.js`). The confirmation's delivery
+dates show on the order list and on Today (`deliveryDates` in `purchasing.js`). Wages, rent and
+tax payments are not read, nor the customer named on a claim.
 
 ## Sales: new e-invoices
 

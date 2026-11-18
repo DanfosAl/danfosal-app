@@ -258,6 +258,52 @@ export function claimParts(claim, inv) {
     });
 }
 
+// When Kärcher says each ordered line arrives. Zagreb's "Order Confirmation" prints, per line,
+// how many it confirmed and the delivery date ("010 1.000-001.0 5.00 5.00 09.11.2026 ..."); a line
+// not confirmed yet reads 0 with no date. Kärcher confirms again when a date moves, so the newest
+// confirmation of an order wins. The portal's own order summary carries no dates and is skipped.
+// Returns orderNo -> material number (no dots) -> {date, confirmed, ordered}.
+export const codeKey = c => String(c || '').replace(/[.\-\s]/g, '');
+export function deliveryDates(docs) {
+    const out = new Map();
+    docs.filter(d => d.kind === 'order' && d.source === 'confirmation' && d.orderNo && (d.items || []).some(i => 'confirmed' in i))
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.syncedAt || '').localeCompare(String(b.syncedAt || '')))
+        .forEach(d => {
+            const lines = new Map();
+            d.items.forEach(i => {
+                const k = codeKey(i.code); if (!k) return;
+                const was = lines.get(k);
+                // The same material twice in one order (split delivery): the first date that still
+                // brings something, and the quantities together.
+                const date = !was ? i.deliveryDate || '' : [was.date, i.deliveryDate].filter(Boolean).sort()[0] || '';
+                lines.set(k, { date, confirmed: (was?.confirmed || 0) + (Number(i.confirmed) || 0), ordered: (was?.ordered || 0) + (Number(i.qty) || 0) });
+            });
+            out.set(d.orderNo, lines);
+        });
+    return out;
+}
+// Where one order-list line stands: confirmed for a date, waiting for Kärcher's confirmation, or
+// unknown (no confirmation read, or a line not from a Kärcher order).
+export function arrivalOf(dates, line) {
+    const lines = line.orderNo && dates.get(line.orderNo);
+    if (!lines) return null;
+    const x = lines.get(codeKey(line.code));
+    if (!x) return null;
+    return x.date && x.confirmed > 0 ? { status: 'confirmed', date: x.date, confirmed: x.confirmed, ordered: x.ordered } : { status: 'unconfirmed', ordered: x.ordered };
+}
+
+// For Today: order-list lines still waiting whose confirmed date falls in the coming week, or
+// passed in the last two weeks without the delivery being received (overdue).
+export function arrivingSoon(lines, dates, now = Date.now(), { ahead = 7, behind = 14 } = {}) {
+    const iso = t => new Date(t).toISOString().slice(0, 10);
+    const from = iso(now - behind * DAY), to = iso(now + ahead * DAY), today = iso(now);
+    return (lines || []).map(l => {
+        const waiting = Math.max(0, (Number(l.quantity) || 0) - (Number(l.quantityReceived) || 0));
+        const s = waiting ? arrivalOf(dates, l) : null;
+        return s && s.status === 'confirmed' && s.date >= from && s.date <= to ? { name: l.name, code: l.code, orderNo: l.orderNo, qty: waiting, date: s.date, late: s.date < today } : null;
+    }).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date) || String(a.name).localeCompare(String(b.name)));
+}
+
 // The order-list chip: an order line created from a proforma carries orderNo.
 export function orderState(p, orderNo) {
     const o = p.orders.find(x => x.orderNo === orderNo);

@@ -1,13 +1,13 @@
 // Stock > Order list: what's been ordered (or is about to be) and what has arrived.
 //
-// Same toOrder records as the classic page and the Reorder tab: {name, quantity, supplier,
+// Same toOrder records as the classic page and Next order: {name, quantity, supplier,
 // quantityReceived, smartSuggestion, urgency, daysUntilStockout, reason, estimatedCost, addedAt}.
 // Receiving a line raises the product's stock in the same batch, as the classic page did.
 // Deliveries with an invoice go through Receive delivery, which ticks these lines off by itself.
 import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, writeBatch } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, toast, openModal } from './ui.js';
 import { DAY, SALES_WINDOW_DAYS, productNetCost, rankProducts } from './data.js';
-import { buildPurchasing, orderState } from './purchasing.js';
+import { buildPurchasing, orderState, deliveryDates, arrivalOf } from './purchasing.js';
 
 const STALE_DAYS = 60;   // an order line waiting this long has probably been forgotten
 const ol = { filter: 'waiting' };
@@ -17,6 +17,19 @@ export async function loadOrderLines() {
 }
 export const outstanding = l => Math.max(0, (Number(l.quantity) || 0) - (Number(l.quantityReceived) || 0));
 export const productForLine = (products, l) => products.find(p => p.name === l.name) || products.find(p => fold(p.name) === fold(l.name)) || null;
+
+// Where a waiting line stands: Kärcher's confirmed date ("was due" once it has passed), a line
+// Kärcher hasn't confirmed yet, or - planned in Stock › Next order - not ordered yet / placed.
+const shortDay = iso => new Date(iso + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+function lineState(l, s) {
+    if (s && s.status === 'confirmed') {
+        const late = s.date < new Date().toISOString().slice(0, 10);
+        return ` <span class="chip ${late ? 'warn' : 'ok'}" title="${esc(`Kärcher confirmed ${s.confirmed} of ${s.ordered}`)}">${late ? 'was due' : 'due'} ${esc(shortDay(s.date))}</span>`;
+    }
+    if (s) return ' <span class="chip">not confirmed yet</span>';
+    if (!l.orderNo && l.plannedIn === 'next-order') return l.sentAt ? ` <span class="chip vio">placed ${esc(day(Number(l.sentAt)))}</span>` : ' <a class="chip warn" href="#reorder">not ordered yet</a>';
+    return '';
+}
 
 export async function renderOrderList(ctx) {
     ctx.setSub('Loading the order list…');
@@ -28,12 +41,15 @@ export async function renderOrderList(ctx) {
 
     // Lines that came from a Kärcher order (Purchases, or the Paper Autopilot) carry orderNo: say
     // whether that order is paid for. The papers are only read when such a line exists.
-    let orderInfo = () => null;
+    let orderInfo = () => null, arrival = () => null;
     if (lines.some(l => l.orderNo)) {
         try {
             const docs = (await getDocs(collection(db, 'purchaseDocs'))).docs.map(d => ({ id: d.id, ...d.data() }));
             const P = buildPurchasing(docs, { products: ctx.model.products });
             orderInfo = no => orderState(P, no);
+            // Kärcher's confirmation gives each line a delivery date (Finding #79).
+            const dates = deliveryDates(docs);
+            arrival = l => arrivalOf(dates, l);
         } catch { /* the chip is a nicety; the list works without it */ }
         if (ctx.tab !== 'orders') return;
     }
@@ -75,9 +91,9 @@ export async function renderOrderList(ctx) {
         <div id="ol-list" style="display:flex;flex-direction:column;gap:16px">${shown.length ? [...bySupplier].map(([sup, list]) => `
             <section class="table-wrap"><table class="dt"><thead><tr><th>${esc(sup)} · ${plural(list.length, 'line', 'lines')}</th><th class="n">Ordered</th><th class="n">Received</th><th class="n">Waiting</th><th class="n">In stock</th><th class="n">Sold ${SALES_WINDOW_DAYS}d</th><th class="n">Added</th><th class="n">At cost</th><th></th></tr></thead>
             <tbody>${list.map(r => `<tr data-id="${esc(r.l._id)}" style="cursor:default">
-                <td class="name"><b>${esc(r.l.name)}</b><span>${esc([r.p?.code, r.l.smartSuggestion ? 'suggested by Reorder' : '', r.p ? '' : 'not in the catalogue'].filter(Boolean).join(' · '))}${r.l.orderNo ? (() => { const s = orderInfo(r.l.orderNo);
+                <td class="name"><b>${esc(r.l.name)}</b><span>${esc([r.p?.code, r.l.smartSuggestion ? 'suggested by Next order' : '', r.p ? '' : 'not in the catalogue'].filter(Boolean).join(' · '))}${r.l.orderNo ? (() => { const s = orderInfo(r.l.orderNo);
                     const warranty = s?.warranty || r.l.orderSource === 'warranty';
-                    return ` <a class="chip ${s?.prepaid ? 'ok' : 'vio'}" href="#purchases" title="${esc(r.l.reason || `Kärcher order ${r.l.orderNo}`)}">${warranty ? 'warranty claim' : 'order'} ${esc(r.l.orderNo)}${s?.prepaid ? ` · prepaid ${esc(s.paidOn)}` : ''}</a>`; })() : ''}</span></td>
+                    return ` <a class="chip ${s?.prepaid ? 'ok' : 'vio'}" href="#purchases" title="${esc(r.l.reason || `Kärcher order ${r.l.orderNo}`)}">${warranty ? 'warranty claim' : 'order'} ${esc(r.l.orderNo)}${s?.prepaid ? ` · prepaid ${esc(s.paidOn)}` : ''}</a>`; })() : ''}${r.wait ? lineState(r.l, arrival(r.l)) : ''}</span></td>
                 <td class="n">${int(r.l.quantity)}</td><td class="n muted">${int(r.l.quantityReceived || 0)}</td>
                 <td class="n">${r.wait ? `<b>${int(r.wait)}</b>` : '<span class="chip ok">done</span>'}</td>
                 <td class="n ${r.p && Number(r.p.stock) <= 0 ? 'zero' : ''}">${r.p ? int(Number(r.p.stock) || 0) : '–'}</td>
@@ -87,7 +103,7 @@ export async function renderOrderList(ctx) {
                 <td class="n" style="white-space:nowrap">${r.wait ? `<button class="btn small" type="button" data-rcv="${esc(r.l._id)}">${icon('move_to_inbox')}Receive</button>` : ''}
                     <button class="btn ghost small" type="button" data-edit="${esc(r.l._id)}" aria-label="Change quantity">${icon('edit')}</button>
                     <button class="btn ghost small" type="button" data-del="${esc(r.l._id)}" aria-label="Remove from the list">${icon('delete')}</button></td></tr>`).join('')}</tbody></table></section>`).join('')
-        : `<div class="all-clear">${icon('check_circle')}<div><b>${ol.filter === 'waiting' ? 'Nothing is waiting to arrive.' : 'No lines here.'}</b><br><span>Add products from Reorder, or with “Add product”.</span></div></div>`}</div>`;
+        : `<div class="all-clear">${icon('check_circle')}<div><b>${ol.filter === 'waiting' ? 'Nothing is waiting to arrive.' : 'No lines here.'}</b><br><span>Add products from Next order, or with “Add product”.</span></div></div>`}</div>`;
 
     ctx.body.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { ol.filter = b.dataset.f; renderOrderList(ctx); }));
     // The list lives in its own element, re-created on every render, so its listener can't pile up.

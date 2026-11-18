@@ -895,6 +895,56 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **79. STOCK › NEXT ORDER: ONE PROPOSAL FOR THE NEXT KÄRCHER ORDER, READY FOR THE PORTAL; KÄRCHER'S DELIVERY DATES ON EVERY LINE** — ✅ **BUILT AND TESTED (November 18, 2026); not released yet**
+
+From the deep dive of 18 Nov 2026 the owner chose two things only: deciding what to order from
+Kärcher, and entering it (their words: deciding and entering the order are among the slowest
+admin). Before, the decision was spread over Reorder, Out of stock still wanted, the Yearly plan
+and the Instagram questions, and the order list's "Copy order" gave names, not the portal's
+material numbers.
+
+- **Stock › Next order** (`www/app/nextorder.js`, the numbers in `www/app/proposal.js`) replaces
+  the Reorder tab at the same address (`stock.html#reorder`; Today, Insights and the search point
+  to it). Per supplier, Kärcher first. A product is proposed when it sells and the shelf plus the
+  order list won't last the 6-week restock; when it is out of stock but sold 2+ in 12 months; when
+  it is out of stock and was asked for 2+ times on Instagram in 6 months; or when the yearly plan
+  (this year's and next year's v2 plans), at the pace sales really go, expects more to sell within
+  the restock than there is. Quantity: enough for the restock plus a month (`COVER_DAYS` 30) at the
+  faster of the 90-day and 12-month rates, or the plan's expectation, whichever is more, less shelf
+  and list. Products sitting unsold (stock, nothing sold in 90 days) are never proposed by
+  themselves and are flagged when they come up (plan, or added by hand). Each line says why.
+- **Money:** the total at Kärcher's last price per material number (newest invoice or order;
+  otherwise the landed cost, marked "est."), and the cash it takes with customs from the last 12
+  months' matched declarations (duty and fees, plus import VAT that is reclaimed later).
+- **Entering:** "Put on the order list" writes the ticked lines to `toOrder` (`plannedIn
+  'next-order'`, `plannedAt`, `productId`, material number as `code`, the reasons). Lines on the
+  list and not ordered yet are shown the way the owner enters them: by hand, on Kärcher's order
+  page (owner, 18 Nov 2026). **Excel file** with Name, SKU (the material number, kept as text) and
+  Quantity for every line (SheetJS 0.18.5 from cdnjs, loaded on click; desktop and web), **Copy
+  the list** (the same three columns, for the phone), **Copy SKUs and quantities**, and **I've
+  placed the order** (`sentAt`, so the same order isn't placed twice). A line whose catalogue code
+  isn't a Kärcher material number keeps that code as its SKU, marked "check".
+- **When Kärcher's order is filed** (Paper Autopilot, `sync.js`): a waiting line for the same
+  product without an order number - planned here or added by hand - gets the order number and the
+  ordered quantity instead of a second line (`plannedLineFor`). Zagreb's "Order Confirmation" is
+  now read with each line's confirmed quantity and delivery date (`purchase-read.js`); the
+  newest confirmation of an order wins, the portal summary (no dates) is skipped
+  (`deliveryDates`, `arrivalOf` in `purchasing.js`). The order list shows "due 19 Nov", "was due"
+  or "not confirmed yet" per line, and "not ordered yet" / "placed" for planned lines; Today shows
+  "N lines from Kärcher due this week" (overdue ones raise it to Soon), from `arrivingSoon`.
+- **Data:** the 14 stored Kärcher order records were backed up
+  (`C:\Danfosal\Backups\purchaseDocs-orders-before-delivery-dates-2026-11-18.json`) and the 10
+  order papers re-read with `node autopilot.js --reread-orders` (order list untouched): the two
+  November orders now carry their dates (one confirmed for 18-25 Nov, the other not confirmed yet).
+- **Checked:** `tests/next-order.test.mjs` (13: proposal rules, prices, customs share, plan
+  expectation across the year end, waiting lines, portal text, delivery dates, Today's list) and
+  `tools/paper-autopilot` `purchase-read.test.js`, `sync.test.js` (all made up); the proposal run
+  read-only on the live data in Node (16 Kärcher lines, every one with a material number); the
+  screen in a stubbed preview with made-up data (proposal, quantities and ticks updating the totals,
+  put on the list, ready for the portal, placed, the order-list chips, Today's line, phone width).
+- **Not done (owner's choice):** the other ideas of the deep dive (clearance, arrival in one step,
+  month-end, Garanci merge) wait.
+
 #### **78. EVERY DEVICE UPDATES ITSELF: GITHUB RELEASES, ELECTRON-UPDATER, LIVE SCREENS ON THE PHONES** — ✅ **LIVE (November 18, 2026, version 1.4.2)**
 
 The owner asked (18 Nov 2026) that devices with the app installed receive new builds over the

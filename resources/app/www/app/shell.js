@@ -17,7 +17,7 @@ export const NAV = [
     { id: 'stock', label: 'Stock', icon: 'inventory_2', href: 'stock.html', pages: [
         ['Catalogue', 'stock.html#catalogue', 'inventory_2'],
         ['Prices', 'stock.html#prices', 'sell'],
-        ['Reorder', 'stock.html#reorder', 'local_shipping'],
+        ['Next order', 'stock.html#reorder', 'add_shopping_cart'],
         ['Link receipt items', 'stock.html#link', 'link'],
         ['Order list', 'stock.html#orders', 'list_alt'],
         ['Purchases', 'stock.html#purchases', 'receipt_long'],
@@ -129,7 +129,7 @@ const SYNONYMS = {
     'sell.html#sales': 'sales receipts invoices history shitjet fatura',
     'stock.html#catalogue': 'products stock inventory produkte magazina catalogue prices cost',
     'stock.html#prices': 'prices price suggestion margin markup raise lower cmimi cmime çmimi fitim running costs pricing',
-    'stock.html#reorder': 'reorder order purchase buy porosit furnizim unsold dead stock',
+    'stock.html#reorder': 'next order reorder kärcher karcher portal purchase buy porosit furnizim runs out',
     'stock.html#link': 'link map receipt unmatched unlinked lidh',
     'sell.html#import': 'pdf scan scanner fature e-invoice platforma import invoice',
     'sell.html#online': 'instagram porosi web online orders chatbot delivery',

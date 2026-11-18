@@ -142,7 +142,7 @@ export function askedByModel(events, now = Date.now()) {
     }));
     return perModel;
 }
-// The same for each catalogue machine (by its model). Used by Stock › Reorder for products that
+// The same for each catalogue machine (by its model). Used by Stock › Next order for products that
 // are out of stock but asked for, and by the price suggestions (Stock › Prices).
 export function askedByProduct(products, events, now = Date.now()) {
     const perModel = askedByModel(events, now);

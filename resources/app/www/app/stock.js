@@ -1,4 +1,4 @@
-// Stock workspace: Catalogue, Prices, Reorder, Link receipt items, Order list, Purchases, Receive
+// Stock workspace: Catalogue, Prices, Next order, Link receipt items, Order list, Purchases, Receive
 // delivery, Yearly plan, Website.
 //
 // Writes use exactly the shapes the classic screens use, so the bridge, Danfos Garanci and the
@@ -10,13 +10,13 @@ import { renderReceive } from './receive.js';
 import { renderPurchases } from './purchases.js';
 import { renderPlan } from './plan.js';
 import { renderWebsite } from './website.js';
-import { loadExtras, askedByProduct } from './dashboard-data.js';
+import { renderNextOrder, nextOrderCount } from './nextorder.js';
 import { renderPrices, losingCount, explainPrice, euro } from './prices.js';
 import { pricingBasis, suggestPrice, historyEntry, REASONS } from './pricing.js';
-import { db, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
-import { esc, eur, int, pct, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
+import { db, collection, doc, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, writeBatch } from './firebase.js';
+import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import {
-    VAT, RESTOCK_DAYS, SALES_WINDOW_DAYS, MIN_UNITS_FOR_TREND,
+    VAT, SALES_WINDOW_DAYS,
     productNetCost, productMargin, productIdOfLine, saleTime, saleSource, unlinkedReceiptLines, rankProducts, suggestProducts
 } from './data.js';
 
@@ -224,130 +224,6 @@ function productDrawer(ctx, p) {
     });
 }
 
-// ================================================================== reorder
-
-async function renderReorder(ctx) {
-    const a = ctx.a;
-    const selling = Object.entries(a.soldUnits).filter(([, u]) => u >= MIN_UNITS_FOR_TREND)
-        .map(([id, units]) => { const p = ctx.model.products.find(x => x._id === id); if (!p) return null; const stock = Number(p.stock) || 0; return { p, units, stock, daysLeft: stock / (units / SALES_WINDOW_DAYS) }; })
-        .filter(Boolean).sort((x, y) => x.daysLeft - y.daysLeft);
-    ctx.setSub(`Based on the last ${SALES_WINDOW_DAYS} days of sales and a ${RESTOCK_DAYS / 7}-week restock`);
-    ctx.setActions(`<a class="btn" href="#orders">${icon('list_alt')}Open order list</a>`);
-    ctx.body.innerHTML = `<div class="skeleton" style="height:200px"></div>`;
-    let onList = new Set();
-    try { onList = new Set((await getDocs(collection(db, 'toOrder'))).docs.map(d => d.data()).filter(o => (Number(o.quantityReceived) || 0) < (Number(o.quantity) || 0)).map(o => fold(o.name))); }
-    catch { /* list unavailable: every row just offers "Add" */ }
-
-    const suggest = r => Math.max(1, Math.ceil((r.units / SALES_WINDOW_DAYS) * (RESTOCK_DAYS + 30) - r.stock));
-    const coverCell = r => {
-        const scale = RESTOCK_DAYS * 3, w = Math.min(100, (r.daysLeft / scale) * 100);
-        const color = r.daysLeft < RESTOCK_DAYS ? 'var(--bad)' : r.daysLeft < RESTOCK_DAYS * 2 ? 'var(--warn)' : 'var(--violet)';
-        const label = r.daysLeft === Infinity ? '–' : r.daysLeft > 365 ? 'over a year' : `${Math.round(r.daysLeft)} days`;
-        return `<span class="cover"><span class="bar"><i style="width:${w.toFixed(1)}%;background:${color}"></i><u style="left:${(100 / 3).toFixed(1)}%"></u></span><span class="muted">${label}</span></span>`;
-    };
-    const urgent = selling.filter(r => r.daysLeft < RESTOCK_DAYS);
-    const unsoldTotal = a.unsoldValue;
-
-    // Best sellers that ran out never reach the list below: with no stock they can't sell, so their
-    // 90-day sales fall to nothing (SC 3 and SC 2, Oct 2026). These are out of stock but sold 2+ in
-    // the last 12 months, or people ask the Instagram chatbot for them (its log is read after the
-    // screen shows, and kept for this session).
-    const wanted = new Map(a.outOfStockWanted.map(w => [w.product._id, { p: w.product, units12: w.units12, last: w.lastSold, asked: null }]));
-    const wantQty = w => Math.max(1, Math.ceil(((w.units12 || 0) / 365) * (RESTOCK_DAYS + 30)));
-    const wantRows = () => [...wanted.values()]
-        .sort((x, y) => (y.units12 || 0) - (x.units12 || 0) || ((y.asked && y.asked.questions) || 0) - ((x.asked && x.asked.questions) || 0))
-        .map(w => `<tr data-id="${esc(w.p._id)}"><td class="name"><b>${esc(w.p.name)}</b><span>${esc(w.p.code || '')}</span></td>
-            <td class="n zero">${int(Number(w.p.stock) || 0)}</td><td class="n">${w.units12 ? int(w.units12) : '<span class="muted">–</span>'}</td>
-            <td class="n">${w.asked === null ? '<span class="muted">…</span>' : w.asked ? `${int(w.asked.questions)} <span class="muted">· ${esc(w.asked.model)}</span>` : '<span class="muted">–</span>'}</td>
-            <td class="n muted">${w.last ? day(w.last) : 'never'}</td>
-            <td class="n">${onList.has(fold(w.p.name)) ? '<span class="chip vio">on list</span>' : `<button class="btn small" type="button" data-want="${esc(w.p._id)}" data-qty="${wantQty(w)}">Add ${wantQty(w)}</button>`}</td></tr>`).join('')
-        || `<tr><td colspan="6" class="muted" style="padding:16px">No best seller is out of stock.</td></tr>`;
-
-    ctx.body.innerHTML = `
-        <section class="panel" aria-labelledby="want-h">
-            <h2 class="panel-title" id="want-h">Out of stock, still wanted<span id="want-n">${int(wanted.size)}</span></h2>
-            <p class="empty" style="margin:-4px 0 10px">A product with no stock can't sell, so a best seller that ran out disappears from the list below. These sold ${MIN_UNITS_FOR_TREND}+ units in the last 12 months, or people asked the Instagram chatbot for them twice or more.</p>
-            <div class="table-wrap" style="max-height:360px"><table class="dt"><thead><tr><th>Product</th><th class="n">In stock</th><th class="n">Sold 12 months</th><th class="n">Asked the chatbot</th><th class="n">Last sold</th><th class="n">Order</th></tr></thead>
-            <tbody id="want-body">${wantRows()}</tbody></table></div>
-        </section>
-        <div class="cols" style="grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)">
-            <section class="panel" aria-labelledby="sell-h">
-                <h2 class="panel-title" id="sell-h">Products that sell, by stock left<span>${int(selling.length)}</span></h2>
-                ${urgent.length ? '' : `<div class="all-clear" style="margin-bottom:12px">${icon('check_circle')}<div><b>Nothing runs out before a restock can arrive.</b><br><span>Every product selling ${MIN_UNITS_FOR_TREND}+ units in ${SALES_WINDOW_DAYS} days has more than ${RESTOCK_DAYS / 7} weeks of stock.</span></div></div>`}
-                <div class="table-wrap"><table class="dt"><thead><tr><th>Product</th><th class="n">In stock</th><th class="n">Sold ${SALES_WINDOW_DAYS}d</th><th>Stock left · tick = ${RESTOCK_DAYS / 7}-week restock</th><th class="n">Order</th></tr></thead>
-                <tbody id="sell-body">${selling.map(r => `
-                    <tr data-id="${esc(r.p._id)}"><td class="name"><b>${esc(r.p.name)}</b><span>${esc(r.p.code || '')}</span></td>
-                        <td class="n ${r.stock <= 0 ? 'zero' : ''}">${int(r.stock)}</td><td class="n">${int(r.units)}</td><td>${coverCell(r)}</td>
-                        <td class="n">${onList.has(fold(r.p.name)) ? '<span class="chip vio">on list</span>' : `<button class="btn small" type="button" data-add="${esc(r.p._id)}" data-qty="${suggest(r)}">Add ${suggest(r)}</button>`}</td></tr>`).join('')
-                    || `<tr><td colspan="5" class="muted" style="padding:16px">No product sold ${MIN_UNITS_FOR_TREND}+ units in the last ${SALES_WINDOW_DAYS} days.</td></tr>`}</tbody></table></div>
-            </section>
-            <section class="panel" aria-labelledby="dead-h">
-                <h2 class="panel-title" id="dead-h">Not sold in ${SALES_WINDOW_DAYS} days<span>${eur(unsoldTotal)}</span></h2>
-                <p class="empty" style="margin:-4px 0 10px">${pct(unsoldTotal, a.stockValue)} of your stock value (${plural(a.unsold.length, 'product', 'products')}) hasn't sold a unit in ${SALES_WINDOW_DAYS} days. Worth a discount, a bundle, or no reorder.</p>
-                <div class="table-wrap" style="max-height:560px"><table class="dt"><thead><tr><th>Product</th><th class="n">In stock</th><th class="n">At cost</th><th class="n">Last sold</th></tr></thead>
-                <tbody id="dead-body">${a.unsold.map(u => `
-                    <tr data-id="${esc(u.product._id)}"><td class="name"><b>${esc(u.product.name)}</b><span>${esc(u.product.code || '')}</span></td>
-                        <td class="n">${int(u.stock)}</td><td class="n">${u.value ? eur(u.value) : '<span class="chip warn">no cost</span>'}</td>
-                        <td class="n muted">${a.lastSoldAt[u.product._id] ? day(a.lastSoldAt[u.product._id]) : 'never'}</td></tr>`).join('')}</tbody></table></div>
-            </section>
-        </div>`;
-
-    // What the chatbot is asked for: models people want that the shop has run out of.
-    loadExtras(['events']).then(x => {
-        if (ctx.tab !== 'reorder' || !ctx.body.querySelector('#want-body')) return;
-        const asked = askedByProduct(ctx.model.products, x.events, a.now);
-        asked.forEach((q, id) => {
-            const p = ctx.model.products.find(pr => pr._id === id);
-            if (!p || (Number(p.stock) || 0) > 0 || q.questions < 2 || wanted.has(id)) return;
-            wanted.set(id, { p, units12: a.soldUnits12[id] || 0, last: a.lastSoldAt[id] || null, asked: q });
-        });
-        wanted.forEach(w => { if (w.asked === null) w.asked = asked.get(w.p._id) || 0; });
-        ctx.body.querySelector('#want-body').innerHTML = wantRows();
-        ctx.body.querySelector('#want-n').textContent = int(wanted.size);
-    }).catch(() => {
-        wanted.forEach(w => { if (w.asked === null) w.asked = 0; });
-        const tb = ctx.body.querySelector('#want-body'); if (tb) tb.innerHTML = wantRows();
-    });
-    ctx.body.querySelector('#want-body').addEventListener('click', async e => {
-        const add = e.target.closest('[data-want]'); if (!add) return;
-        const w = wanted.get(add.dataset.want); const qty = Number(add.dataset.qty);
-        add.disabled = true;
-        try {
-            await addDoc(collection(db, 'toOrder'), {
-                name: w.p.name, quantity: qty, supplier: w.p.producer || '', quantityReceived: 0, smartSuggestion: true, urgency: 'high', daysUntilStockout: 0,
-                reason: `Out of stock; sold ${w.units12 || 0} in the last 12 months${w.asked ? `, asked about ${w.asked.questions} times on Instagram` : ''}.`,
-                estimatedCost: r2(qty * (productNetCost(w.p) || 0)), addedAt: Date.now()
-            });
-            onList.add(fold(w.p.name));
-            toast(`${qty} × ${w.p.name} added to the order list`);
-            add.outerHTML = '<span class="chip vio">on list</span>';
-        } catch (err) { add.disabled = false; toast(`Couldn't add: ${err.message}`, { bad: true }); }
-    });
-
-    ctx.body.querySelectorAll('tbody').forEach(tb => tb.addEventListener('click', async e => {
-        if (e.target.closest('[data-want]')) return;
-        const add = e.target.closest('[data-add]');
-        if (add) {
-            e.stopPropagation();
-            const r = selling.find(x => x.p._id === add.dataset.add); const qty = Number(add.dataset.qty);
-            add.disabled = true;
-            try {
-                await addDoc(collection(db, 'toOrder'), {
-                    name: r.p.name, quantity: qty, supplier: r.p.producer || '', quantityReceived: 0, smartSuggestion: true,
-                    urgency: r.daysLeft < RESTOCK_DAYS ? 'high' : 'medium', daysUntilStockout: Math.round(r.daysLeft),
-                    reason: `Sold ${r.units} in ${SALES_WINDOW_DAYS} days; ${Math.round(r.daysLeft)} days of stock left against a ${RESTOCK_DAYS}-day restock.`,
-                    estimatedCost: r2(qty * (productNetCost(r.p) || 0)), addedAt: Date.now()
-                });
-                toast(`${qty} × ${r.p.name} added to the order list`);
-                add.outerHTML = '<span class="chip vio">on list</span>';
-            } catch (err) { add.disabled = false; toast(`Couldn't add: ${err.message}`, { bad: true }); }
-            return;
-        }
-        const tr = e.target.closest('tr[data-id]');
-        if (tr) productDrawer(ctx, ctx.model.products.find(p => p._id === tr.dataset.id));
-    }));
-}
-
 // ================================================================== link receipt items
 
 function renderLink(ctx) {
@@ -453,7 +329,7 @@ bootWorkspace({
     tabs: [
         { id: 'catalogue', label: 'Catalogue', icon: 'inventory_2', render: renderCatalogue },
         { id: 'prices', label: 'Prices', icon: 'sell', render: renderPrices, count: losingCount },
-        { id: 'reorder', label: 'Reorder', icon: 'local_shipping', render: ctx => { renderReorder(ctx); }, count: a => a.reorder.length },
+        { id: 'reorder', label: 'Next order', icon: 'add_shopping_cart', render: ctx => { renderNextOrder(ctx); }, count: nextOrderCount },
         { id: 'link', label: 'Link receipt items', icon: 'link', render: renderLink, count: (a, m) => unlinkedReceiptLines(m).length },
         { id: 'orders', label: 'Order list', icon: 'list_alt', render: ctx => { renderOrderList(ctx); } },
         { id: 'purchases', label: 'Purchases', icon: 'receipt_long', render: ctx => { renderPurchases(ctx); } },

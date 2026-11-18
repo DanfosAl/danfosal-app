@@ -90,10 +90,10 @@ in stock, 12,577 units; 0 negative) · `onlineOrders` 311 (Paid 307, Returned 3,
    (`*.local.md` is git-ignored).
 3. **Costs:** 28 products have no cost price and 4 no code; 43 sales have a line of unknown cost
    (11 in 2026), so their margin isn't counted.
-4. **EasyPOS Failed folder:** the 3 debit notes (34/2026, 36/2026, 93/2026) the bridge treated as
+4. **EasyPOS Failed folder:** the 3 debit notes the bridge treated as
    refunds and added stock for - left for the owner to check (Finding #58's note); don't reprocess.
-5. **Open business items:** prepayments 45/2026 (B 50 W, arrived 6 Oct, final invoice not issued yet)
-   and 57/2026 (Blancus 230, not in the catalogue); 47/2026 deliberately not in Sales (Finding #61).
+5. **Open business items:** two prepayments (B 50 W, arrived 6 Oct, final invoice not issued yet)
+   and a Blancus 230 (not in the catalogue); a third prepayment deliberately not in Sales (Finding #61).
    The K7 repair is open with parts received; its card GAR-2026-0019 ran to 06/09/2026, the Kärcher
    claim was filed within it.
 6. **Housekeeping:** three leftover git worktrees in `.claude/worktrees` (92 MB; one holds an unmerged
@@ -161,12 +161,12 @@ Small retail operations struggle with:
   - **PDF.js added to index.html:** AI Chatbot PDF processing failed with "PDF library not loaded" because pdf.js (3.11.174) was never loaded in index.html. Added script tag + worker config matching other pages (store-sales.html, albanian-invoice-scanner.html).
   - **DevTools auto-open removed from main.js:** `mainWindow.webContents.openDevTools()` was left in production code, causing DevTools to open on every app launch. Removed.
     - Albanian credit note detection (NOTE KREDITI, KORRIGJUESE keywords)
-    - Negative value extraction (-€99, -1 cope) with regex fixes
+    - Negative value extraction (-€X, -1 cope) with regex fixes
     - 3-strategy transaction matching (invoice → direct → customer+amount fallback)
     - Online order AND in-store sale return handling
     - Automatic stock return with Math.abs() conversion
     - "Veprim Arke" daily start marker filtering
-    - Test case: Lindita Kollcinaku credit note (€99 return) successfully processed
+    - Test case: a real customer's credit note (a one-item return) successfully processed
 
 **New in v3.0 (Feb 8-9, 2026):** 
 - Complete EasyPOS OCR Bridge integration system documented including Windows Service print capture, Node.js OCR processing, Firebase data storage, startup automation, and build processes for both Android APK and Windows installer.
@@ -569,7 +569,7 @@ Then re-verify with `schtasks /query` that it shows up before trusting this find
 
 #### **9. REPO CLUTTER: ONE-OFF SCRIPTS, STRAY APK, HARDCODED KEYSTORE PASSWORD** — 🟢 **OPEN, not fixed (low priority)**
 **Found Aug 24, 2026:**
-- ~27 customer-named one-off maintenance scripts live permanently in `resources/app/` root (`fix-romina-order.js`, `cleanup-lindita.js`, `check-return-details.js`, etc.) — not shipped in builds, but clutter the working tree.
+- ~27 customer-named one-off maintenance scripts live permanently in `resources/app/` root (`fix-<customer>-order.js`, `cleanup-<customer>.js`, `check-return-details.js`, etc.) — not shipped in builds, but clutter the working tree.
 - A stray duplicate APK sits in the repo root (`Danfosal-App-v1.4.0-DATA-FIXED-2026-02-08_1921 - Copy.apk`, ~3.5MB, untracked).
 - `sign-android-app.ps1` hardcodes the Android release keystore password as `"123456"`.
 
@@ -655,7 +655,7 @@ Then re-verify with `schtasks /query` that it shows up before trusting this find
 
 **Installer rebuilt again** to include this on top of Finding #13 — see the top of this document for the current build's exact date/contents.
 
-**Follow-up fix (same day):** the phone auto-fill described in 14a didn't actually work for customers whose only purchase was an in-store sale — `storeSales` documents never carry a phone field at all (only `onlineOrders` do), and the original `loadCustomerData()` only looked at those two collections. Fixed by also querying the dedicated `customers` collection and letting its `phone` field win when present, matching the same "profile data overrides order-derived guesses" precedence `customer-portal.html` already uses. Verified live against a real customer (Klevis Bodini) whose only order is a store sale — phone now correctly appears in the autocomplete suggestion and fills on selection. Installer rebuilt again.
+**Follow-up fix (same day):** the phone auto-fill described in 14a didn't actually work for customers whose only purchase was an in-store sale — `storeSales` documents never carry a phone field at all (only `onlineOrders` do), and the original `loadCustomerData()` only looked at those two collections. Fixed by also querying the dedicated `customers` collection and letting its `phone` field win when present, matching the same "profile data overrides order-derived guesses" precedence `customer-portal.html` already uses. Verified live against a real customer whose only order is a store sale — phone now correctly appears in the autocomplete suggestion and fills on selection. Installer rebuilt again.
 
 **e) "Update Profile" buttons for backfilling missing phone/serial data (Aug 25, 2026).** Most historical machines have neither a serial number nor a customer phone on file, so a warranty claim often means typing in data that should really be saved back to the source. Typing a phone or serial number that differs from what's on record now reveals an inline "Update Profile" button next to that field (`updateSaveButtonVisibility()`, driven by `knownPhone`/`knownSerial` baselines captured at customer/machine selection time):
 - **Phone button** writes to the matched `customers/{id}` doc if one exists, or creates a new one (`name`, `phone`, blank `email`/`address`, `status: 'Active'`) if the customer has no profile doc yet — covers customers who only ever appear on order records.
@@ -703,7 +703,7 @@ Three requested features, all built on data the app was already collecting but n
 
 **b) Renewal outreach queue** — same page, second section. Turns the previously-decorative "Skadojnë këtë muaj" home KPI into an actual actionable list: every `warrantyCards` record expiring in the next 30 days, with the customer's phone (cross-referenced from `customers`), machine, and cert number, plus a "✓ U kontaktua" button that stamps a new `outreachContactedAt` field so contacted customers drop out of the active list without losing the record (a "Të kontaktuar" toggle still shows them). **Also fixed in passing:** neither this tile nor the "Kërkesa në pritje" tile were actually clickable despite that being the original design intent (`index.html:60-64`) — both now link out, to `analytics.html` and `pending.html` respectively. Verified live: a fake warranty expiring in 10 days appeared correctly, marking it contacted moved it to the other tab and persisted (confirmed via direct Firestore read of the new field).
 
-**c) Similar-past-claims matching** — new `www/js/garanci-similarity.js`, a dependency-free word-overlap (Jaccard) similarity scorer, no external API or ML model. Wired into `claim.html` (live, debounced, as staff types the defect description — same-product matches get a small score bonus) and `pending-detail.html` (static, computed once against every other ticket, excluding itself). **Real false-positive caught during testing, not a hypothetical:** a claim about an oil leak on a K 7 and an unrelated claim about a burnt SG 4/2 matched at just above threshold — turned out "makina" ("the machine") appears in nearly every claim description regardless of the actual defect, so it was inflating similarity between genuinely unrelated claims. Fixed by adding it (and a few other domain-universal words — pajisja/produkti and inflections) to the stopword list; re-verified the false match disappeared while the genuine match (typed a rephrased version of Klevis Bodini's real historical "rrjedh vaj" claim against his own real machine) still correctly surfaced.
+**c) Similar-past-claims matching** — new `www/js/garanci-similarity.js`, a dependency-free word-overlap (Jaccard) similarity scorer, no external API or ML model. Wired into `claim.html` (live, debounced, as staff types the defect description — same-product matches get a small score bonus) and `pending-detail.html` (static, computed once against every other ticket, excluding itself). **Real false-positive caught during testing, not a hypothetical:** a claim about an oil leak on a K 7 and an unrelated claim about a burnt SG 4/2 matched at just above threshold — turned out "makina" ("the machine") appears in nearly every claim description regardless of the actual defect, so it was inflating similarity between genuinely unrelated claims. Fixed by adding it (and a few other domain-universal words — pajisja/produkti and inflections) to the stopword list; re-verified the false match disappeared while the genuine match (typed a rephrased version of a real historical "rrjedh vaj" claim against the same customer's real machine) still correctly surfaced.
 
 **Verified live throughout, real + disposable data:** reliability report checked against real sales/claims history; renewal queue and its "contacted" state tested with a disposable fake certificate, deleted afterward; similarity matching tested against two real historical tickets both to confirm a genuine match surfaces and, after the stopword fix, to confirm the false one no longer does.
 
@@ -713,9 +713,9 @@ Three requested features, all built on data the app was already collecting but n
 
 Two more features, this time for `resources/app/` itself rather than Garanci — both surface data that already existed, no new inputs, no new collections.
 
-**a) Warranty & Claims section on a customer's profile.** `customer-portal.html`'s detail card only ever showed order history — to see a customer's warranty certificates or open claims meant switching to the separate Garanci app. Added a new section right below Order History (`loadWarrantyAndClaims()`, called from `showCustomerDetail()`) that queries `warrantyCards`/`serviceTickets` by `customerName` — the exact same collections Garanci writes — and renders each with the same visual language as the rest of the page (status pills, badges). No new data, no new API, genuinely just a missing view. Verified live against a real customer (Klevis Bodini): both his real warranty card and his real, currently-`in_progress` claim rendered correctly, matching what Garanci itself shows.
+**a) Warranty & Claims section on a customer's profile.** `customer-portal.html`'s detail card only ever showed order history — to see a customer's warranty certificates or open claims meant switching to the separate Garanci app. Added a new section right below Order History (`loadWarrantyAndClaims()`, called from `showCustomerDetail()`) that queries `warrantyCards`/`serviceTickets` by `customerName` — the exact same collections Garanci writes — and renders each with the same visual language as the rest of the page (status pills, badges). No new data, no new API, genuinely just a missing view. Verified live against a real customer: both their real warranty card and their real, currently-`in_progress` claim rendered correctly, matching what Garanci itself shows.
 
-**b) Rising Supplier Costs report**, `advanced-analytics.js`'s `identifyRisingCosts()` + a new collapsible section in `advanced-analytics.html`, following the exact visual pattern of the existing "Dead Stock" report. Compares each product's most recent restock cost (from its `batches` log — already recorded, never previously surfaced anywhere) against the average of its prior restocks, flagging anything up ≥10% with at least 2 real restocks to compare against. **Bug caught during testing, real data, not hypothetical:** the first version flagged 7 products at exactly "+100.0%" each — investigated one (`Carpet Glider- Steam Cleaner Accessories`) and found its `batches` array starts with a `{cost: 0, invoice: "LEGACY_STOCK"}` opening-balance placeholder that isn't a real purchase at all; averaging it in against the real €12.19 restocks that followed manufactured a fake doubling on every product carrying one of these legacy entries. Fixed by excluding any batch with `cost <= 0` before computing the trend — re-verified live, the false 7 dropped to a single genuine flag (`Carpet nozzle flexible 240mm` up 85.7%, three same-invoice-number batches recorded minutes apart at wildly different costs — worth the owner's own look, quite possibly an OCR duplicate-scan artifact from the invoice-scanning pipeline rather than a real supplier increase, but that's a separate, pre-existing data-quality question outside this feature's scope).
+**b) Rising Supplier Costs report**, `advanced-analytics.js`'s `identifyRisingCosts()` + a new collapsible section in `advanced-analytics.html`, following the exact visual pattern of the existing "Dead Stock" report. Compares each product's most recent restock cost (from its `batches` log — already recorded, never previously surfaced anywhere) against the average of its prior restocks, flagging anything up ≥10% with at least 2 real restocks to compare against. **Bug caught during testing, real data, not hypothetical:** the first version flagged 7 products at exactly "+100.0%" each — investigated one (`Carpet Glider- Steam Cleaner Accessories`) and found its `batches` array starts with a `{cost: 0, invoice: "LEGACY_STOCK"}` opening-balance placeholder that isn't a real purchase at all; averaging it in against the real restocks that followed manufactured a fake doubling on every product carrying one of these legacy entries. Fixed by excluding any batch with `cost <= 0` before computing the trend — re-verified live, the false 7 dropped to a single genuine flag (`Carpet nozzle flexible 240mm` up 85.7%, three same-invoice-number batches recorded minutes apart at wildly different costs — worth the owner's own look, quite possibly an OCR duplicate-scan artifact from the invoice-scanning pipeline rather than a real supplier increase, but that's a separate, pre-existing data-quality question outside this feature's scope).
 
 **Verified live, real data throughout, no test data involved** — both features are read-only reports over existing production collections.
 
@@ -723,11 +723,11 @@ Two more features, this time for `resources/app/` itself rather than Garanci —
 
 #### **18. SERVICE-TICKETS.HTML NEVER WROTE TO THE SHARED TIMELINE — FIXED** — ✅ **BUILT (Aug 26, 2026)**
 
-**Real bug, reported by the owner with screenshots.** Garanci's "Ecuria e kërkesës" (Finding #15/#16c) reads `serviceTickets.timeline`, but the only place that field was ever written was Garanci itself (ticket creation, approve/reject/photo-request). `service-tickets.html`'s "Save Changes" — the *only* place status and notes get edited from this app — wrote straight to `status`/`notes` and never touched `timeline` at all. Every status change and every technician note made from this app was silently invisible to Garanci's timeline, which is exactly why the owner's real ticket for Klevis Bodini (status `waiting_parts`, notes "Garancia eshte aprovu. Presim pjeset") showed a permanently empty "Ecuria e kërkesës" despite real activity having happened — **confirmed via direct Firestore read**: `timeline` field didn't exist on that document at all before this fix.
+**Real bug, reported by the owner with screenshots.** Garanci's "Ecuria e kërkesës" (Finding #15/#16c) reads `serviceTickets.timeline`, but the only place that field was ever written was Garanci itself (ticket creation, approve/reject/photo-request). `service-tickets.html`'s "Save Changes" — the *only* place status and notes get edited from this app — wrote straight to `status`/`notes` and never touched `timeline` at all. Every status change and every technician note made from this app was silently invisible to Garanci's timeline, which is exactly why the owner's real ticket for a customer (status `waiting_parts`, notes "Garancia eshte aprovu. Presim pjeset") showed a permanently empty "Ecuria e kërkesës" despite real activity having happened — **confirmed via direct Firestore read**: `timeline` field didn't exist on that document at all before this fix.
 
 **Fix:** the save handler now diffs the new status/notes against the ticket's current values and appends a timeline entry for whichever actually changed — `Statusi u ndryshua: <label>` for a status change, `Koment: <text>` for a new/changed note — each with a real timestamp and `who: 'Teknik'`. Entries are Albanian regardless of which app wrote them, so the timeline reads as one consistent narrative no matter where staff are working from. Also seeded an initial "Kërkesa u regjistruar" entry on ticket *creation* from this app (previously only Garanci-created claims got a seed entry). New `STATUS_LABELS_SQ` map added, mirroring Garanci's own Albanian status labels (`received`→"Pa caktuar" etc.) for consistency.
 
-**Verified live:** created a disposable test ticket through this app's own UI, changed its status and added a note, confirmed via direct Firestore read that both landed as separate timeline entries with correct timestamps, then confirmed Garanci's `pending-detail.html` rendered the full 3-entry history correctly. Also verified, against the real Klevis Bodini ticket, that clicking Save Changes with *unchanged* values writes nothing to `timeline` — no spurious entries. **Known limitation, not solved here:** this fix is forward-only — tickets edited before today (like the real one that prompted this fix) have no way to reconstruct what their status/notes history actually was or when changes really happened, since no timestamp for that was ever captured; their timeline starts fresh from whatever gets logged from here on.
+**Verified live:** created a disposable test ticket through this app's own UI, changed its status and added a note, confirmed via direct Firestore read that both landed as separate timeline entries with correct timestamps, then confirmed Garanci's `pending-detail.html` rendered the full 3-entry history correctly. Also verified, against that real ticket, that clicking Save Changes with *unchanged* values writes nothing to `timeline` — no spurious entries. **Known limitation, not solved here:** this fix is forward-only — tickets edited before today (like the real one that prompted this fix) have no way to reconstruct what their status/notes history actually was or when changes really happened, since no timestamp for that was ever captured; their timeline starts fresh from whatever gets logged from here on.
 
 ---
 
@@ -745,7 +745,7 @@ Two more features, this time for `resources/app/` itself rather than Garanci —
 - Replaced `timeout /t N /nobreak` with `ping -n N 127.0.0.1` — `timeout` aborts with *"Input redirection is not supported"* whenever the script's output is redirected (as Task Scheduler does), which skipped the wait before the bridge verification and produced false warnings.
 - Rewrote the service-status block to use run-time `if errorlevel` instead of `%ERRORLEVEL%`, which inside a parenthesised block expands **once at parse time**. The stale value made the script log both *"Service 'DanfosEasyPOSCapture' is installed"* and *"Service not installed, skipping"* on the same run — contradictory noise that actively misled this very investigation.
 
-**Recovery:** started the bridge via its normal launcher; it drained the backlog automatically (`Found 3 existing file(s) to process`). Two real invoices imported — **351/2026** (Fusionfit Solutions, EUR 132.50, 2 items, new customer created) and **352/2026** (Walk-in, EUR 22, 4 items) — and one receipt was correctly identified as a *"Veprim Arke"* daily cash-drawer marker and skipped, not a lost sale. Verified by direct Firestore query: invoice numbering is contiguous 349 → 350 → 351 → 352, so **nothing was lost** in the 4-day outage; Inbox drained to 0, Failed folder gained nothing (newest failure still from June).
+**Recovery:** started the bridge via its normal launcher; it drained the backlog automatically (`Found 3 existing file(s) to process`). Two real invoices imported — one for a company (2 items, new customer created) and one for a walk-in (4 items) — and one receipt was correctly identified as a *"Veprim Arke"* daily cash-drawer marker and skipped, not a lost sale. Verified by direct Firestore query: invoice numbering is contiguous, so **nothing was lost** in the 4-day outage; Inbox drained to 0, Failed folder gained nothing (newest failure still from June).
 
 **Verified end to end:** re-ran the fixed script twice — reports *"OCR Bridge already running (1 instance(s))"* / *"Weekly Report Scheduler already running (2 instance(s))"*, exits 0, spawns no duplicates, and `startup.log` is now internally consistent.
 
@@ -767,23 +767,23 @@ Follows the pipeline recovery in Finding #20. A live test print (a reprint of in
 
 **a) Reprint guard — the old one could never fire for walk-ins.** `checkInvoiceHistory()` only searched `customers.invoiceHistory`, but walk-in sales create no customer record, so the invoice number was never recorded anywhere and every reprint created a second sale. **All 7 duplicated invoice numbers in production were walk-ins** — consistent with exactly this. Replaced with `findDuplicateSale()`, which queries `storeSales` by `easypos.invoiceNumber` and treats a receipt as a reprint **only if invoice number, invoice date, total and the item name/quantity set all match**.
 
-**Why not match on invoice number alone (important):** EasyPOS has been observed printing the *same* `Fatura Nr` for genuinely different sales — `189/2026/mv200vz195` appears on 29/04 (EUR 30, Plastik Combo + Filter WD5) **and** on 04/05 (EUR 340, K'5 Basic *EU). Re-running OCR over both stored receipt images confirmed **the OCR is correct and both receipts really carry that number** — this is an EasyPOS-side numbering problem, not a capture bug. A number-only guard would have silently discarded the second real sale. Five such collisions exist (`80`, `89`, `181`, `182`, `189`) and were deliberately **left intact**.
+**Why not match on invoice number alone (important):** EasyPOS has been observed printing the *same* `Fatura Nr` for genuinely different sales — one number appears on two receipts a few days apart, for different goods. Re-running OCR over both stored receipt images confirmed **the OCR is correct and both receipts really carry that number** — this is an EasyPOS-side numbering problem, not a capture bug. A number-only guard would have silently discarded the second real sale. Five such collisions exist and were deliberately **left intact**.
 
-**b) Customer name captured the Albanian label.** The label and value share one OCR line ("Emri Fusionfit Solutions"), and OCR frequently mangles the label itself. The old code required an exact `Emri` prefix; anything else ("Emr") fell through to a branch that stored the whole line — producing the real customer record **"Emr Aldi Gegolli"**. Now stripped with a tolerant pattern, verified against: `Emri X`, `Emr X`, `Emri: X`, and confirmed it does **not** damage a genuine name beginning with those letters (`Emanuel Hoxha` → unchanged). A bare label with no value now falls back to "Walk-in Customer" instead of creating a customer called "Emri".
+**b) Customer name captured the Albanian label.** The label and value share one OCR line ("Emri <customer name>"), and OCR frequently mangles the label itself. The old code required an exact `Emri` prefix; anything else ("Emr") fell through to a branch that stored the whole line — producing a real customer record named **"Emr <name>"**. Now stripped with a tolerant pattern, verified against: `Emri X`, `Emr X`, `Emri: X`, and confirmed it does **not** damage a genuine name beginning with those letters (`Emanuel Hoxha` → unchanged). A bare label with no value now falls back to "Walk-in Customer" instead of creating a customer called "Emri".
 
-**c) Hand-written serial numbers now captured.** Serials typed into the receipt's SHËNIME box were ignored entirely — there was no reference to serials anywhere in the bridge. OCR reads `S/N:527483` as **`SIN:527483`** (the slash becomes a letter), so the matcher accepts `S/N`, `SIN`, `S|N`, `S1N` etc. Serials are attached to the **most expensive item first**, so on a receipt containing a machine plus accessories the serial lands on the machine — verified: `527483` → *SC 2 EasyFix \*EU*, not the bags. This feeds the warranty records, which key off `items[].serialNumber`.
+**c) Hand-written serial numbers now captured.** Serials typed into the receipt's SHËNIME box were ignored entirely — there was no reference to serials anywhere in the bridge. OCR reads `S/N:123456` as **`SIN:123456`** (the slash becomes a letter), so the matcher accepts `S/N`, `SIN`, `S|N`, `S1N` etc. Serials are attached to the **most expensive item first**, so on a receipt containing a machine plus accessories the serial lands on the machine — verified: the serial → *SC 2 EasyFix \*EU*, not the bags. This feeds the warranty records, which key off `items[].serialNumber`.
 
 **d) Items now matched to the product catalogue, and stock is deducted.** Every EasyPOS item was previously written with a synthetic `productId: "easypos-<slug>"`, `cost: 0` and no product code, so these sales never linked to inventory; **stock was only ever adjusted for returns, never for sales**. New `buildSaleItems()` matches each line against `products` and writes the real `productId`, `code` and `cost`; `deductStockForSale()` then decrements stock for matched items only. Matching is deliberately conservative because it mutates stock: exact name → punctuation-insensitive (this is what makes OCR's `K'5 Basic *EU` match the catalogue's `K 5 Basic *EU`) → containment with an 8-character floor, and **any tier yielding more than one candidate is abandoned rather than guessed**, logged as unlinked. Unmatched items are left untouched.
 
-**Verified:** matcher checked against the live catalogue (`SC 2 EasyFix *EU`→`1.512-600.0`, `Qese per T11/1`→`FS65006`, `K'5 Basic *EU`→`K 5 Basic *EU`, `Filter WD5`, `Plastik Combo`, `Qese per WD3` — all correct, no false matches); stock deduction tested against a disposable product (10 → 7, unmatched item ignored, negative-stock warning fires, product deleted afterwards); reprint guard tested end to end by re-dropping the invoice-351 receipt into the Inbox — bridge logged `REPRINT: Invoice 351/2026/mv200vz195 already recorded as sale 8hpCdRDtj8fuq1itjjgZ` and created no sale.
+**Verified:** matcher checked against the live catalogue (`SC 2 EasyFix *EU`→`1.512-600.0`, `Qese per T11/1`→`FS65006`, `K'5 Basic *EU`→`K 5 Basic *EU`, `Filter WD5`, `Plastik Combo`, `Qese per WD3` — all correct, no false matches); stock deduction tested against a disposable product (10 → 7, unmatched item ignored, negative-stock warning fires, product deleted afterwards); reprint guard tested end to end by re-dropping an already-recorded receipt into the Inbox — bridge logged `REPRINT: Invoice … already recorded as sale …` and created no sale.
 
-**Data cleanup:** the two genuine duplicates were deleted — `tg6qb6ZJ80HHPeaVhZ1J` (169/2026, the same receipt captured twice one second apart) and `NDd84WJI1pDiobOh79HU` (352/2026, created by the test reprint). The five number-collision pairs were left alone as real sales.
+**Data cleanup:** the two genuine duplicates were deleted — the same receipt captured twice one second apart, and one created by the test reprint. The five number-collision pairs were left alone as real sales.
 
 **⚠️ Open for the owner:** five sales share an invoice number with another sale because **EasyPOS issued the same number twice**. That is a fiscal-side issue outside this app — worth raising with the POS vendor.
 
 **Historical stock drift, quantified (Sept 14, 2026) — calculated, NOT applied.** The 259 historical EasyPOS sales never decremented inventory. Scanned all `storeSales` (259 EasyPOS, 1,139 other, 98 returns excluded — returns are handled separately and already add stock back), resolving each line by stored `productId` first and the bridge's own matcher second:
-- **579 units** across **105 products** were never deducted, **EUR 17,970** at cost.
-- **99 products / 538 units / EUR 14,557** correct cleanly to a non-negative result — safe to apply.
+- **579 units** across **105 products** were never deducted.
+- **99 products / 538 units** correct cleanly to a non-negative result — safe to apply.
 - **6 products would go negative** and must not be auto-applied — they need a physical count: `SC 3` (6 in stock, 24 sold → −18), `RM 760Classic` (1 → −12), and four items already at 0 (`Filter bags-fleece 10x T`, `NT 22/1 Ap L`, `CA 50 C ECO**1`, `HD 5/15 C Plus *EU`, each −1).
 - **37 item names (76 units) have no catalogue match** and cannot be corrected automatically — mostly receipt names the catalogue doesn't carry verbatim (`Karcher SC 2`, `Karcher WD3`, `Karcher Puzzi 8/1`, `Nozzle set DN35`) plus OCR typos (`Micrafiber per pastrim…`). These need manual mapping.
 - **Evidence the drift is real, not double-counting:** for the products that carry purchase history in `batches`, 9 of 10 have a current stock consistent with EasyPOS sales having *never* been deducted (comparing `purchased − other-channel sales` against `purchased − all sales`). Manual sales via `store-sales.html` do deduct correctly (`increment(-item.quantity)`), and both online-order paths only ever *restore* stock, so EasyPOS was the only leak.
@@ -800,7 +800,7 @@ Follows the pipeline recovery in Finding #20. A live test print (a reprint of in
 - **Digit guard, added after a near-miss:** `SC2`'s closest neighbour by edit distance is `SC 3` (one character), so fuzzy matching alone would have decremented the wrong product for any unknown model. Digits must now be identical — verified `SC 9`, `Karcher SC 7`, `WV 9 Plus`, `…95cm` are all refused. Exception: a digit followed by a token-final `l`/`1` is treated as a unit, because OCR reads litres `5L` as `51` (`Rulapak KC Degreaser 51` → `Rulopak KC Degreaser 5L`).
 - Result: unmatched receipt names fell from **37 (76 units) to 13 (22 units)**; the 3 remaining ambiguous names are genuine product *series* (`Karcher AD` ×12, `Karcher SG 4/2` ×2, `T5` ×3) and are correctly refused. Most of the 13 no-match names are services, not stock (`Solucion per Tapete`, `Nderrim pllake per Makinen BD`).
 
-*Correction applied:* **103 products, 573 units, EUR 16,171 at cost.** Backup of every prior stock value written to `docs/records/stock-backup-before-correction-2026-09-14.json` (local only); audit record at `stockCorrections/easypos-historical-2026-09-14` also acts as a **re-run guard** (a second run aborts, so the deduction cannot be applied twice). Verified afterwards: sampled products match their expected values exactly and **no product is left with negative stock**.
+*Correction applied:* **103 products, 573 units.** Backup of every prior stock value written to `docs/records/stock-backup-before-correction-2026-09-14.json` (local only); audit record at `stockCorrections/easypos-historical-2026-09-14` also acts as a **re-run guard** (a second run aborts, so the deduction cannot be applied twice). Verified afterwards: sampled products match their expected values exactly and **no product is left with negative stock**.
 
 **Deployment model — the bridge is NOT in the installer, and that is deliberate.** `package.json`'s `build.files` ships only `www/**`, `main.js`, `preload.js`, `package.json` and `node_modules`. `easypos-ocr-bridge.js`, `DanfosalStartup.bat` and `run-startup-hidden.vbs` live outside that list and run from the source tree at `E:\DanfosalApp\`. So **rebuilding or reinstalling Danfosal App never updates the bridge**, and conversely a bridge edit needs no installer rebuild.
 
@@ -833,7 +833,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 | `resources/app/android-sdk/` | 619 MB | Unused. `android/local.properties` points Gradle at `C:\Users\User\AppData\Local\Android\Sdk`. |
 | Electron 37.10.1 runtime (exe, DLLs, `locales/`, `.pak`) at the repo root | ~300 MB | Unpacked there in Nov 2025. Used by neither the installed app, `npm start`, nor the pipeline. |
 | `.venv/`, root `eng.traineddata`, APK "- Copy" | 20 MB | The venv was empty (only pip). The bridge reads the `resources/app` copy of the OCR data, because tesseract.js caches in its working directory. |
-| 11 one-off Feb 2026 fix scripts (`fix-romina-order.js`, `cleanup-lindita.js` …), `add-theme-manager.ps1`, `fix-all-auth.ps1` | small | Already applied, and nothing references them |
+| 11 one-off Feb 2026 fix scripts (`fix-<customer>-order.js`, `cleanup-<customer>.js` …), `add-theme-manager.ps1`, `fix-all-auth.ps1` | small | Already applied, and nothing references them |
 | Weekly report scheduler, its launcher, `config/` (SMTP), its log and PDF output | small | Feature retired by the owner (Finding #20) |
 | `start`, `stop`, `query` | tiny | Accidental files. In PowerShell `sc` is an alias for `Set-Content`, so `sc query DanfosPOS_Service` wrote a file instead of running `sc.exe`. |
 | `resources/app/.github/` | tiny | An inert CI workflow. GitHub only reads `.github/` at the repository root, so it has never run. |
@@ -866,12 +866,12 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 #### **23. ALBANIAN INVOICE SCANNER READ THE PIXELS INSTEAD OF THE TEXT** — ✅ **FIXED & VERIFIED (September 21, 2026)**
 
-**Reported:** invoice `61/2026` (ADG) came out almost entirely wrong — customer `Emri: ADG` with the label glued on, **Danfos's own address** as the customer's, subtotal `200`, total `750`, and no items at all.
+**Reported:** a company customer's invoice came out almost entirely wrong — the customer's name with the `Emri:` label glued on, **Danfos's own address** as the customer's, wrong subtotal and total, and no items at all.
 
 **Root cause.** `albanian-invoice-scanner.html` opened the PDF with pdf.js, **rendered each page to a PNG, and ran Tesseract OCR (English) on that picture**. A fiscal invoice from Platforma Qendrore e Faturave is digitally generated and already carries an exact text layer, which the page loaded and then threw away. Every field was therefore a guess at pixels: Albanian diacritics, the two-column layout and space-separated thousands (`2 750,00`) all came back mangled, which is where `200`/`750` came from. OCR was never needed for these files.
 
 **Fixes:**
-1. **Read the text layer** (`page.getTextContent()`), rebuilding visual lines from each item's coordinates: group by baseline `y`, order by `x`. pdf.js returns text in content-stream order, which separates a label from its value and interleaves table columns; regrouping restores the printed lines (`Shuma totale me TVSH: 3 300,00 EUR`) that the extractors expect. **OCR is kept as a fallback** for a page with no usable text layer (under 40 non-space characters), so photographed and scanned invoices still work.
+1. **Read the text layer** (`page.getTextContent()`), rebuilding visual lines from each item's coordinates: group by baseline `y`, order by `x`. pdf.js returns text in content-stream order, which separates a label from its value and interleaves table columns; regrouping restores the printed lines (`Shuma totale me TVSH: 1 200,00 EUR`) that the extractors expect. **OCR is kept as a fallback** for a page with no usable text layer (under 40 non-space characters), so photographed and scanned invoices still work.
 2. **Buyer vs seller.** A fiscal invoice carries *two* parties with identical field names: the seller under `Shitës`, the buyer under `BLERËSI / KLIENTI`. A document-wide search for `Emri:`/`Adresa:` always found the seller because it is printed first — that is how Danfos's own address was being saved as the customer's. Extraction is now scoped to the buyer block, with NIPT captured too. Fallbacks only accept a bare `Emri:`/`Adresa:` when the document contains exactly one, so an ambiguous read leaves the field empty for manual entry rather than filling in our own company.
 3. **Dual-currency totals.** These invoices print the same three labels twice, under `TOTAL NË EUR` and `TOTAL NË LEK`; whichever block came first won, making currency selection a matter of page layout. Totals are now read from the EUR block, and the subtotal is taken from the printed `Shuma totale pa TVSH` instead of being derived from `total - tax`.
 4. **Items counted twice.** `SHPËRNDARJA E TVSH-SË` contains "TVSH", so it was mistaken for a product line; the name regex then failed, leaving the previous item pending, and the next VAT row banked it a second time. An item is now only banked when a new one genuinely starts, the accented spelling is matched, and the per-item appendix (`Specifikimi i hollësishëm…`, which reprints every row) ends the scan.
@@ -879,17 +879,17 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 6. The banner said `EUR values extracted (EUR values ignored)`; it now names the LEK totals as the ignored ones.
 7. The text path no longer spins up a Tesseract worker at all, so a digital invoice reads faster and still works if the OCR library fails to load.
 
-**Verified end to end against the real invoice**, by driving the actual installed page (not a copy): pdf.js parsed `ADG.pdf`, and the shipped `albanian-invoice-scanner.html` plus `manual-pdf-processor.js` produced invoice `61/2026`, date `2026-09-21`, customer `ADG`, the buyer's address, subtotal `2750`, tax `550`, total `3300`, and one item `Karcher BD 50/50 C Bp Classic` (qty 1, €2750) matched to the correct catalogue product — all 12 checks against hand-read values. Matcher spot-checks: `Karcher SC 3`→`SC 3`, `Karcher Puzzi 8/1`→`Puzzi 8/1 *EU`, `NT 30/1 Tact TE L`→`NT 30/1 Tact TE L *EU`, while `Karcher WD3` and an invented name correctly refuse to match.
+**Verified end to end against the real invoice**, by driving the actual installed page (not a copy): pdf.js parsed the invoice PDF, and the shipped `albanian-invoice-scanner.html` plus `manual-pdf-processor.js` produced the right invoice number, date, customer, the buyer's address, subtotal, tax, total, and one item `Karcher BD 50/50 C Bp Classic` (qty 1) matched to the correct catalogue product — all 12 checks against hand-read values. Matcher spot-checks: `Karcher SC 3`→`SC 3`, `Karcher Puzzi 8/1`→`Puzzi 8/1 *EU`, `NT 30/1 Tact TE L`→`NT 30/1 Tact TE L *EU`, while `Karcher WD3` and an invented name correctly refuse to match.
 
-**Follow-up, same day — the buyer's NIPT is now captured and used (September 21, 2026).** The buyer block extraction already read `NIPT: K33804402L`, but nothing downstream kept it. It now flows all the way through:
+**Follow-up, same day — the buyer's NIPT is now captured and used (September 21, 2026).** The buyer block extraction already read `NIPT: K00000000A` (the buyer's), but nothing downstream kept it. It now flows all the way through:
 - A **NIPT** field appears on the review form, filled from the invoice and editable like every other field.
 - It is stored as `customerNipt` on the `storeSales` record and as `nipt` on the customer profile.
 - **Customer identification prefers it.** A NIPT is the registered tax identifier, so it matches a customer exactly, unlike the existing name comparison, which treats one name containing another as a match and can merge two different businesses. When an invoice carries a NIPT, profiles are matched on it first; when a profile is matched by name and has no NIPT yet, the invoice's NIPT is written to it, so the next invoice matches exactly instead of fuzzily.
 - Also fixed in passing: the name comparison matched every customer when the name was empty, because `''.includes('')` is true. It now requires both names to be non-empty.
 
-**Verified** against the same invoice: the form shows `K33804402L`, and the record that would be saved carries `customerNipt: K33804402L` alongside the correct customer, totals and item.
+**Verified** against the same invoice: the form shows the buyer's NIPT, and the record that would be saved carries it as `customerNipt` alongside the correct customer, totals and item.
 
-**Note on the invoice used for testing:** the owner saved `61/2026` from the fixed app at 11:45 on September 21. It is stored exactly once, with total `3300`, subtotal `2750`, tax `550` and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the ADG profile predate the NIPT change and therefore have no NIPT stored.
+**Note on the invoice used for testing:** the owner saved that invoice from the fixed app at 11:45 on September 21. It is stored exactly once, with the right totals and one item matched to the real catalogue product `BD 50/50 C Bp Classic` (stock 15 → 14) — the correct machine, not the `BD 50/70 R` the old matcher chose. That sale and the customer's profile predate the NIPT change and therefore have no NIPT stored.
 
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
 
@@ -1469,7 +1469,7 @@ Garanci - warranties and online orders in particular - and then: OneDrive is nev
   note instead of the form. A plain sale opens the **current** Garanci form: invoice as printed, the
   sale's date, 12 months, the next GAR number - the same record Danfosal App writes.
 - **Danfos Garanci** (`issue.html`): the invoice number from `invoiceNumber` or
-  `easypos.invoiceNumber`, shortened to `358/2026`; rebuilt and installed on the shop PC 9 Oct 16:03.
+  `easypos.invoiceNumber`, shortened to `12/2026`; rebuilt and installed on the shop PC 9 Oct 16:03.
 - HQ hides Garanci's top bar and Danfosal App's sidebar inside the monitor; Quick Find shows the same
   status lines and finds till invoice numbers.
 
@@ -1577,14 +1577,14 @@ meant finding it in the Warranty cards list.
 
 #### **61. PREPAYMENTS AND THE FINAL INVOICES THAT DEDUCT THEM** — ✅ **BUILT, TESTED, SHIPPED TO DESKTOP, WEB AND ANDROID; TWO PREPAYMENTS IN SALES (October 7, 2026)**
 
-The owner filed e-invoice 45/2026 (a company customer, 25 Jun 2026, €5,180: "Parapagim 70% per makinen
+The owner filed an e-invoice (a company customer, 25 Jun 2026: "Parapagim 70% per makinen
 B 50 W Bp") - a prepayment for the B 50 W that arrived on 6 Oct - and it wasn't in Sales. The final
 invoice will list the machine at full price less the prepayment, naming the prepayment invoice.
 
 - **How Danfos invoices it** (all 7 cases in the archive, 2025-2026): the prepayment has one line
   "Parapagim ..." (sometimes platform type 386 "Faturë parapagimi"); the final invoice lists the goods
-  at full price plus a negative line "Zbritje parapagimi sipas fatures 17/2025 date 27.02.2025" /
-  "Zbritje sipas parapagimit te fatures nr.98/2025"; its total is what is left to pay.
+  at full price plus a negative line "Zbritje parapagimi sipas fatures 12/2025 date 01.02.2025" /
+  "Zbritje sipas parapagimit te fatures nr.34/2025"; its total is what is left to pay.
 - **The reader couldn't read a final invoice:** a long description wraps onto two lines, units other
   than "Copë" ("m2") weren't recognised, a minus sign broke the quantity line, and the date was taken
   from the first date anywhere (the one quoted in the deduction). Fixed in `manual-pdf-processor.js`;
@@ -1599,15 +1599,15 @@ invoice will list the machine at full price less the prepayment, naming the prep
   and the goods' cost is shared in proportion to the amounts - the prepayment line carries
   cost × prepayment/goods, the deduction line the same amount negative (`lineNetCost` accepts it).
   Both invoices then show the real margin and add up to the goods' cost. Checked in memory on the
-  B 50 W: €7,400 sale, cost €4,813.60 → 22% on both invoices, net €6,166.67 and cost €4,813.60 in all.
+  B 50 W: the same margin on both invoices, and net and cost add up to the whole sale.
 - **Automatic import:** a final invoice whose prepayment isn't in Sales waits for review ("it deducts
-  prepayment 98/2025, which isn't in Sales"). Older e-invoices are still left alone; the owner can
+  prepayment 34/2025, which isn't in Sales"). Older e-invoices are still left alone; the owner can
   name one: `autopilot.js --sales --include "<archive path>"`.
 - **Sales shows it:** "prepayment · not delivered" / "prepayment · settled" / "less prepayment
-  45/2026" on the row, a Prepayment section in the sale, line costs that say where they come from.
+  12/2026" on the row, a Prepayment section in the sale, line costs that say where they come from.
   Import invoice says what saving will do. Tested in the browser against a local copy of the data.
-- **Imported at the owner's word:** 45/2026 (B 50 W) and 57/2026
-  (Blancus 230, €23,520, 28 Jul) as open prepayments on their own dates; 47/2026
+- **Imported at the owner's word:** the B 50 W prepayment and the
+  Blancus 230 one (28 Jul) as open prepayments on their own dates; a third one
   left out (owner's choice). The Blancus 230 isn't in the catalogue yet.
 
 ---
@@ -1645,7 +1645,7 @@ what was changed, in text that stays inside its box.
 
 #### **59. THE OCTOBER KÄRCHER DELIVERY: CROATIAN INVOICES, FREE LINES AT CUSTOMS VALUE, WARRANTY GOODS TO THE CUSTOMER** — ✅ **SHIPPED; THE DELIVERY BOOKED AND CLOSED (October 6, 2026)**
 
-The owner received the goods, filed the customs declaration (26AL110000121530R6, 6 Oct, €5,187.89)
+The owner received the goods, filed the customs declaration (6 Oct)
 and its payment, and nothing moved: the three waiting orders (the prepaid B 50 W and two warranty
 claims) stayed "prepaid" / "claimed", the declaration "not matched".
 
@@ -1653,12 +1653,12 @@ claims) stayed "prepaid" / "claimed", the declaration "not matched".
   Downloads. Once downloaded, two more gaps showed. Kärcher Zagreb now issues invoices **in
   Croatian** ("Naš br. narudžbe" = order no., "Otpremnica br." = delivery note, "Zemlja podrijetla"
   = origin, "Serijski br." = serials), so the reader found no order numbers; and the warranty
-  replacements are invoiced at €0 but declared at their **"Custom limit"** (€397.43 in all), so
-  €4,790.46 invoiced could never match €5,187.89 declared.
+  replacements are invoiced at €0 but declared at their **"Custom limit"** (a few hundred euro in all), so
+  what was invoiced could never match what was declared.
 - `karcher-invoice.js` reads both languages and keeps each free line's `customsValue`;
   `purchasing.js` counts an invoice at what it declares (net + free lines' customs values), while
   duty and fees still follow what was paid. Result on the real papers: the declaration matches
-  both invoices exactly; B 50 W lands at €4,813.60 (€4,790.46 + €0.66 duty + €22.48 fees), prepaid,
+  both invoices exactly; B 50 W lands at its invoice price plus a few euro of duty and fees, prepaid,
   nothing to You owe; the free invoice covers both claims. Kärcher's free invoice has no cylinder
   head (9.002-525.0): it shows as still to come and stays on the order list.
 - **Warranty goods to the customer** (the owner's answer: the SG 4/2 replacement goes to its
@@ -1677,12 +1677,12 @@ claims) stayed "prepaid" / "claimed", the declaration "not matched".
   leaves the cylinder head, touches no product.
 - **Closed on live data (6 Oct, after the release):** the free invoice marked "to the customer" (the
   owner's word) - both claims received, 5 order-list lines ticked, the cylinder head still waiting;
-  the B 50 W booked as a new catalogue product (1.533-228.0): stock 1, cost €4,813.60, price
-  €8,086.85 (the app's rule, owner's choice), its order-list line ticked. Purchases: nothing to book.
+  the B 50 W booked as a new catalogue product: stock 1, at its landed cost, with the price
+  the app's rule suggested (owner's choice), its order-list line ticked. Purchases: nothing to book.
 - **Receive delivery** didn't tick off the order-list line of a product it creates (the list knows
   it by code and paper name, not yet by catalogue name), which invited a second "Receive" on the
   list and double stock. A new product now ticks its line by code or name and links it.
-- **The "missing" cylinder head wasn't missing:** Kärcher invoiced claim 7571151033's cylinder head
+- **The "missing" cylinder head wasn't missing:** Kärcher invoiced the claim's cylinder head
   (9.002-525.0) as "Piston guidance K7"; the owner confirmed every K7 part arrived. A receipt can now
   carry `alsoReceived` lines, which Purchases counts as delivered and the invoice notes. Shipped the
   same day with the Receive fix (desktop, Hosting, APK).
@@ -1733,7 +1733,7 @@ stored in `returns` that way, and any sale or online order one of them marked Re
     is a corrective invoice and that its date and amount agree with the return.
   - **Two returns had no saved text** (`_data.json`), only the receipt image. One is from the
     bridge's first days, when it read the same receipt three times: as a sale, then a duplicate, then
-    a return. The other is the 24 Sep credit note for the EUR 6,500 machine of Finding #43. Both were
+    a return. The other is the 24 Sep credit note for the machine of Finding #43. Both were
     read again with the bridge's own OCR. The one with no date to compare was confirmed by the till's
     sequence: its number is the only gap between the receipts either side.
   - The first try on 5 Oct stopped at Firestore "Quota exceeded" (the same quota as Finding #56).
@@ -1778,7 +1778,7 @@ correctly - it should also reach Sales, without Sell › Import invoice by hand.
   Import invoice under "Waiting for a look" with the reason (Review opens it filled in; Dismiss
   drops it). Reasons: lek total (needs the day's rate), a line not matched to a product, lines not
   adding up to the subtotal, no buyer, no total.
-- **No double sales:** an e-invoice and a till receipt can share a number ("63/2026"), so a sale
+- **No double sales:** an e-invoice and a till receipt can share a number ("12/2026"), so a sale
   counts as the same only with the same number AND (an invoice-type sale or the same total).
 - **Older e-invoices are left alone:** 40 of the 45 archived ones aren't in Sales by number, but
   many were recorded another way (a till sale; amounts in lek), so only the owner can tell.
@@ -1786,15 +1786,15 @@ correctly - it should also reach Sales, without Sell › Import invoice by hand.
   `needs-review` with the read invoice, `already`, `dismissed`); `sales-import.json` in the reports
   folder remembers which files were handled. The button's result says "Added to Sales: …" or how
   many invoices wait, and offers **Review invoices**.
-- **Checked:** dry run on the owner's example, e-invoice 63/2026 (one Kärcher trigger gun, €55):
+- **Checked:** dry run on the owner's example, an e-invoice for one Kärcher trigger gun:
   buyer, NIPT, total and the catalogue product all read correctly, confidence 80. The waiting list,
   Review prefill and Dismiss were tried in the preview with a marked test record (now dismissed).
-- **First real run (6 Oct, after the project moved to the Blaze plan):** 63/2026 saved as an
-  invoice-type sale, €45.83 + €9.17 VAT = €55, linked to the catalogue product with its cost; stock
+- **First real run (6 Oct, after the project moved to the Blaze plan):** it was saved as an
+  invoice-type sale, net plus VAT equal to the total, linked to the catalogue product with its cost; stock
   3 → 2; a new customer with its NIPT; `salesImports` record `imported`. Two fixes it showed: the
   buyer's name kept the e-invoice's quotes (`"ABC"` for ABC), now stripped; and the processor stamps a
   sale with the moment it is saved, so a Monday run would date last week's invoices today (and a
-  30 Sep invoice in October). An auto-imported sale now gets its invoice day at noon; 63/2026 was
+  30 Sep invoice in October). An auto-imported sale now gets its invoice day at noon; that invoice was
   moved to 2 Oct (it had 6 Oct 11:46). Manual imports are unchanged: the owner imports on the day.
 
 ---
@@ -1808,12 +1808,12 @@ to what it already knew: all 457 papers filed on 26 Sep re-classify to the same 
 original names.
 
 - `formats.js`: real type from the first bytes (12 extension-less PDFs, among them **10 Kärcher
-  invoices of 27 Nov 2025** that Purchases lacked, e.g. 7573108773 €8,312.42); Word text; Raiffeisen
+  invoices of 27 Nov 2025** that Purchases lacked, e.g. one of several thousand euro); Word text; Raiffeisen
   XML/CSV statements (account, period); spreadsheet column labels (files under 3 MB, labels only).
 - `ocr.js`: scans read with pdf.js (page picture, any encoding) + the app's Tesseract and English
   data. Placed by whose paper it is and its kind: 9 scanned Kärcher bundles, 8 Turkish export /
   origin papers, a Bayersan e-invoice, leaflets and a certificate.
-- `classify.js`: Bayersan proformas (INV. NO 724 = the €1,578 transfer), Kosovo supplier invoices,
+- `classify.js`: Bayersan proformas (matched to their transfer), Kosovo supplier invoices,
   contracts, tenders (before contracts: "njoftim për dhënie të kontratës"), reports, vehicle papers,
   warranty letters, shop signs, marketing, manuals/MSDS; name and label rules for spreadsheets.
 - **Never touched:** key and recovery-code files (four Firebase Admin SDK keys and three
@@ -1876,7 +1876,7 @@ without a prepaid delivery ever reaching Money › You owe.
 
 **What the papers already say, and what the app now reads from them:**
 - The owner writes the order or invoice numbers into each bank transfer (`inv. 7571…`), shorthand
-  included (`7573087659, 660, 661`), so a payment names what it paid.
+  included (`7570000101, 102, 103`), so a payment names what it paid.
 - Every Kärcher invoice prints its order number, delivery note, and per line the country of
   origin, the EU-preference mark (`P` no Albanian duty, `*` duty) and the serial numbers.
 - Kärcher's account statement (.xlsx) lists every invoice with its order number and whether and
@@ -1920,7 +1920,7 @@ logged; only the prepaid B 50 W and the warranty-claim parts are waiting"):**
   labour Kärcher credits, not goods. Purchases shows "Warranty claim · waiting" or "Labour claim ·
   credit due". The end customer's name and phone on a claim are not stored.
 - The order list now waits for exactly what the owner named: the B 50 W (prepaid 19 Aug), the SG 4/2
-  replacement (claim 7571148969) and five K 7 parts (claim 7571151033).
+  replacement (one claim) and five K 7 parts (another).
 - **Receive fix:** a line booked at 0 (a free replacement) used to set the product's cost price to 0;
   it now adds stock and leaves the cost alone.
 
@@ -2032,13 +2032,13 @@ Also found and stopped during this check: five `serve_www.py` test servers left 
 earlier sessions. Only HQ's server remains.
 
 ✅ **Both faults fixed in HQ on the owner's instruction (24 Sep).** Records now read their invoice
-number (`360/2026`), taken from `easypos.invoiceNumber` as well as the top-level field and trimmed of
+number (`12/2026`), taken from `easypos.invoiceNumber` as well as the top-level field and trimmed of
 the device suffix; a cancelled sale stays listed but marked *Invoice cancelled - no warranty*, and
 its detail explains that the goods went back to stock and the certificate was settled, linking to the
 certificates instead of the warranty form. The change had to go into **both `app.js` (the station
 panel) and `rooms.js` (the workbench cards)**, which hold their own copies of the same rendering, and
 into both copies of the folder. HQ's own README now records all of that, including the two traps.
-Originals kept as `*.backup-2026-09-24`. Verified live after a restart: `358/2026` no longer offers a
+Originals kept as `*.backup-2026-09-24`. Verified live after a restart: the cancelled invoice no longer offers a
 warranty for the machine that came back.
 
 ---
@@ -2099,12 +2099,12 @@ now uses the same five-tier matcher a sale uses and leaves stock alone when it c
 **Tested on the real thing.** Rehearsed first on disposable records (a two-machine certificate
 issued the day before, a refund for one of them; the right machine pre-ticked, the issue date kept,
 the reprint showing only the machine that stayed, and the card cancelling when the last one came
-off - all test records deleted afterwards). Then the owner cancelled invoice **358/2026** (Alba
-Koreshi, EUR 6,500, the BD 50/70 R Bp Classic sold the day before). The log reads, in order:
+off - all test records deleted afterwards). Then the owner cancelled an invoice (a
+customer's BD 50/70 R Bp Classic, sold the day before). The log reads, in order:
 
 ```
 RETURN DETECTED: Negative total amount
--> Found the store sale it reverses: WRu1aMsr55wjW45jxCsA (Alba Koreshi, EUR 6500)
+-> Found the store sale it reverses: <sale id> (<customer>, EUR <amount>)
    In-store sale marked as Returned
    Return recorded: Ea9KUyHWz2ilxegVQHR5
    BD 50/70 R Bp Classic: 0 + 1 back in stock
@@ -2113,25 +2113,25 @@ RETURN processed successfully!
 
 Every one of those lines is something that did not work before this month: the store-sale search
 (Finding #47b - it only ever looked at online orders), the item line itself (Finding #43 - the
-EUR 6,500 price's comma), the stock going back to the right product, and `processReturn` finishing
+price's thousands comma), the stock going back to the right product, and `processReturn` finishing
 at all rather than throwing on an undefined variable. The owner then answered the app's question,
 and the certificate ended: `items: []`, cancelled 24 Sep 10:15, `removedItems` holding
-*BD 50/70 R Bp Classic, S/N 013425, "Invoice cancelled"*, **`createdAt` still 23 Sep 2026** and
+*BD 50/70 R Bp Classic, S/N <serial>, "Invoice cancelled"*, **`createdAt` still 23 Sep 2026** and
 `warrantyUntil` still 23 Sep 2028.
 
 **Two things the test exposed, both then fixed the same day:**
 
-1. **Today read "−EUR 6,500 · -1300% of your EUR 500 goal".** The money was right - EUR 6,500 went
+1. **Today read "−EUR X · -1300% of your EUR 500 goal".** The money was right - the whole sale went
    back out - but a share of a sales goal means nothing on a day that gave more back than it took.
-   It now reads **"EUR 6,500 refunded today, nothing sold yet"**, and the goal bar stays empty
+   It now reads **"EUR X refunded today, nothing sold yet"**, and the goal bar stays empty
    instead of going negative. `analyze()` returns the day's two halves (`soldToday`,
    `refundedToday`) so the screen can say what happened rather than divide by a goal.
-2. **A refund was not taken off a customer's lifetime spend.** Alba Koreshi still read EUR 6,500
+2. **A refund was not taken off a customer's lifetime spend.** The customer still read the full price
    after her invoice was cancelled, while revenue, profit and the plan had all removed it.
    `customerDirectory` now collects each customer's refunds (`e.refunds`, `e.refunded`) and takes
-   them off `e.revenue`, and the profile says **"after EUR 6,500 refunded"** so the lower figure
-   explains itself. Her total is now EUR 0 on one purchase, and the shop's customer total moves
-   from EUR 371,063 to EUR 359,634 - the refunds that belong to named customers. Walk-in refunds
+   them off `e.revenue`, and the profile says **"after EUR X refunded"** so the lower figure
+   explains itself. Their total is now EUR 0 on one purchase, and the shop's customer total drops by
+   the refunds that belong to named customers. Walk-in refunds
    stay where they are, because there is no customer to take them off.
 
 ---
@@ -2190,8 +2190,8 @@ had to be retyped every month, and nobody does that.
   needed to break even at that month's own margin. Until costs are entered it says so, and links to
   where they go, rather than showing a flattering number.
 
-Verified on live data with a disposable EUR 1,500 rent: September read *EUR 1,500 to run the shop,
-EUR 3,179 net profit, break even at EUR 3,259 of sales at 46% margin*, and Today matched. The test
+Verified on live data with a disposable test rent: September read *what it costs to run the shop,
+the net profit and the break-even sales at the month's margin*, and Today matched. The test
 entry was removed afterwards; the installed app now reads "add what the shop costs to run".
 
 ---
@@ -2213,13 +2213,11 @@ match.
 
 **The existing refunds were then linked, on the owner's say-so** (`scratchpad/backfill_returns.cjs`,
 backup in `scratchpad/returns-link-backup.json`): 7 of the 18 now carry `linkedSaleId`, and those 7
-sales are marked *Returned* with the date and reason from the credit note. Klodian Dedja EUR 1,211
-to invoice 91/2026, THE MAID EUR 274 to 112/2026, ALBSOLUTION EUR 600 to 176/2026, Maple Bear
-EUR 289 to 218/2026, Alban Muca EUR 111 to 236/2026, Emi Albion Majaci EUR 2,015 to 256/2026, Suela
-Myftari EUR 80 to 251/2026.
+sales are marked *Returned* with the date and reason from the credit note. Seven refunds
+were linked to the sales they reverse, each to one customer's invoice.
 
 **No money moved**, and that was checked rather than assumed: twelve-month store-sale revenue read
-EUR 149,843 across 627 sales before and after, and the refunds still total EUR 11,418. A sale's
+the same across 627 sales before and after, and the refunds total the same. A sale's
 `status` is only ever read for online orders, so marking a store sale *Returned* records what
 happened without touching a figure - the refund was already being subtracted separately.
 
@@ -2241,7 +2239,7 @@ sale carried its item again. Until now the spare could only be removed from the 
 
 Verified on a disposable card first (`ZZZ-TEST-0001`, created and removed through the button), then
 used for real: the numberless BD 50/70 card, and **GAR-2026-0011** - AK Aviation's CVH 3 Plus had two
-certificates for one machine (same sale, same serial 144574, same invoice 59/2026, same cover to 15
+certificates for one machine (same sale, same serial, same invoice, same cover to 15
 Sep 2028, no repairs on either), so the later of the two was removed and GAR-2026-0010 kept. Its
 document is backed up at `scratchpad/warrantycard-GAR-2026-0011-backup.json` in case the customer's
 printed copy carries the other number. Cards went 13 → 11, and **no machine now has more than one.**
@@ -2282,7 +2280,7 @@ fix, 289 before the whole day's work).
 its total from the `TOTAL EUR` line, and both of those were read correctly. It was the parser that
 was internally inconsistent. One refund record did keep the unsigned 35.00 on a line; it was tidied
 to -35.00 (backup: `scratchpad/refund-line-backup.json`, the receipt's own figure kept as
-`printedLineTotal`, the refund's EUR 111 total unchanged).
+`printedLineTotal`, the refund's total unchanged).
 
 Where the data now stands: **all 38 refund lines agree with quantity x price, and every EasyPOS sale
 with items adds up to its own total.**
@@ -2291,10 +2289,10 @@ with items adds up to its own total.**
 
 #### **44. A RECEIPT WRITTEN IN LEK WAS COUNTED AS EUROS** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
-Chasing what looked like a wrong cost price (a EUR 2,300 sale of a pad whose cost is EUR 17.54)
-turned up something else: **invoice 242/2026 was written in lek, and stored as if its number were
-euros.** The receipt prints `TOTAL LEK 2,300.00` and nothing else - no `Valuta EUR`, no `Kursi`,
-no `TOTAL EUR`. 2,300 lek is about EUR 24; the same disk had sold for EUR 25 a month earlier.
+Chasing what looked like a wrong cost price (a pad sold at about a hundred times its cost)
+turned up something else: **one invoice was written in lek, and stored as if its number were
+euros.** The receipt prints `TOTAL LEK 2,400.00` and nothing else - no `Valuta EUR`, no `Kursi`,
+no `TOTAL EUR`. In lek the amount made sense: about what the same disk had sold for a month earlier.
 
 - `findCurrency` returned `'EUR'` whenever no `Valuta` line was found - so "no currency stated"
   and "euros" were the same answer. It now reads a lek invoice as `ALL`, because a EUR invoice
@@ -2306,27 +2304,27 @@ no `TOTAL EUR`. 2,300 lek is about EUR 24; the same disk had sold for EUR 25 a m
 - The item lines are in lek too, so `extractInvoiceData` converts them with the same rate and keeps
   `originalPricePerUnit` and `exchangeRate` on each line. A sale's parts and its total now agree.
 
-Across all 296 captures exactly one stored total changes: 242/2026, EUR 2,300 → EUR 24.08. Two other
+Across all 296 captures exactly one stored total changes: that invoice, from the lek figure to its euro value. Two other
 receipts have no EUR total either, but no readable total at all.
 
 **Corrected in the data, with the owner's approval and a backup** (`scratchpad/lek-fix-backup.json`):
-the sale is now EUR 24.08 with a note saying what it was and why, and the product's price went from
-2,500 (its lek price) to EUR 25, which is what it sold for on 20 Apr. **The EUR 17.54 cost was right
-all along.** Twelve-month revenue falls by EUR 2,276 that the shop never took.
+the sale is now in euro with a note saying what it was and why, and the product's price went from
+its lek price to the euro price it sold for on 20 Apr. **The cost was right
+all along.** Twelve-month revenue falls by the amount the shop never took.
 
 ---
 
 #### **43. THE TILL PARSER LOST EVERY ITEM PRICED OVER EUR 999, AND EVERYTHING SOLD BY WEIGHT** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
-The owner asked why the EUR 6,500 sale of 23 Sep arrived with no machine and no serial number.
+The owner asked why a machine sale of 23 Sep arrived with no machine and no serial number.
 The OCR had read the receipt perfectly - the capture on disk holds `Karcher BD 50/70 R Bp Classic`,
-`1 cope X 6,500.00 6,500.00` and `SIN:013425`. The parser threw the line away.
+`1 cope X 1,500.00 1,500.00` and `SIN:123456`. The parser threw the line away.
 
 `extractItems` matched a quantity line with `/^(-?\d+)\s+cope\s+X\s+([0-9.]+)\s+(-?[0-9.]+)/`.
 Three things that expression cannot read, each of which dropped the item in silence while the sale
 itself was still saved with its total:
 
-- **a thousands separator**: `[0-9.]+` stops at the comma in `6,500.00`, so **every item priced
+- **a thousands separator**: `[0-9.]+` stops at the comma in `1,500.00`, so **every item priced
   1,000 or more** was lost. (`findGrandTotal` allows commas, which is why the total was right and
   only the line was missing.)
 - **any unit but pieces**: `5kg X 11.00 55.00` - Repox is priced and stocked per kg. 19 lines.
@@ -2334,22 +2332,22 @@ itself was still saved with its total:
 
 A fourth layout turned up while checking the fix: a **discounted item wraps onto three lines** -
 `STAR 3435 WDM` / `1 cope X 280.00` / `280.00 (-10.00%) 252.00` - and the old expression needed the
-money on the same line as the quantity, so a whole eight-line invoice (220/2026, EUR 961.20) had
-nothing on it, and a EUR 950 sale was missing the EUR 820 machine while keeping its two accessories.
+money on the same line as the quantity, so a whole eight-line invoice had
+nothing on it, and another sale was missing its machine while keeping its two accessories.
 
 Fixed with two definitions on the class. `ITEM_LINE`: the unit is optional (an unfamiliar one can no
 longer drop a line), the "X" is what makes it a quantity line, the line total is optional, commas are
 stripped, and the quantity is a decimal because half a kilo is a quantity. `DISCOUNT_LINE`: reads the
 following line, and **checks the printed money against the printed percentage**, because on this
 shop's receipts the scanner has read "6.30" as "8.30" and "(" as "{". The arithmetic wins when the
-two disagree - which is what makes invoice 220/2026's eight lines add up to EUR 961.20 exactly rather
-than EUR 961.90.
+two disagree - which is what makes that invoice's eight lines add up to its printed total exactly rather
+than 70 cents off.
 
 **Checked against all 296 captures the shop has printed** (`scratchpad/verify_bridgefix.cjs`, which
 runs the patched parser over each stored `_data.json` and compares with what was saved at the time):
 268 identical, **27 lines recovered**, 1 receipt gained a line it had been missing, **0 regressions**.
-Recovered: 19 Repox kg lines, one 10-bag line, and the machines - SGV 8/5 (EUR 4,000), HD 9/20-4
-(EUR 1,450, twice), HD 7/20 G (EUR 1,200), Qeleshe disk (EUR 2,300) and the BD 50/70 (EUR 6,500).
+Recovered: 19 Repox kg lines, one 10-bag line, and the machines - SGV 8/5, HD 9/20-4
+(twice), HD 7/20 G, Qeleshe disk and the BD 50/70.
 Three of the refunds that Finding #37 could not cost are the same bug: their credit notes carry the
 same big numbers.
 
@@ -2364,7 +2362,7 @@ watching again from 17:19).
 backup in `scratchpad/backfill-backup.json`): 22 sales and 4 refunds got their lines back, built by
 the bridge's own `buildSaleItems` so a repaired sale is exactly what a fresh import would have
 written - same product matching, same cost, same "the serial goes to the most expensive line". Today's
-EUR 6,500 sale now carries *BD 50/70 R Bp Classic*, S/N **013425** and a EUR 3,629.32 cost. EasyPOS
+machine sale now carries *BD 50/70 R Bp Classic*, its serial and its cost. EasyPOS
 sales with no items went from 22 to 1 (a EUR 0 receipt), refunds with no lines from 4 to 0, and the
 share of 12-month revenue whose cost is known rose from 89% to 91%.
 
@@ -2419,7 +2417,7 @@ be written to. The till now asks – but only when it is new information.
 
 ---
 
-#### **39. WIN BACK: 199 CUSTOMERS, €194,058, FORGOTTEN** — ✅ **BUILT & VERIFIED (September 23, 2026)**
+#### **39. WIN BACK: 199 CUSTOMERS FORGOTTEN** — ✅ **BUILT & VERIFIED (September 23, 2026)**
 
 New tab **Customers › Win back**: everyone who bought at least twice and hasn't been back for 6
 months, a year or two years, sorted by what they spent or how long they've been away.
@@ -2428,10 +2426,10 @@ months, a year or two years, sorted by what they spent or how long they've been 
   preferred over the mop it came with) – opened in WhatsApp through `wa.me`, with Albanian mobile
   numbers normalised (069… → 35569…). **Nothing is ever sent by the app**: WhatsApp opens with the
   text ready and the owner presses send. "Copy" puts the same text on the clipboard.
-- **The gap is visible:** 199 customers, €194,058 spent with the shop, and only 53 have a phone
+- **The gap is visible:** 199 customers who had bought repeatedly, and only 53 have a phone
   number – which is what Finding #40 is for.
 - **"Pa klient"** ("no customer") is now read as a walk-in placeholder everywhere (`WALKIN` in
-  `data.js`), not as a customer with 80 purchases and €8,118 of spend.
+  `data.js`), not as a customer with 80 purchases.
 
 ---
 
@@ -2453,7 +2451,7 @@ and for those rows to be workable rather than read-only.
 events (about 150, not its 6,700 message events, via a single-field query) and `analyze()` returns
 `botMissing`: events from the last 90 days that carry money, are not marked handled, and match no
 order. Today shows them as a **Now** item – currently "1 Instagram order the chatbot took is not in
-the app · 9 Sept, €199.86, 6 items".
+the app · 9 Sept, €X, 6 items".
 
 The chatbot itself runs outside this machine (the deployed `instagramWebhook` function has seen
 nothing but verification pings since 14 Sep, so the bot writes to Firestore directly and cannot be
@@ -2486,7 +2484,7 @@ five hours before this screen was built.
   Oct-Nov 2025**, the bot's first weeks, where *nothing* landed (0 of 66) - a launch/test period,
   long since cleaned up; **25 are from Dec 2025 onward**, where 55 of 80 do land. Of those 25, all
   but two carry `revenue: 0` with one item, which is the bot logging an order it started and never
-  finished. The two that carry real money - **€199.86 on 9 Sep** and **€1,657.86 on 12 Jun** - have
+  finished. The two that carry real money - **9 Sep** and **12 Jun** - have
   no order on that day at all, and those are real losses. So the honest reading is "the bot's log
   is not a reliable order list", not "91 orders were lost".
 - **Nothing it logs is invisible now.** Every event is listed with the money and item count it
@@ -2504,7 +2502,7 @@ five hours before this screen was built.
 
 #### **37. REFUNDS NOW COUNT, AND TWO PRODUCTS WERE PRICED BELOW COST** — ✅ **FIXED & VERIFIED (September 23, 2026)**
 
-**€11,418 of refunds in 12 months were invisible.** When the till bridge reads a credit note it
+**A year of refunds was invisible.** When the till bridge reads a credit note it
 writes it to `returns` and leaves the original sale standing – and nothing in the app read
 `returns`. So the shop counted money it had handed back. (This is not the `isReturn` flag: those 98
 sales are old imported records, already excluded, and none of them is one of these 18 refunds.)
@@ -2519,12 +2517,10 @@ sales are old imported records, already excluded, and none of them is one of the
   taken off their own month in `unitsByMonth`, never below zero.
 - **Sell › All sales** shows refunds as their own rows ("money back", negative amount, source
   *Refund*) with a drawer showing what came back; **Today** lists them in the day's activity.
-- Effect on the real numbers: 12 months gross €178,368 → €166,950; Insights net revenue €138,700;
-  gross profit €43,545 → €41,807; margin unchanged at 40%. 28 of 34 refunded lines match a product;
+- Effect on the real numbers: 12-month gross revenue and gross profit fall by the refunds; margin unchanged. 28 of 34 refunded lines match a product;
   9 of 18 refunds are fully costed.
 - **New Data health check: "priced below cost".** Two products lose money on every sale – *Carpet
-  nozzle flexible 240mm* (€6.94 against a €64.37 cost) and *Gyp fleksibil 34 MM* (€9 against
-  €61.16). Neither was touched by the 22 Sep cost correction; both prices are simply wrong.
+  nozzle flexible 240mm* and *Gyp fleksibil 34 MM*, each priced at about a tenth of its cost. Neither was touched by the 22 Sep cost correction; both prices are simply wrong.
 - Found in passing, not fixed (it is outside this app): `processReturn` in `easypos-ocr-bridge.js`
   ends with `linkedOrder ? …`, a variable that doesn't exist – it throws after the refund is
   recorded and the stock put back. That is why all 18 refunds have `linkedSaleId: null` and no
@@ -2541,7 +2537,7 @@ sales are old imported records, already excluded, and none of them is one of the
 - **Order of the rows matches the decision:** the two "still selling" bands are sorted by what runs out soonest; the slow bands by the money tied up.
 - **A row opens that product in Stock › Catalogue.**
 
-Live figures: within 30 days = 27 products, €29,257 (led by CVH 3 Plus and Universal floor cloth set, 90 days of cover each); 31–90 days = 42 products, €12,079; the default slow view = 208 products, €77,145.
+Live figures: within 30 days = 27 products (led by CVH 3 Plus and Universal floor cloth set, 90 days of cover each); 31–90 days = 42 products; the default slow view = 208 products.
 
 ---
 
@@ -2568,7 +2564,7 @@ The owner couldn't tell what a save had produced: the screen only showed trackin
 - **"Make the plan only these products"** in the dialog replaces the whole plan with the ticked ones (it says how many others would be removed). Unticked, it keeps the rest, as before.
 - **Mixed bases are stated honestly:** once single products are re-planned from different years, the header says "N different sets of years" instead of claiming one.
 
-**Verified** on the owner's 2027 plan: the grid shows SC 3 as Jan 8 · Feb 3 · Mar 2 … 159 for the year, deliveries mode shows nothing until May (stock and the order list cover it), and the totals row reads 1,207 planned units / 645 to order / €75,523. A save of 2 ticked products with "only these" produced a 2-product plan; the 102-product plan was then restored from a snapshot taken first.
+**Verified** on the owner's 2027 plan: the grid shows SC 3 as Jan 8 · Feb 3 · Mar 2 … 159 for the year, deliveries mode shows nothing until May (stock and the order list cover it), and the totals row reads 1,207 planned units / 645 to order / their value. A save of 2 ticked products with "only these" produced a 2-product plan; the 102-product plan was then restored from a snapshot taken first.
 
 ---
 
@@ -2597,18 +2593,17 @@ Asked for by the owner: tick specific machines, plan only those, and choose whic
 **Products** (`dataFixes/costs-from-invoices-2026-09-22` holds every before/after value):
 - 81 of the 105 products that match an invoice changed: 7 missing costs filled and 74 corrected.
 - Most stored costs were about 0.85 of the invoice price. For example:
-  - BD 50/50: €1,328.30 → €1,563.59
-  - SGV 8/5: €1,840.42 → €2,168.00
-  - HD 9/25 G Classic: none → €993.97
+  - BD 50/50 and SGV 8/5: up to the invoiced cost
+  - HD 9/25 G Classic: none → the invoiced cost
 - Three special cases:
-  - Folding column: €21.90 → €7.30 (the old scanner had saved the line total).
-  - Pad per 35/15 and O-Ring SC: invoiced as sets of 5 and sold singly, so the cost is ÷5 (€7.97, €0.60).
+  - Folding column: down to a third (the old scanner had saved the line total).
+  - Pad per 35/15 and O-Ring SC: invoiced as sets of 5 and sold singly, so the cost is ÷5.
 - `baseCost` and `cost` (×1.2) are set, with `costSource` and `costCheckedAt`. The re-read matched all 81 exactly.
 
 **Past sales** (`dataFixes/sale-costs-from-invoices-2026-09-22`):
 - 338 lines on 324 sales of those products got the corrected `netCost`/`cost`. Each line keeps `costBefore`/`netCostBefore`, so it can be reverted.
-- **Last 12 months:** gross profit went from €45,861 to €43,545, and margin from 42% to 40%. The 30-day margin is now 48%.
-- **Stock value at cost:** €118,481.
+- **Last 12 months:** gross profit went down by the corrected costs, and margin by 2 points.
+- **Stock value at cost:** recalculated from the corrected costs.
 
 ---
 
@@ -2622,10 +2617,10 @@ The owner asked for every page still on the old design to be rebuilt the same wa
 The app now has **9 pages**, down from 43 before Phase 5: Today, Sell, Stock, Customers, Service, Money, Insights, Settings, plus the warranty print page. Five batches, each tested on live data with ZZZ TEST records (0 left afterwards) and committed separately:
 
 **1. Money** (`4dc0d9a`)
-- **Expenses:** month view by category, and net profit after expenses, shown only for months that have expenses recorded (otherwise such a month looks like pure profit). One click copies last month's recurring costs. Finding: December 2025, the only month with expenses (€3,460), came out at −€857 net.
+- **Expenses:** month view by category, and net profit after expenses, shown only for months that have expenses recorded (otherwise such a month looks like pure profit). One click copies last month's recurring costs. Finding: December 2025, the only month with expenses, came out below zero net.
 - **You owe:** supplier invoices with due dates and overdue flags, payments in a transaction, and undo. Classic shapes kept. `addSupplierInvoice()` lives in `payables.js`, because importing a workspace module boots it.
 - **Next 30 days:** replaces Forecasts' cash-flow chart, which invented payment dates. It uses only sales at the 90-day pace, supplier invoices with due dates, the latest month's expenses and planned deliveries. Customer debts are listed without dates rather than guessed.
-- **Display:** negative amounts now read "−€857".
+- **Display:** negative amounts now read "−€120" (a minus sign, not a hyphen).
 
 **2. Stock** (`6c1eab4`)
 - **Order list:**
@@ -2633,14 +2628,14 @@ The app now has **9 pages**, down from 43 before Phase 5: Today, Sell, Stock, Cu
   - Receiving a line raises stock in the same batch.
   - Lines can be edited and removed.
   - "Copy order" produces text to paste into an email.
-  - Lines waiting 60+ days are flagged: all **24 lines (€7,550) have waited since Nov–Dec 2025**.
+  - Lines waiting 60+ days are flagged: all **24 lines have waited since Nov–Dec 2025**.
 - **Receive delivery:**
   - **Kärcher invoices are read exactly from the PDF text layer.** All **70 Kärcher invoices in the owner's Downloads (Dec 2024–May 2026) parse to the cent**: 177 lines, including ZSA/M units and €0 warranty replacements.
   - Other suppliers fall back to the classic reader, with OCR.
   - Lines match by Kärcher material code; each shows the cost change and the stock after.
   - One batch books stock, cost, the purchase record and the order-list lines. The 3% prepayment discount is optional. "Pay later" goes to You owe.
-  - **Two duplicate guards:** the classic OCR booked invoice 7573108773 three times on one product, and stored a misread number ("11265/U1/0003", from the header's "11267/U1 / 0003") with the line total as unit cost (Folding column €21.90 instead of €7.30).
-  - The invoice audit found 7 products with no cost whose cost the invoices do show, and **74 products stored ~15% below the invoiced cost** (e.g. BD 50/50 €1,328 vs €1,564). Left for the owner to decide (rebate or old price list).
+  - **Two duplicate guards:** the classic OCR booked one invoice three times on one product, and stored a misread number (from the header's order number) with the line total as unit cost (the Folding column at three times its cost).
+  - The invoice audit found 7 products with no cost whose cost the invoices do show, and **74 products stored ~15% below the invoiced cost** (e.g. BD 50/50). Left for the owner to decide (rebate or old price list).
 
 **3. Sell** (`ddd50d1`)
 - **Online orders:**
@@ -2735,7 +2730,7 @@ The same move took:
 
 #### **29. REDESIGN PHASE 4 — MONEY AND INSIGHTS** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
 
-**Money** (`money.html`, `app/money.js`) — "Owed to you" replaces the seven classic debt pages. It shows €5,648 still owed on 7 invoices from 4 customers; Alb Solution accounts for 77%.
+**Money** (`money.html`, `app/money.js`) — "Owed to you" replaces the seven classic debt pages. It shows what is still owed on 7 invoices from 4 customers; one customer accounts for most of it.
 - **Layout:** each customer shows how much of their total is paid off. Their panel lists each invoice with its payments and a link to the matching sale.
 - **Actions:**
   - record a payment (with a date, and a guard against paying more than is owed)
@@ -2758,7 +2753,7 @@ The same move took:
 - **Best sellers:** products grouped by name, because some products have two catalogue records under the same name.
 - **Every day of the last year:** a calendar heatmap that also makes the till-only gap visible.
 - **When customers buy:** weekday × hour from EasyPOS receipts. The imported history has no time of day, so it is left out.
-- **How long your stock has been waiting:** stock value by time since last sold. €61k has never sold; the biggest items are listed.
+- **How long your stock has been waiting:** stock value by time since last sold, including what has never sold; the biggest items are listed.
 - **Supplier price changes:** from purchase batches, deduplicated by invoice (Puzzi 8/1 −11%, SG 4/2 +3%, …).
 - `lineNetRevenues()` spreads each sale's net revenue across its lines, so family and product totals add up to the same figures Today uses.
 
@@ -2778,7 +2773,7 @@ The same move took:
 
 #### **28. REDESIGN PHASE 3 — CUSTOMERS AND SERVICE WORKSPACES** — ✅ **BUILT & VERIFIED WITH LIVE WRITES (September 21, 2026)**
 
-**One answer to "who is this customer".** `customerDirectory()` in `data.js` lists every customer once: each profile, plus every named buyer with no profile yet. A profile's own name, its `aliases` and any profile merged into it all count as the same person. Walk-in placeholders are excluded (including two "Klien(t) Privat" *profiles*). The result: 685 customers who bought, €374,456 in total, matching Today's customer count definition.
+**One answer to "who is this customer".** `customerDirectory()` in `data.js` lists every customer once: each profile, plus every named buyer with no profile yet. A profile's own name, its `aliases` and any profile merged into it all count as the same person. Walk-in placeholders are excluded (including two "Klien(t) Privat" *profiles*). The result: 685 customers who bought, matching Today's customer count definition.
 
 **Customers** (`customers.html`, `app/customers.js`):
 - **List** with segments that replace the classic Loyalty page: bought in 90 days (45), regulars with 3+ purchases (134), not back in 6 months (199), owes money (4), open repair (2), business/NIPT (45) and no phone number (444). Search covers name, alias, phone digits, NIPT and address; Ctrl K now opens customers here (`customers.html?q=…`), including by an old spelling.
@@ -2788,7 +2783,7 @@ The same move took:
 **Service** (`service.html`, `app/service.js`):
 - **Repairs:** the shared `serviceTickets` list with Garanci's status values, filters (open, not started, in service, waiting for parts, past promised date, closed), age and last timeline step. The panel edits status, technician, promised date and notes **in a transaction that follows Garanci's rule**: it re-reads the ticket, refuses if someone else changed the same fields, and appends Albanian timeline entries (`Statusi u ndryshua: …`, `U përditësua servisi: …`, `who: 'Servisi'`) to the *current* timeline. **Completing** sets `completedAt` and `warrantyCardId`, and adds `{ticketId, createdAt, date, description, serialNumber, productName}` to the machine's warranty card only once per ticket, or creates the card, as in Garanci. It also offers "Customer contacted" (`lastCustomerContactAt` + timeline) and copies Garanci's customer update message.
 - **New repair** uses the classic shape (`status: 'received'`, timeline `Kërkesa u regjistruar` by `Recepsioni`). Picking the customer fills in their phone and lists what they bought; choosing an item sets `linkedSaleId/linkedSaleType/linkedItemIndex`, which Garanci uses to find the warranty.
-- **Warranty cards:** all cards with certificate number, machine and serial, "covered until" and number of repairs; a click opens `warranty-card.html?id=` for printing. Noticed in passing: GAR-2026-0010 and GAR-2026-0011 are the same machine (invoice 59/2026, serial 144574), a certificate issued twice.
+- **Warranty cards:** all cards with certificate number, machine and serial, "covered until" and number of repairs; a click opens `warranty-card.html?id=` for printing. Noticed in passing: GAR-2026-0010 and GAR-2026-0011 are the same machine (same invoice, same serial), a certificate issued twice.
 
 The sidebar and Today now point to the new screens. Classic Customers and Repairs stay reachable as "classic" tabs until Phase 5. `firebase.js` exports `runTransaction`.
 
@@ -2809,17 +2804,17 @@ Afterwards there were **0 ZZZ records** in customers, tickets or cards, and the 
 
 **Stock** (`stock.html`, `app/stock.js`):
 - **Catalogue:** a dense, sortable table of all products with no image tiles (no product has an image). Columns: stock, price, net cost, margin at list price, units sold in 90 days, last sold, and value at cost. Filters show live counts: in stock, out of stock, **no cost price (35)**, not sold in 90 days (211), and needs a count (7). A side panel edits a product with the classic field set `{name, code, producer, price, baseCost, cost = baseCost × 1.2, stock}`, lists the receipt names linked to it, shows its recent sales and purchase batches, and deletes it (with a warning that states how many sale lines reference it). It opens directly from Ctrl K (`stock.html?q=…`) or from Today's "Enter costs" action (`?filter=nocost`).
-- **Reorder:** every product with 2+ units sold in 90 days, ranked by stock left, with a bar that marks the 6-week restock. Today nothing is urgent; VCH 4 has the least cover at 51 days. "Add N" writes the classic order-list shape `{name, quantity, supplier, quantityReceived: 0, smartSuggestion: true, urgency, daysUntilStockout, reason, estimatedCost, addedAt}`, and products already on an open order list show "on list". Next to it is the unsold-in-90-days list, €75,135 at cost.
+- **Reorder:** every product with 2+ units sold in 90 days, ranked by stock left, with a bar that marks the 6-week restock. Today nothing is urgent; VCH 4 has the least cover at 51 days. "Add N" writes the classic order-list shape `{name, quantity, supplier, quantityReceived: 0, smartSuggestion: true, urgency, daysUntilStockout, reason, estimatedCost, addedAt}`, and products already on an open order list show "on list". Next to it is the unsold-in-90-days list, at cost.
 - **Link receipt items:** all 13 EasyPOS names that never matched a product. "Link to product" rewrites the affected sale lines (setting `costProductId`, plus cost and `netCost` where it was missing, with `costSource: 'linked:owner'`), adds the name to the product's new `receiptNames` array, and optionally takes the never-deducted units off stock, all in **one atomic batch**. "It's a service" marks the lines `isService` (no stock cost, so the sale counts as costed) and records the name in `settings/receiptNames.services`. Suggestions use approximate matching (edit distance, shared words, producer prefix stripped), because these are precisely the names that don't match exactly: "NT 2211 Ap L" suggests NT 22/1 Ap L, "CA 50 C Eco*™ 5l cleaner" suggests CA 50 C ECO**1, and "Stone and Facade 5L" suggests Stone & Facade 5L. The owner always picks; nothing links by itself.
 - **OCR bridge, tier 0:** `matchProduct` checks `product.receiptNames` before any other rule, so a linked name matches from the next receipt onward. Tested on the real code: 5/5 (linked names match regardless of case or spacing, and unlinked names match exactly as before). The watchdog loads the change by itself.
 
 **Sell** (`sell.html`, `app/sell.js`):
-- **All sales:** the first single list of every EasyPOS receipt, PDF invoice, till sale, imported sale and online order. It filters by period, source and free-text search (invoice number, customer or product), and shows revenue, gross margin, profit and the costed share, plus a margin on every sale. Its figures agree with Today to the cent (30 days: 19 sales, €5,395.50, 54%, €2,412). The detail panel shows lines with net cost (or "unknown"), serials, customer and NIPT. It can reprint a **warranty card** (the same `warrantyCards` record and print URL as the classic till, with serials written back to the sale) and **delete** a sale, restoring stock for linked lines in the same batch and warning first what will change.
+- **All sales:** the first single list of every EasyPOS receipt, PDF invoice, till sale, imported sale and online order. It filters by period, source and free-text search (invoice number, customer or product), and shows revenue, gross margin, profit and the costed share, plus a margin on every sale. Its figures agree with Today to the cent (30 days: 19 sales, the same revenue, margin and profit). The detail panel shows lines with net cost (or "unknown"), serials, customer and NIPT. It can reprint a **warranty card** (the same `warrantyCards` record and print URL as the classic till, with serials written back to the sale) and **delete** a sale, restoring stock for linked lines in the same batch and warning first what will change.
 - **New sale (till):** keyboard-first (F2 search, arrows, Enter adds, F9 charges), products ranked by how often they sell, and customer autocomplete from every named buyer. It shows net, VAT and live margin. It writes the classic record `{items{name, price, cost, quantity, productId, image}, total, paymentMethod, notes, timestamp, type: 'store', clientName}` plus `netCost`. The **sale and its stock decrements go in one batch**, where the classic till wrote them one after another and could leave a sale without its stock change. Selling beyond the system's stock asks for confirmation instead of blocking outright, since the stock figure is known to be wrong for some products.
 
 **Shared pieces:** `app/workspace.js` (the bootstrap: shell, a single data load, tabs with classic links, reload after each save); drawers, dialogs and toasts in `ui.js`; `rankProducts` and `suggestProducts` in `data.js`, which also gained `isService` handling, `unlinkedReceiptLines()` and last-sold dates. Sidebar badges are identical on every screen (`navCountsFor`). Ctrl K now opens products in Stock and invoices in Sell.
 
-**Verified:** every screen was checked against live data. The write paths were proven end to end with a disposable **ZZZ TEST** product, and each step was confirmed directly in Firestore: create (exact classic shape, `cost` 6 = 5 × 1.2), edit, a till sale (exact classic shape plus `netCost`, stock 4 → 2 atomically), deleting the sale (stock back to 4), and deleting the product. Afterwards: **0 test records** in products, sales or the order list, and the catalogue back to 340 products and €115,479. The link dialog was exercised on all 13 names and cancelled each time, so nothing was written. One real defect was found and fixed during testing: link suggestions were empty because search required every word.
+**Verified:** every screen was checked against live data. The write paths were proven end to end with a disposable **ZZZ TEST** product, and each step was confirmed directly in Firestore: create (exact classic shape, `cost` 6 = 5 × 1.2), edit, a till sale (exact classic shape plus `netCost`, stock 4 → 2 atomically), deleting the sale (stock back to 4), and deleting the product. Afterwards: **0 test records** in products, sales or the order list, and the catalogue back to 340 products and its stock value. The link dialog was exercised on all 13 names and cancelled each time, so nothing was written. One real defect was found and fixed during testing: link suggestions were empty because search required every word.
 
 ---
 
@@ -2835,9 +2830,9 @@ Afterwards there were **0 ZZZ records** in customers, tickets or cards, and the 
 - `www/app/shell.js`: the sidebar with live badges, flyouts listing each workspace's classic screens (each marked "Opens the classic screen until … is rebuilt"), and the command palette. The palette searches screens (with English and Albanian synonyms, e.g. *reorder*, *borxh*, *garanci*), products (code, stock, price, with the ones you sell most first), customers (last purchase) and invoices/receipts. Products and customers open the classic pages already filtered via their existing `?q=` support. The five retired pages are not linked from the shell.
 - `www/app/today.js` and `main.js`: Today refreshes every 5 minutes, when the window regains focus after 2+ minutes, and on `new-sale`.
 
-**Today, as verified against live data on 21 Sep:** Today €3,350 ("€500 goal reached"; it reuses the retired Smart Dashboard's `dailyRevenueGoal` setting so the goal carries over); this month €5,340, 16 sales, +119% against the same days of August (both periods are EasyPOS-era, so they are comparable); 30-day gross margin 54% (€2,412 profit on €4,496 net, 100% of sales costed); owed to you €5,648 across 7 unpaid invoices. **Needs you:** 7 products need a physical count (the 8 from the 14 Sep correction, minus one whose stock has since changed), 2 receipt items not linked to a product ("Nderrim pllake per Makinen BD" and "T5"), 2 repair tickets open with the oldest 27 days old and no promised date, and 1 online order not marked paid (62 days old). **Activity:** receipt 355/2026 arrived at 15:09 *while this was being built*, next to invoice 61/2026 for ADG. **Stock:** €115,479 at cost, €75,135 (65%) unsold in 90 days, 77 products selling. **Data health:** last EasyPOS receipt 2 hours ago, 100% of 30-day sales costed, 0 addresses left to clean. The sidebar's EasyPOS status turns amber after 48 hours without a receipt and red after 96, and at 96 hours Today raises a "pipeline may have stopped" item, because the bridge once died for four days unnoticed.
+**Today, as verified against live data on 21 Sep:** Today's sales ("€500 goal reached"; it reuses the retired Smart Dashboard's `dailyRevenueGoal` setting so the goal carries over); this month 16 sales, +119% against the same days of August (both periods are EasyPOS-era, so they are comparable); 30-day gross margin with 100% of sales costed; owed to you across 7 unpaid invoices. **Needs you:** 7 products need a physical count (the 8 from the 14 Sep correction, minus one whose stock has since changed), 2 receipt items not linked to a product ("Nderrim pllake per Makinen BD" and "T5"), 2 repair tickets open with the oldest 27 days old and no promised date, and 1 online order not marked paid (62 days old). **Activity:** a receipt arrived at 15:09 *while this was being built*, next to the company invoice above. **Stock:** 65% of the value at cost unsold in 90 days, 77 products selling. **Data health:** last EasyPOS receipt 2 hours ago, 100% of 30-day sales costed, 0 addresses left to clean. The sidebar's EasyPOS status turns amber after 48 hours without a receipt and red after 96, and at 96 hours Today raises a "pipeline may have stopped" item, because the bridge once died for four days unnoticed.
 
-**Checks:** every new file loads (HTTP 200); search results were confirmed for "adg" (the customer and invoice 61/2026), "61/2026", "sc 3", "bd 50" (BD 50/50 above BD 50/70 once ranked by sales), "reorder", "borxh" and "garanci", with the keyboard (↑ ↓ ↵ Esc) working; the classic dashboard still renders under its new name. Three layout bugs found in the review screenshot were fixed: the hidden-attribute override on the "Show" list, missing spacing between sections, and the search box wrapping.
+**Checks:** every new file loads (HTTP 200); search results were confirmed for a customer name (the customer and their invoice), an invoice number, "sc 3", "bd 50" (BD 50/50 above BD 50/70 once ranked by sales), "reorder", "borxh" and "garanci", with the keyboard (↑ ↓ ↵ Esc) working; the classic dashboard still renders under its new name. Three layout bugs found in the review screenshot were fixed: the hidden-attribute override on the "Show" list, missing spacing between sections, and the search box wrapping.
 
 **Next:** Phase 2, rebuilding Sell and Stock natively inside the shell.
 
@@ -2850,10 +2845,10 @@ Afterwards there were **0 ZZZ records** in customers, tickets or cards, and the 
 **What the dry run found** (read-only, then checked by hand before anything was written):
 - **Profit was invented.** 71 of 77 sales in the last 90 days carried no cost. EasyPOS receipts before 14 Sep and every scanned PDF invoice saved cost as 0, so Analytics showed profit equal to revenue.
 - **VAT bases were mixed.** A product's `cost` is `baseCost × 1.2`, with a median of exactly 1.200 across 71 products, and the 2025 import's line costs are also VAT-inclusive (median 1.200 across 1,129 lines). Invoice PDF prices are net, and receipt totals include VAT. Margin is therefore computed net-to-net.
-- **Two traps would have produced false margins.** First, one purchase batch stored a 12-unit line total (€900) as the unit cost of VCH 4 UV Clean (€75), which made July show −60%. Second, 35 sale lines (34 from the 2025 import) carry a product *code* belonging to a different product than their name; for example, "Qese per WD3" (€3 bags) was stamped with SC 3's code. The costing therefore trusts an exact name over a stored id or code, and uses a batch cost only when it is within 0.4–2.5× the product's own cost. SC 3's stock was **not** affected: the 14 Sep correction had skipped it (it would have gone to −18).
+- **Two traps would have produced false margins.** First, one purchase batch stored a 12-unit line total as the unit cost of VCH 4 UV Clean, which made July show −60%. Second, 35 sale lines (34 from the 2025 import) carry a product *code* belonging to a different product than their name; for example, "Qese per WD3" (cheap bags) was stamped with SC 3's code. The costing therefore trusts an exact name over a stored id or code, and uses a batch cost only when it is within 0.4–2.5× the product's own cost. SC 3's stock was **not** affected: the 14 Sep correction had skipped it (it would have gone to −18).
 - **2025 history is per product line, not per invoice.** 1,191 imported records form only 495 invoices, so the 2025 "sales per month" are inflated about 2.4×.
 - **Addresses:** 106 of the ~141 customer profiles had receipt lines glued onto the address by the OCR bridge (for example "…Korce, ALB, Qese per T11/1, 10 cope X 2.00 20.00"). Five PDF sales and five profiles had Danfos's own address as the customer's.
-- **Debts** are stored as sub-records: `debtors/{id}/invoices` holds 8 invoices across 6 debtors (about €7,988). The proposal's first draft had said "names only", which was wrong and has been corrected.
+- **Debts** are stored as sub-records: `debtors/{id}/invoices` holds 8 invoices across 6 debtors. The proposal's first draft had said "names only", which was wrong and has been corrected.
 - **Instagram:** chatbot "orders" carry no price, like the 21 Jul order with item `"00"` and €0. Orders leave the Online Orders page only through its Delete button, which asks for confirmation, or by deleting a whole customer. None has been saved since 21 July, and the owner was asked whether Instagram sales happened in Aug–Sep.
 
 **Applied with the owner's approval** (script `phase0-apply`, preview first):
@@ -2863,14 +2858,14 @@ Afterwards there were **0 ZZZ records** in customers, tickets or cards, and the 
 4. **Danfos's address cleared** from 5 sales and 5 profiles. The real addresses cannot be recovered.
 - 367 documents updated in total. Every original value is backed up in `docs/records/phase0-backup-2026-09-21.json` (local only), and the audit and re-run guard is `dataFixes/phase0-2026-09-21`; a second run was tested and refused.
 
-**Verified:** sales with no cost in the last 90 days fell from **71 (92%) to 2 (3%)**, covering €120 of revenue. Real gross margin is **38–53% every month and 49% over the last 90 days**, where the app had shown 100% or "healthy" with no basis. Spot checks: the VCH 4 receipts now cost €75 net; ADG's BD 50/50 costs €1,328.30 net against €2,750 (52%); Elena Toli's address ends at "…Lagja 1, Korce".
+**Verified:** sales with no cost in the last 90 days fell from **71 (92%) to 2 (3%)**, covering little revenue. Real gross margin is **38–53% every month and 49% over the last 90 days**, where the app had shown 100% or "healthy" with no basis. Spot checks: the VCH 4 receipts now carry their net cost; a company customer's BD 50/50 shows its cost against its price; a customer's address no longer ends in item text.
 
 **Code fixes so new data stays right:**
 - **Invoice scanner** (`manual-pdf-processor.js`) now saves each linked product's cost and `netCost`, and an unlinked line stays at 0 rather than being guessed. This was tested by running the real `saveToDatabase` against an in-memory fake Firestore: 4/4 checks passed.
 - **OCR bridge** now stops the address at the country code, any quantity/price line, or a section heading, and cuts anything after ", ALB". Tested on the real `extractCustomerInfo` with 4 receipt layouts, 4/4 passing. The watchdog loads the new code on its own.
-- **Dashboard** (`index.html`): the hardcoded `+0%`, `Avg wait: 14m`, `+12`, the decorative customer bars and the `JD` avatar are removed. They are replaced with real figures: the 30-day average day, how long the oldest unpaid order has waited, and customers as spelling-normalised named buyers across store sales and online orders (685, with 6 new in 30 days). Before, only online-order names were counted, which gave 237. "LOW STOCK 211" became **REORDER**: a product is flagged when it would run out within 42 days, counting only products with 2+ sold in 90 days (currently none). A new **UNSOLD 90 DAYS** ticker shows €75,135 of stock across 211 products that hasn't moved. The "Instagram Orders · Today" card really counted *all* open chatbot orders, so it now says "open". Products now carry `_docId` so sales can be linked to them.
+- **Dashboard** (`index.html`): the hardcoded `+0%`, `Avg wait: 14m`, `+12`, the decorative customer bars and the `JD` avatar are removed. They are replaced with real figures: the 30-day average day, how long the oldest unpaid order has waited, and customers as spelling-normalised named buyers across store sales and online orders (685, with 6 new in 30 days). Before, only online-order names were counted, which gave 237. "LOW STOCK 211" became **REORDER**: a product is flagged when it would run out within 42 days, counting only products with 2+ sold in 90 days (currently none). A new **UNSOLD 90 DAYS** ticker shows the stock across 211 products that hasn't moved. The "Instagram Orders · Today" card really counted *all* open chatbot orders, so it now says "open". Products now carry `_docId` so sales can be linked to them.
 
-**Biggest business finding:** of the **€115,458 of stock at net cost, €75,108 (65%) has not sold a single unit in 90 days**. The largest amounts are BD 35/15C (8 units, €11,400), a Blancus 85 ride-on (€4,163) and Star SC5100B (€4,052). No product that sells regularly is about to run out.
+**Biggest business finding:** **65% of the stock at net cost has not sold a single unit in 90 days**. The largest amounts are BD 35/15C (8 units), a Blancus 85 ride-on and Star SC5100B. No product that sells regularly is about to run out.
 
 **Still open:** entering cost prices for the products that have none (the largest are STAR STREET SWEEPER, KM 85/50 R Bp Pack 2 SB, HD 9/25 G Classic and Star C43), and 7 lookalike customer names (mostly OCR reading "ç" as "g") for the owner to review in the future Customers workspace.
 
@@ -3307,7 +3302,7 @@ class EasyPOSOCRProcessor {
     }
     
     parseEasyPOSInvoice(text) {
-        // Extract invoice number (e.g., "54/2026/mv200vz195")
+        // Extract invoice number (e.g., "12/2026/ab123cd456")
         const invoiceMatch = text.match(/Fature\s+Nr\.\s*(\d+\/\d+\/[a-z0-9]+)/i);
         
         // Extract date (e.g., "08/02/2026")
@@ -3415,7 +3410,7 @@ watcher.on('add', async (filePath) => {
 ```
 
 **Data Fields Collected from EasyPOS Invoices:**
-- `invoiceNumber` - Format: "54/2026/mv200vz195"
+- `invoiceNumber` - Format: "12/2026/ab123cd456"
 - `invoiceDate` - Format: "08/02/2026"
 - `clientName` - Customer name (links to customers collection via this field)
 - `items[]` - Array of:
@@ -3440,7 +3435,7 @@ watcher.on('add', async (filePath) => {
 **How It Works:**
 
 1. **After OCR Completes:**
-   - Extracted customer name: "Romina Kozi"
+   - Extracted customer name: "Customer A"
    - Extracted items: WD 3 V-15/4/20 (YYY) *EU x 1
    - Extracted total: €99
 
@@ -3503,20 +3498,20 @@ watcher.on('add', async (filePath) => {
 
 **Example Scenario:**
 
-1. Customer "Romina Kozi" places Instagram order for WD vacuum (€99)
+1. Customer "Customer A" places Instagram order for WD vacuum (€99)
 2. Order stored in `onlineOrders` collection with status: "Ordered"
 3. Staff prints invoice from EasyPOS for same customer/product
 4. OCR Bridge:
-   - Extracts: Romina Kozi, WD vacuum, €99
-   - Queries: `onlineOrders.where('clientName', '==', 'Romina Kozi')`
+   - Extracts: Customer A, WD vacuum, €99
+   - Queries: `onlineOrders.where('clientName', '==', 'Customer A')`
    - Finds: Matching order (X6AEBy7JVoUfNOxM4SJE)
    - Compares: Items match ✅, Total matches ✅
-   - Updates: Order status → "Processing", links invoice "69/2026/mv200vz195"
+   - Updates: Order status → "Processing", links invoice "14/2026/ab123cd456"
    - Result: ✅ Single sale record, order properly fulfilled
 
 **Bug History:**
 - **Feb 8, 2026:** Same field name issue found in Customer Loyalty Dashboard (customerName → clientName)
-- **Feb 9, 2026:** Same issue discovered in easypos-ocr-bridge.js line 768 when Romina Kozi order created duplicate sale
+- **Feb 9, 2026:** Same issue discovered in easypos-ocr-bridge.js line 768 when Customer A order created duplicate sale
 - **Root Cause:** Copy-paste error from older code that used incorrect field name
 - **Pattern:** ALL Firebase queries linking customers MUST use `clientName` field
 
@@ -3538,7 +3533,7 @@ Data: 09/02/2026
 TOTAL EUR -99.00
 -1 cope X 99.00 -99.00
 
-Klient: Lindita Kollcinaku
+Klient: Customer B
 ```
 
 **How It Works:**
@@ -3623,7 +3618,7 @@ if (!ordersSnapshot.empty) {
 
 **Strategy 3: FALLBACK - Search by customer name + amount matching**
 
-Handles OCR errors in invoice number extraction (e.g., "te" instead of "70/2026/mv200vz195"):
+Handles OCR errors in invoice number extraction (e.g., "te" instead of "13/2026/ab123cd456"):
 
 ```javascript
 // Skip walk-in customers (no online order link possible)
@@ -3650,7 +3645,7 @@ if (customerName && customerName !== 'Walk-in Customer' && total > 0) {
 ```
 
 **Why Fallback Strategy Matters:**
-- Invoice number OCR can fail ("te" vs "70/2026/mv200vz195")
+- Invoice number OCR can fail ("te" vs "13/2026/ab123cd456")
 - Customer name usually OCR-readable
 - Amount is reliable (large font)
 - Prevents manual intervention for linking returns to orders
@@ -3779,7 +3774,7 @@ if (ocrResult.text.includes('Veprim Arke') || ocrResult.text.includes('VEPRIM AR
 
 **Scenario A: Online Order Return**
 ```
-1. Customer: Lindita Kollcinaku
+1. Customer: Customer B
 2. Order: €99 WD vacuum (status: "Paid")
 3. Credit note printed: -€99, -1 unit, "NOTE KREDITI"
 4. System:
@@ -3806,13 +3801,13 @@ if (ocrResult.text.includes('Veprim Arke') || ocrResult.text.includes('VEPRIM AR
 
 **Scenario C: OCR Invoice Number Failure (Fallback Matching)**
 ```
-1. Customer: Lindita Kollcinaku
+1. Customer: Customer B
 2. Order: €99 (status: "Paid")
-3. Credit note OCR: Invoice "te" (should be "70/2026/mv200vz195")
+3. Credit note OCR: Invoice "te" (should be "13/2026/ab123cd456")
 4. System:
    - Strategy 1 fails (invoice number too short)
    - Strategy 3 fallback:
-     * Search orders by clientName="Lindita Kollcinaku"
+     * Search orders by clientName="Customer B"
      * Find order with €99 total (matches within €0.01)
      * Order status="Paid" (fulfilled)
      * MATCH FOUND ✅
@@ -3835,9 +3830,9 @@ if (ocrResult.text.includes('Veprim Arke') || ocrResult.text.includes('VEPRIM AR
 {
   type: "return",
   reason: "Albanian credit note detected: NOTE KREDITI",
-  invoiceNumber: "70/2026/mv200vz195",
+  invoiceNumber: "13/2026/ab123cd456",
   invoiceDate: "09/02/2026",
-  customerName: "Lindita Kollcinaku",
+  customerName: "Customer B",
   total: 99,  // Absolute value
   currency: "EUR",
   items: [{
@@ -3861,7 +3856,7 @@ if (ocrResult.text.includes('Veprim Arke') || ocrResult.text.includes('VEPRIM AR
 
 **Bug History:**
 
-**Feb 9, 2026 - Lindita Kollcinaku Test Case:**
+**Feb 9, 2026 - Customer B Test Case:**
 1. **Initial Issue:** Credit note not detected as return
    - Root Cause: Negative total extracted as positive (99 instead of -99)
    - Regex pattern: `/TOTAL\s+EUR\s+([0-9,]+\.?\d*)` (missing `-?`)
@@ -3880,7 +3875,7 @@ if (ocrResult.text.includes('Veprim Arke') || ocrResult.text.includes('VEPRIM AR
    - Added: `const quantity = Math.abs(item.quantity || 0)`
 
 5. **Fourth Issue:** Order not automatically linked
-   - Invoice number OCR: "te" (actual: "70/2026/mv200vz195")
+   - Invoice number OCR: "te" (actual: "13/2026/ab123cd456")
    - Implemented Strategy 3: customer name + amount fallback
    - Manual update: Order TcTCyedIPXDZdazyUGXW marked "returned"
 
@@ -3973,12 +3968,12 @@ C:\Users\[Username]\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startu
    ```javascript
    // Stored in: storeSales collection
    {
-     clientName: "Valmira",           // Field name: clientName
+     clientName: "Customer C",           // Field name: clientName
      type: "easypos",
      paymentMethod: "unknown",
-     notes: "EasyPOS Import - Invoice: 54/2026/mv200vz195",
+     notes: "EasyPOS Import - Invoice: 12/2026/ab123cd456",
      easypos: {
-       invoiceNumber: "54/2026/mv200vz195",
+       invoiceNumber: "12/2026/ab123cd456",
        invoiceDate: "08/02/2026"
      }
    }
@@ -3988,7 +3983,7 @@ C:\Users\[Username]\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startu
    ```javascript
    // Stored in: onlineOrders collection
    {
-     clientName: "Migena Reca",       // Field name: clientName
+     clientName: "Customer D",       // Field name: clientName
      source: "Instagram Chatbot",
      status: "Paid",
      telephone: "0697007230",
@@ -4005,9 +4000,9 @@ C:\Users\[Username]\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startu
    {
      type: "return",
      reason: "Albanian credit note detected: NOTE KREDITI",
-     invoiceNumber: "70/2026/mv200vz195",
+     invoiceNumber: "13/2026/ab123cd456",
      invoiceDate: "09/02/2026",
-     customerName: "Lindita Kollcinaku",
+     customerName: "Customer B",
      total: 99,                        // Absolute value
      currency: "EUR",
      items: [{
@@ -4030,7 +4025,7 @@ C:\Users\[Username]\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startu
      returnedAt: "2026-02-09T11:13:32.842Z",
      returnReason: "Albanian credit note detected",
      returnType: "return",
-     cancelledInvoiceNumber: "70/2026/mv200vz195"
+     cancelledInvoiceNumber: "13/2026/ab123cd456"
    }
    ```
 
@@ -4468,10 +4463,10 @@ This app does NOT need:
 
 **Major Updates in v4.4 (September 14, 2026):**
 - 🔧 **Reprint guard rewritten** — the old one only checked `customers.invoiceHistory`, which walk-in sales never populate, so every walk-in reprint created a second sale (all 7 production duplicates were walk-ins). Now matches on invoice number **plus** date, total and items — deliberately *not* number alone, because EasyPOS genuinely reuses invoice numbers for different sales and a number-only guard would discard real ones. Full details in **Finding #21a**.
-- 🔧 **OCR capture fixes**: the Albanian label no longer leaks into customer names ("Emr Aldi Gegolli"), and hand-written `S/N` serials are now read from the SHËNIME box (OCR renders them as `SIN:`) and attached to the machine rather than the accessories — feeding the warranty records.
+- 🔧 **OCR capture fixes**: the Albanian label no longer leaks into customer names ("Emr <name>"), and hand-written `S/N` serials are now read from the SHËNIME box (OCR renders them as `SIN:`) and attached to the machine rather than the accessories — feeding the warranty records.
 - 🔧 **Sales now touch inventory**: items are matched to the real product catalogue (real `productId`, `code`, `cost`) and stock is deducted. Previously stock only ever moved on returns.
 - 🧹 **2 genuine duplicate sales deleted**; the 5 EasyPOS number-collisions left intact as real sales.
-- ✅ **Historical stock drift corrected**: 103 products / 573 units / EUR 16,171 at cost deducted, with a full backup and a re-run guard. 8 products were deliberately skipped because the correction would drive them negative — those need a physical count. Product matching also made typo-tolerant (unmatched receipt names 37 → 13), with a digit guard so `SC2` can never be matched to `SC 3`. Full details in **Finding #21**.
+- ✅ **Historical stock drift corrected**: 103 products / 573 units deducted, with a full backup and a re-run guard. 8 products were deliberately skipped because the correction would drive them negative — those need a physical count. Product matching also made typo-tolerant (unmatched receipt names 37 → 13), with a digit guard so `SC2` can never be matched to `SC 3`. Full details in **Finding #21**.
 
 **Manifest Version:** 4.3 (EasyPOS Pipeline Recovery)  
 **Last Updated:** September 14, 2026  
@@ -4480,7 +4475,7 @@ This app does NOT need:
 
 **Major Updates in v4.3 (September 14, 2026):**
 - 🔧 **Root-caused why EasyPOS invoices stopped reaching the app**: the OCR bridge had been dead since Sept 10 and `DanfosalStartup.bat`'s "already running" guard matched *any* `node.exe`, so every startup skipped restarting it. Fixed the detection (bridge and scheduler), the redirection-unsafe `timeout` waits, and a parse-time `%ERRORLEVEL%` bug that made the log contradict itself. Full details in **Finding #20**.
-- ✅ **Backlog recovered**: invoices 351/2026 and 352/2026 imported; one receipt correctly skipped as a cash-drawer marker; invoice numbering verified contiguous, so nothing was lost during the outage.
+- ✅ **Backlog recovered**: two invoices imported; one receipt correctly skipped as a cash-drawer marker; invoice numbering verified contiguous, so nothing was lost during the outage.
 - ✅ **Silent 30-minute watchdog** (`Danfosal EasyPOS Watchdog` scheduled task → `run-startup-hidden.vbs`) — verified by killing the bridge and watching the task bring it back, with no window shown, no duplicates and no lingering processes.
 - ✅ **Weekly reports removed** at the owner's request (processes stopped, startup step deleted; scripts left on disk unused).
 - ✅ **Startup shortcuts pruned 3 → 1** and the survivor made silent; the removed `start-easypos-pipeline.ps1` shortcut was found to spawn a never-closing PowerShell window *and* an unguarded second bridge.

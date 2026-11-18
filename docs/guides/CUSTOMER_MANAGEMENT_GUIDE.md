@@ -141,7 +141,7 @@ npm run view-customer "Customer Name"
 ```
 **Example:**
 ```bash
-npm run view-customer "Valmira"
+npm run view-customer "Customer C"
 ```
 
 **Output:**
@@ -150,7 +150,7 @@ npm run view-customer "Valmira"
 👤 Customer Information
 ========================================
 ID:              Rp9odw9CD7mJpmmzeURe
-Name:            Valmira
+Name:            Customer C
 NIPT:            (none)
 Phone:           (none)
 Email:           (none)

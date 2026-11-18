@@ -66,7 +66,7 @@ INVOICE ARRIVES
 **Check:** `customers` has new record, `storeSales` has sale, `invoiceHistory` has entry
 
 ### Scenario 2: Existing Customer
-**Invoice:** Customer "SushiCo Albania" (already exists)  
+**Invoice:** Customer "Example Restaurant Sh.p.k" (already exists)  
 **Expected:** Linked to existing customer, no duplicate created  
 **Check:** `storeSales.customerId` matches existing customer ID
 

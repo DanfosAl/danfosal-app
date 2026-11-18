@@ -53,15 +53,15 @@ Changes:
 
 ═══════════════════════════════════════════════════════════════
 
-DATA FIX (ROMINA KOZI ORDER):
-The user's sale for Romina Kozi was incorrectly processed.
+DATA FIX (CUSTOMER A ORDER):
+The user's sale for Customer A was incorrectly processed.
 
 Manual correction performed:
 
 1. DELETED incorrect walk-in sale:
    Collection: storeSales
    Document ID: AjOf7SmgwMsVz17laI50
-   Customer: Romina Kozi
+   Customer: Customer A
    Invoice: 69/2026/mv200vz195
    Total: €99
    Items: 1x WD 3 V-15/4/20 (YYY) *EU
@@ -96,12 +96,12 @@ Status: ✅ Running with updated code
 TESTING VERIFICATION:
 
 Before Fix:
-  Query: onlineOrders.where('customerName', '==', 'Romina Kozi')
+  Query: onlineOrders.where('customerName', '==', 'Customer A')
   Result: 0 records (field doesn't exist)
   Outcome: Created walk-in sale
 
 After Fix:
-  Query: onlineOrders.where('clientName', '==', 'Romina Kozi')
+  Query: onlineOrders.where('clientName', '==', 'Customer A')
   Result: 1 record (Order X6AEBy7JVoUfNOxM4SJE)
   Outcome: Matches order, updates status
 

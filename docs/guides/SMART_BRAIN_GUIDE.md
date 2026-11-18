@@ -112,7 +112,7 @@ Stock Record Updated:
   reason: "Negative total amount",
   invoiceNumber: "68/2026/mv200vz195",
   invoiceDate: "08/02/2026",
-  customerName: "SushiCo Albania",
+  customerName: "Example Restaurant Sh.p.k",
   total: 340.00,
   currency: "EUR",
   items: [...],
@@ -148,7 +148,7 @@ Stock Record Updated:
 {
   invoiceNumber: "68/2026/mv200vz195",
   invoiceDate: "08/02/2026",
-  customerName: "SushiCo Albania",
+  customerName: "Example Restaurant Sh.p.k",
   total: 340.00,
   currency: "EUR",
   action: "walk_in_sale" | "online_order_matched" | "return" | "cancellation",
@@ -330,7 +330,7 @@ name ASC
 [INFO]    🔍 Searching for existing customer...
 [INFO]    ✓ Found by NIPT: L98765432X → WMByvXcoQE4nqSWNSeO3
 [INFO]    🔍 Searching for matching online orders...
-[INFO]    → No pending online orders for SushiCo Albania
+[INFO]    → No pending online orders for Example Restaurant Sh.p.k
 [INFO]    📝 Registering as new walk-in sale...
 [INFO]    ✓ Sale created: 2WqT7Ugmml8fHN2A0C22
 [INFO]    ✓ Total: EUR 340
@@ -379,8 +379,8 @@ name ASC
 3. Verify in Firebase: New sale in `storeSales`, new entry in `invoiceHistory`
 
 ### Test Scenario 2: Customer Deduplication
-1. Print invoice with customer "SushiCo Albania" (already exists)
-2. Check logs: Should see "Found by name: SushiCo Albania → [existingId]"
+1. Print invoice with customer "Example Restaurant Sh.p.k" (already exists)
+2. Check logs: Should see "Found by name: Example Restaurant Sh.p.k → [existingId]"
 3. Verify: Sale links to existing customer ID, no duplicate customer created
 
 ### Test Scenario 3: Online Order Matching

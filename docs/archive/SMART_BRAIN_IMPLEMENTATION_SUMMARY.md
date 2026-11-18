@@ -54,7 +54,7 @@
 {
   invoiceNumber: "68/2026/mv200vz195",
   invoiceDate: "08/02/2026",
-  customerName: "SushiCo Albania",
+  customerName: "Example Restaurant Sh.p.k",
   total: 340.00,
   currency: "EUR",
   action: "walk_in_sale", // or "online_order_matched", "return", "cancellation"
@@ -71,7 +71,7 @@
   reason: "Negative total amount",
   invoiceNumber: "68/2026/mv200vz195",
   invoiceDate: "08/02/2026",
-  customerName: "SushiCo Albania",
+  customerName: "Example Restaurant Sh.p.k",
   total: 340.00,
   currency: "EUR",
   items: [...],
@@ -265,7 +265,7 @@ Check these collections:
 ## 🧪 Testing Checklist
 
 - [ ] **Test 1: Normal Sale** - New walk-in customer, verify customer created and sale recorded
-- [ ] **Test 2: Existing Customer** - Customer "SushiCo Albania", verify linked to existing record
+- [ ] **Test 2: Existing Customer** - Customer "Example Restaurant Sh.p.k", verify linked to existing record
 - [ ] **Test 3: Online Order Match** - Create order, print matching invoice, verify status updated
 - [ ] **Test 4: Return** - Print invoice with negative total, verify recorded in returns and stock updated
 - [ ] **Test 5: Duplicate** - Print same invoice twice, verify second skipped with warning

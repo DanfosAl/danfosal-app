@@ -14,10 +14,11 @@ async function verifyInvoice() {
   console.log('========================================\n');
   
   try {
-    // Find customer "Valmira"
-    console.log('🔍 Searching for customer: Valmira\n');
+    // Find the customer named on the command line: node verify-invoice.js "Customer Name"
+    const name = process.argv[2] || '';
+    console.log(`🔍 Searching for customer: ${name}\n`);
     const customerSnapshot = await db.collection('customers')
-      .where('name', '==', 'Valmira')
+      .where('name', '==', name)
       .limit(1)
       .get();
     

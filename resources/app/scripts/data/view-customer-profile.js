@@ -20,7 +20,7 @@ async function viewCustomerProfile(searchName) {
   
   if (!searchName) {
     console.log('Usage: node view-customer-profile.js "Customer Name"\n');
-    console.log('Example: node view-customer-profile.js "Valmira"\n');
+    console.log('Example: node view-customer-profile.js "Customer Name"\n');
     process.exit(1);
   }
   

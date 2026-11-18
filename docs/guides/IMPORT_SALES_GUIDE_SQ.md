@@ -43,7 +43,7 @@ Excel file duhet të ketë këto kolona:
 | **Cmimi_EUR** | Çmimi total | `185` |
 | **Cmimi_per_njesi** | Çmimi për njësi | `185` |
 | **Data** | Data e shitjes | `01/12/2025` |
-| **Subjekti** | Emri i klientit (opsionale) | `Alketa Shehu` |
+| **Subjekti** | Emri i klientit (opsionale) | `Customer F` |
 
 ### Format të Pranuara
 - `.xlsx` (Excel)

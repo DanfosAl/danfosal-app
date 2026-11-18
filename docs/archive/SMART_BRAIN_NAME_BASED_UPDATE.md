@@ -44,10 +44,10 @@ Every customer document now includes an **`invoiceHistory` array**:
 
 ```javascript
 {
-  name: "SushiCo Albania",
-  email: "contact@sushico.al",
+  name: "Example Restaurant Sh.p.k",
+  email: "contact@example.com",
   phone: "+355 69 123 4567",
-  address: "Rruga Muhamet Gjollesha, Tirane",
+  address: "Rruga Shembull 1, Tirane",
   nipt: "L98765432X", // Optional metadata
   status: "Active",
   source: "easypos-import",
@@ -142,7 +142,7 @@ npm run migrate-customers
 
 Expected output:
 ```
-→ Updating SushiCo Albania (WMByvXcoQE4nqSWNSeO3) - Adding invoiceHistory array
+→ Updating Example Restaurant Sh.p.k (WMByvXcoQE4nqSWNSeO3) - Adding invoiceHistory array
 ✅ Migration successful! All customers now have NIPT and invoiceHistory fields.
 ```
 
@@ -175,8 +175,8 @@ Expected log output:
 ```
 [INFO] 🧠 [SMART BRAIN] Analyzing invoice...
 [INFO]    🔍 Searching for existing customer by name...
-[INFO]    ✓ Found by name: SushiCo Albania → WMByvXcoQE4nqSWNSeO3
-[INFO]    ✓ Customer: SushiCo Albania (ID: WMByvXcoQE4nqSWNSeO3)
+[INFO]    ✓ Found by name: Example Restaurant Sh.p.k → WMByvXcoQE4nqSWNSeO3
+[INFO]    ✓ Customer: Example Restaurant Sh.p.k (ID: WMByvXcoQE4nqSWNSeO3)
 [INFO]    → Added invoice 71/2026/mv200vz198 to customer history (total: 4)
 [INFO]    ✓ Invoice added to customer history
 [SUCCESS] ✅ Database save complete!

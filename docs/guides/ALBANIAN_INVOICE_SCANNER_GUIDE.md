@@ -90,8 +90,8 @@ System automatically:
 ### Customer Deduplication
 ```javascript
 // Fuzzy name matching
-"Migena Reca" matches "MIGENA RECA"
-"Lindita Kollcinaku" matches "Lindita  Kollcinaku"
+"Customer D" matches "CUSTOMER D"
+"Customer B" matches "Customer  B"
 ```
 
 ### Order Matching Logic
@@ -116,7 +116,7 @@ Product "WD 3 V-15/4/20" stock: 10 → 9 (after sale of 1 unit)
 ### Saved to `storeSales` Collection:
 ```json
 {
-  "clientName": "Migena Reca",
+  "clientName": "Customer D",
   "customerAddress": "Rr. Tefta Tashko, Tirana",
   "customerId": "abc123",
   "items": [
@@ -239,7 +239,7 @@ Totali: 10,450.00 ALL
 **Input:**
 ```
 Fature Nr: 2024/002
-Klient: Blerim Veshti
+Klient: Customer E
 
 Item: TV Samsung
 Sasi: 1

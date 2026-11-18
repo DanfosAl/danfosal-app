@@ -214,11 +214,11 @@ class EasyPOSOCRProcessor {
             for (let i = customerSectionIndex + 1; i < Math.min(customerSectionIndex + 10, lines.length); i++) {
                 const line = lines[i];
                 
-                // The label and the value share one OCR line, e.g. "Emri Fusionfit Solutions".
+                // The label and the value share one OCR line, e.g. "Emri <customer name>".
                 // OCR regularly mangles the label itself ("Emr", "Emri:", "Emri."), and the old
                 // code only accepted an exact "Emri" prefix - anything else fell through to the
                 // raw-line branch below and stored the label as part of the name, which is how
-                // "Emr Aldi Gegolli" ended up in the database as a customer.
+                // a name starting with "Emr " ended up in the database as a customer.
                 const labelledName = line.match(/^E\s*m\s*r?\s*[i1l]?\s*[:.]?\s+(.+)$/i);
                 if (labelledName && labelledName[1].trim()) {
                     customerName = labelledName[1].trim();

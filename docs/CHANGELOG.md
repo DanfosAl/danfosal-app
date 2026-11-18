@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.3  
+**Version:** 1.4.4  
 **Last Updated:** November 18, 2026
 
 ---
 
-## [Unreleased] - 2026-11-18 - The phone app updates itself for real (version 1.4.4)
+## [Released] - 2026-11-18 - The phone app updates itself for real (version 1.4.4)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #80.
 

@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.3 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78)  
+**Application Version:** 1.4.4 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **80. THE PHONE NEVER UPDATED ITSELF: IT LOOKED FOR A FUNCTION THE ANDROID APP DOESN'T HAVE** — ✅ **FIXED (November 18, 2026, version 1.4.4); each phone installs the 1.4.4 APK once**
+#### **80. THE PHONE NEVER UPDATED ITSELF: IT LOOKED FOR A FUNCTION THE ANDROID APP DOESN'T HAVE** — ✅ **FIXED AND RELEASED (November 18, 2026, version 1.4.4: GitHub release v1.4.4 with the APK, Hosting manifest 1.4.4, shop PC installed, HQ refreshed); each phone installs the 1.4.4 APK once**
 
 The owner (18 Nov 2026): after 1.4.3 the phone still showed 1.4.2, and Settings › Check for
 updates said "You have the latest version".

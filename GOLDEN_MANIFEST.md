@@ -948,6 +948,13 @@ repository; phones get **screen updates silently, a new APK with one tap**.
 - **One manual step left per device:** the devices still on 1.4.1 have no working updater; each needs
   1.4.2 installed once (Windows: `Danfosal-App-Setup-1.4.2.exe`; Android: `Danfosal-App-1.4.2.apk`,
   same signing key, so it installs over the old app). From then on they update themselves.
+- **Released 18 Nov 2026 as 1.4.2** (release commit a123482, by `tools/release/release.mjs`; a first
+  run stopped before publishing anything - cmd wouldn't start `gradlew.bat` by bare name here, fixed
+  in 5a88294). GitHub release v1.4.2 with the installer (132.5 MB, down from ~490 MB now that it is
+  built for differential updates), its blockmap, latest.yml, the APK and the screens' zip; Hosting
+  serves the manifest with CORS; the zip downloaded from GitHub matches the manifest's SHA-256; an
+  Electron app claiming 1.4.1, using electron-updater with the installed app's `app-update.yml`, is
+  offered 1.4.2; installed here (identical to the build); Danfos HQ refreshed.
 
 #### **77. KÄRCHER'S "ORDER CONFIRMATION" FILED AND READ; A PART PAYMENT AGAINST AN ORDER LEAVES THE REST OPEN** — ✅ **LIVE (November 18, 2026)**
 

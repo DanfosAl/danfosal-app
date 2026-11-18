@@ -92,8 +92,9 @@ function renderGeneral(ctx) {
                 'needs-apk': `Version ${v} needs a new install: tap Install in the bar below.`,
                 offline: 'Couldn’t reach the update server. Check the internet connection.',
                 dev: 'Running from the source folder: no updates here.',
+                'not-android': 'This copy is the web version: it is updated whenever the website is.',
                 error: `Couldn’t check: ${r.error || 'unknown error'}`
-            }[r.status] || 'You have the latest version.';
+            }[r.status] || `Couldn’t tell whether an update is waiting (${r.status || 'no answer'}).`;   // never "latest" when it doesn't know
         } catch (e) { msg.textContent = `Couldn’t check: ${e.message}`; }
     });
     ctx.body.querySelectorAll('[data-svc]').forEach(b => b.addEventListener('click', async () => {

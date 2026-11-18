@@ -16,10 +16,19 @@ const OWN = new URL('../app-version.json', import.meta.url).href;
 const LAST_CHECK = 'danfosal-update-check', SNOOZE = 'danfosal-update-later';
 const HOUR = 3600 * 1000;
 
-const native = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
-    && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android' && window.Capacitor.registerPlugin);
+const cap = () => window.Capacitor;
+const native = () => { const c = cap(); return !!(c && c.isNativePlatform && c.isNativePlatform() && c.getPlatform && c.getPlatform() === 'android'); };
+// The plugin's methods. The pages have no bundler, so they don't load @capacitor/core and
+// window.Capacitor.registerPlugin isn't there on the phone - only the Android runtime's own bridge
+// (window.Capacitor.nativePromise). 1.4.2 and 1.4.3 asked for registerPlugin alone, so on the
+// owner's phone they never checked and Settings said "latest" (18 Nov 2026).
 let plugin = null;
-const updater = () => plugin || (plugin = window.Capacitor.registerPlugin('CapacitorUpdater'));
+function call(method, options = {}) {
+    const c = cap();
+    if (c.registerPlugin) return (plugin || (plugin = c.registerPlugin('CapacitorUpdater')))[method](options);
+    if (c.nativePromise) return c.nativePromise('CapacitorUpdater', method, options);
+    return Promise.reject(new Error('the update plugin is not reachable on this phone'));
+}
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private */ } } };
 
 // "1.4.10" > "1.4.9".
@@ -38,11 +47,10 @@ export async function runningVersion() {
 // owner pressed Check, so an install bar shows even if Later was tapped today).
 export async function checkNow({ asked = false } = {}) {
     if (!native()) return { status: 'not-android' };
-    const U = updater();
     const [mine, latest, current] = await Promise.all([
         runningVersion(),
         fetch(MANIFEST, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
-        U.current().catch(() => null)
+        call('current').catch(() => null)
     ]);
     store.set(LAST_CHECK, String(Date.now()));
     if (!latest || !latest.version) return { status: 'offline', mine };
@@ -50,10 +58,10 @@ export async function checkNow({ asked = false } = {}) {
     if (latest.minNative && apk && newer(latest.minNative, apk)) { showInstallBar(latest, !asked); return { status: 'needs-apk', mine, latest: latest.version }; }
     if (!newer(latest.version, mine)) return { status: 'latest', mine };
     // Already downloaded on an earlier check: just make it the next one.
-    const have = ((await U.list().catch(() => null)) || {}).bundles || [];
+    const have = ((await call('list').catch(() => null)) || {}).bundles || [];
     let bundle = have.find(b => b.version === latest.version && b.status === 'success');
-    if (!bundle) bundle = await U.download({ url: latest.bundle, version: latest.version, ...(latest.bundleSha256 ? { checksum: latest.bundleSha256 } : {}) });
-    await U.next({ id: bundle.id });
+    if (!bundle) bundle = await call('download', { url: latest.bundle, version: latest.version, ...(latest.bundleSha256 ? { checksum: latest.bundleSha256 } : {}) });
+    await call('next', { id: bundle.id });
     return { status: 'next-start', mine, latest: latest.version };
 }
 
@@ -78,6 +86,6 @@ function showInstallBar(latest, quiet) {
 }
 
 if (native()) {
-    updater().notifyAppReady().catch(() => {});
+    call('notifyAppReady').catch(() => {});
     if (Date.now() - Number(store.get(LAST_CHECK) || 0) > HOUR) setTimeout(() => checkNow().catch(() => {}), 4000);
 }

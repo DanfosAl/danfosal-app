@@ -6,6 +6,16 @@
 
 ---
 
+## [Unreleased] - 2026-11-18 - The phone app updates itself for real (version 1.4.4)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #80.
+
+### Fixed
+- Android: the live update never ran on a real phone (it looked for registerPlugin, which the Android runtime doesn't provide); it now calls the plugin through the runtime's own bridge. Each phone installs the 1.4.4 APK once.
+- Settings: Check for updates no longer says "You have the latest version" when it doesn't know
+
+---
+
 ## [Released] - 2026-11-18 - Stock › Next order: one proposal for the next Kärcher order, Excel for the order page (version 1.4.3)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #79.

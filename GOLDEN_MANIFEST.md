@@ -895,6 +895,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **80. THE PHONE NEVER UPDATED ITSELF: IT LOOKED FOR A FUNCTION THE ANDROID APP DOESN'T HAVE** — ✅ **FIXED (November 18, 2026, version 1.4.4); each phone installs the 1.4.4 APK once**
+
+The owner (18 Nov 2026): after 1.4.3 the phone still showed 1.4.2, and Settings › Check for
+updates said "You have the latest version".
+
+- **Cause:** `www/app/updates.js` (Finding #78) reached the live-update plugin through
+  `window.Capacitor.registerPlugin`. That function comes from `@capacitor/core`, which these pages
+  never load (no bundler); the Android runtime's own bridge (`native-bridge.js`, injected into
+  every page) offers `window.Capacitor.nativePromise(plugin, method, options)` instead. So on a
+  real phone `updates.js` decided it wasn't the Android app: no start confirmation, no hourly
+  check, and Settings turned the unknown answer into "You have the latest version". The tests of
+  Finding #78 used a fake runtime that had `registerPlugin`, which is why they passed.
+- **Fix:** `updates.js` calls the plugin through `registerPlugin` when a page has it and through
+  `nativePromise` otherwise (the plugin's Android methods `notifyAppReady`, `current`, `list`,
+  `download`, `next` checked in its source; it verifies downloads with SHA-256, which is what the
+  release publishes). Settings never says "latest" when it doesn't know: the web version says it
+  is the web version, anything unexpected says it couldn't tell.
+- **Checked:** `tests/updates.test.mjs` runs `updates.js` against a runtime shaped like the real
+  one (nativePromise only): it fails on the 1.4.3 code and passes on the fix (start confirmed,
+  newer screens downloaded once with their checksum and set for the next start, a newer-APK
+  release shows the install bar, offline, web). No emulator or phone was available on the shop PC
+  to run it on a real device.
+- **What it means for the phones:** 1.4.2 and 1.4.3 can't fetch the fix themselves. Each Android
+  device installs `Danfosal-App-1.4.4.apk` once (same signing key, over the old app); from then on
+  the screens update by themselves. The desktop apps were not affected (electron-updater).
+
 #### **79. STOCK › NEXT ORDER: ONE PROPOSAL FOR THE NEXT KÄRCHER ORDER, READY FOR THE PORTAL; KÄRCHER'S DELIVERY DATES ON EVERY LINE** — ✅ **LIVE (November 18, 2026, version 1.4.3)**
 
 From the deep dive of 18 Nov 2026 the owner chose two things only: deciding what to order from

@@ -337,7 +337,7 @@ class ManualPDFProcessor {
                 /Customer\s*:\s*(.+)/i
             ];
             for (const pattern of buyerNamePatterns) {
-                const match = searchText.match(pattern);
+                const match = text.match(pattern);
                 if (match && match[1]) {
                     const firstLine = match[1].split(/\n/)[0].trim();
                     if (firstLine.length > 2 && firstLine.length < 100) { info.name = firstLine; break; }
@@ -357,7 +357,7 @@ class ManualPDFProcessor {
             // Only safe when unambiguous - otherwise this grabs the seller's address.
             if ((text.match(/^Adres[aë]\s*:/gim) || []).length === 1) {
                 for (const pattern of addressPatterns) {
-                    const match = searchText.match(pattern);
+                    const match = text.match(pattern);
                     if (match && match[1]) {
                         info.address = match[1].trim().replace(/\s+/g, ' ');
                         break;

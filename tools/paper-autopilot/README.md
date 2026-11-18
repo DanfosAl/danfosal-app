@@ -152,11 +152,11 @@ keyed by the file's SHA-256 (`--resync` re-reads them all after a reader improve
 
 | Paper | Read by (`purchase-read.js`) | What it gives |
 |---|---|---|
-| Kärcher proforma / order confirmation | `readKarcherProforma`, `readKarcherOrderConfirmation` | order number, lines, total, cash-discount price |
+| Kärcher proforma / order confirmation | `readKarcherProforma`, `readKarcherOrderConfirmation` (Kärcher Zagreb's "Order Confirmation" form - the proforma's form for an order on account - or the portal's "Your Order Summary") | order number, lines, total, cash-discount price |
 | Kärcher invoice | `readKarcherInvoice` (on the app's `parseKarcher`) | order number(s), delivery note, lines with origin, EU preference and serials |
 | Kärcher credit note | `readKarcherCreditNote` | the invoices it refunds (usually the 3% cash discount) |
 | Kärcher warranty claim ("Gewa") | `readKarcherWarrantyClaim` | the claim as an order: the replacement machine or parts coming back, and the labour credited |
-| Bank payment to a supplier or customs | `readPayment` | amount, and the order/invoice numbers written in its details, shorthand included ("7573087659, 660, 661") |
+| Bank payment to a supplier or customs | `readPayment` | amount, and the order/invoice numbers written in its details, shorthand included ("7573087659, 660, 661"); a part payment ("(part)" after a number, or "Pagesë pjesëshme ...") leaves the rest of the invoice open |
 | Customs declaration | `readCustoms` | declared invoice total, rate, duty (DOG), VAT (TVS), everything else |
 | Kärcher account statement (.xlsx) | `readKarcherStatement` | every invoice, payment and credit note, with what is still open |
 
@@ -186,6 +186,17 @@ prepayment, nothing taken from stock; the final invoice, which deducts it with a
 goods' cost shared between the two. A final invoice whose prepayment isn't in Sales waits for
 review. `node autopilot.js --sales --include "Sales invoices/2026/<file>.pdf"` takes an older
 e-invoice the owner names.
+
+**E-invoices made in easyPOS** ("Faturë Elektronike", filed as `<date> Invoice <number> ...`) go the
+same way. The app's text builder runs that layout's words together, so `easypos-invoice.js` reads
+them from the filer's own text lines; each line is matched by its item code first, then by name.
+One written in lek is put in euros at easyPOS's own rate: the "Kursi" on the newest till receipt
+the EasyPOS bridge recorded up to the invoice's day (the bridge keeps it on the sale as
+`easypos.lekPerEur`). With no such receipt it waits for a look; with one more than a week older
+than the invoice it is converted at that rate but still waits, saying so. easyPOS's till receipts
+("Faturë Tatimore") are never added: the bridge records them from the till's print. Credit notes
+are left to a person, as the platform's are. `node --test easypos-invoice.test.js` checks the
+reader.
 
 ## Still to build
 

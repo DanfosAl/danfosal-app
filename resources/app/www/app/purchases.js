@@ -33,7 +33,7 @@ export async function loadPurchasing(products) {
 function payChip(pay) {
     if (!pay) return '';
     if (pay.status === 'paid') return `<span class="chip ok" title="${esc(pay.note || '')}">${pay.how === 'prepaid' ? 'prepaid' : 'paid'}${pay.date ? ' ' + esc(d8(pay.date)) : ''}</span>`;
-    if (pay.status === 'part') return `<span class="chip warn">part paid</span>`;
+    if (pay.status === 'part') return `<span class="chip warn" title="${esc(pay.note || '')}">part paid${pay.amount ? ' · €' + money2(pay.amount) + ' open' : ''}</span>`;
     return `<span class="chip bad" title="${esc(pay.note || '')}">open${pay.amount ? ' €' + money2(pay.amount) : ''}</span>`;
 }
 
@@ -78,7 +78,7 @@ export async function renderPurchases(ctx) {
             const what = o.warranty && o.machine ? `${esc(o.machine.name)} <span class="muted">S/N ${esc(o.machine.serial)}</span>${o.items.length ? ` → ${esc(o.items[0].name)}${o.items.length > 1 ? ` +${o.items.length - 1}` : ''}` : ''}`
                 : o.items.length ? `${esc(o.items[0].name)}${o.items.length > 1 ? ` +${o.items.length - 1}` : ''}` : inv.length ? `${plural(inv.reduce((s, i) => s + (i.items || []).length, 0), 'line', 'lines')} invoiced` : '–';
             const paid = o.warranty ? `<span class="chip vio">warranty${o.claimValue ? ` · €${money2(o.claimValue)} labour` : ''}</span>`
-                : o.prepaid.length ? `<span class="chip ok" title="${esc(o.prepaid.map(p => `${p.date}: €${money2(p.amount)} “${p.details}”`).join('\n'))}">prepaid ${esc(d8(o.prepaid[0].date))}</span>`
+                : o.prepaid.length ? `<span class="chip ${o.paidAmount < o.total - 0.5 ? 'warn' : 'ok'}" title="${esc(o.prepaid.map(p => `${p.date}: €${money2(p.amount)} “${p.details}”`).join('\n'))}">${o.paidAmount < o.total - 0.5 ? `€${money2(o.paidAmount)} of €${money2(o.total)} paid` : 'prepaid'} ${esc(d8(o.prepaid[0].date))}</span>`
                 : inv.length ? (inv.every(i => i.pay.status === 'paid') ? '<span class="chip ok">paid</span>' : `<span class="chip bad">${eur(o.open, 2)} open</span>`) : '<span class="chip">not paid</span>';
             const [label, tone] = STAGE[o.stage];
             const canList = ['ordered', 'prepaid', 'claimed'].includes(o.stage) && o.items.length && !onList.has(o.orderNo);

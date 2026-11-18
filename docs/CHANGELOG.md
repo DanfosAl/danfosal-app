@@ -2,7 +2,23 @@
 
 **Project:** Danfosal Business Intelligence App  
 **Version:** 1.4.1  
-**Last Updated:** September 14, 2026
+**Last Updated:** November 18, 2026
+
+---
+
+## [Released] - 2026-11-18 - easyPOS e-invoices into Sales; Kärcher order confirmations and part payments (desktop 1.4.1 rebuild, web, Android)
+
+Full details are in GOLDEN_MANIFEST.md, Findings #76 and #77.
+
+### Added
+- Check Downloads now: e-invoices made in easyPOS ("Faturë Elektronike") go into Sales like the Platforma's; one in lek at easyPOS's own rate from the latest till receipt
+- Check Downloads now: Kärcher Zagreb's "Order Confirmation" is filed under Kärcher/Orders, read into Purchases and put on the order list
+- EasyPOS bridge: keeps the till's lek rate on every till sale
+
+### Fixed
+- Sell › Import invoice: the reader no longer crashes on an invoice whose buyer block has no "Emri:" line
+- Purchases: a part payment against an order ("Pagesë pjesëshme ...") leaves the rest of the invoice open instead of counting it as paid
+- easyPOS e-invoices are filed with their total in the name
 
 ---
 

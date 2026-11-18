@@ -152,6 +152,9 @@ class EasyPOSOCRProcessor {
             // Financial data
             grandTotal: this.findGrandTotal(lines),
             currency: this.findCurrency(lines),
+            // The till's "Kursi" (lek per euro). The Paper Autopilot converts easyPOS e-invoices
+            // written in lek at it (tools/paper-autopilot/sales-import.js).
+            lekPerEur: this.findRate(lines),
             
             // Inventory tracking
             items: this.extractItems(lines),
@@ -544,6 +547,7 @@ class EasyPOSOCRProcessor {
                         invoiceNumber: invoiceData.invoiceNumber,
                         invoiceDate: invoiceData.invoiceDate,
                         currency: invoiceData.currency,
+                        lekPerEur: invoiceData.lekPerEur || null,
                         customerNIPT: invoiceData.customerNIPT || null,
                         customerAddress: invoiceData.customerAddress || null,
                         captureJobId: invoiceData.captureJobId,
@@ -591,6 +595,7 @@ class EasyPOSOCRProcessor {
                     invoiceNumber: invoiceData.invoiceNumber,
                     invoiceDate: invoiceData.invoiceDate,
                     currency: invoiceData.currency,
+                    lekPerEur: invoiceData.lekPerEur || null,
                     customerNIPT: invoiceData.customerNIPT || null,
                     customerAddress: invoiceData.customerAddress || null,
                     captureJobId: invoiceData.captureJobId,

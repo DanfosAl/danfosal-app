@@ -20,6 +20,14 @@ const CODE = '\\d\\.\\d{3}-\\d{3}\\.\\d';           // Kärcher material number,
 export function readKarcherProforma(lines) {
     const t = text(lines);
     if (!/Proforma Invoice/i.test(t) || !/k[aä]rcher d\.o\.o\./i.test(t)) return null;
+    return karcherOrderForm(lines, 'proforma');
+}
+
+// Kärcher Zagreb's own order form, shared by the proforma and the "Order Confirmation" (an order
+// on account, "Within 30 days"). A confirmed line carries its delivery date between the
+// quantities and the price: "010 1.081-150.0 6.00 6.00 19.11.2026 207.03 1,117.96".
+function karcherOrderForm(lines, source) {
+    const t = text(lines);
     const m = t.match(/\b(757\d{7})\s+(\d\d)\.(\d\d)\.(\d{4})/);
     const itemRe = new RegExp(`^(\\d{3}) (${CODE}) ([\\d.,]+) ([\\d.,]+)(?: \\S+)? ([\\d.,]+) ([\\d.,]+)$`);
     const items = [];
@@ -27,7 +35,7 @@ export function readKarcherProforma(lines) {
         const x = l.match(itemRe); if (!x) return;
         const name = [];
         for (let j = i + 1; j < lines.length && name.length < 4; j++) {
-            if (itemRe.test(lines[j]) || /^(EAN|Statistic number|Country of origin|Contract discount|Pri pla|Order No\.|Carriage)/.test(lines[j])) break;
+            if (itemRe.test(lines[j]) || /^(EAN|Statistic number|Country of origin|Contract discount|Rounding difference|Pri pla|Order No\.|Carriage|Kupac|_{3,}|K[aä]rcher d\.o\.o\.,)/.test(lines[j])) break;
             name.push(lines[j]);
         }
         const qty = amount(x[3]), total = amount(x[6]);
@@ -35,15 +43,17 @@ export function readKarcherProforma(lines) {
     });
     const net = amount((lines[lines.findIndex(l => /Net Amount/.test(l)) + 1] || '').split(/\s+/)[0]);
     const cash = t.match(/with ([\d.,]+) ?% cash discount\s+([\d.,]+)/);
-    return { kind: 'order', source: 'proforma', supplier: 'Karcher', orderNo: m ? m[1] : '', date: m ? iso(m[4], m[3], m[2]) : '',
+    return { kind: 'order', source, supplier: 'Karcher', orderNo: m ? m[1] : '', date: m ? iso(m[4], m[3], m[2]) : '',
         total: Number.isFinite(net) ? net : r2(items.reduce((a, x) => a + x.total, 0)), currency: 'EUR',
         // "3,000 %" is three percent: Kärcher writes the percentage with a decimal comma.
         cashDiscountPct: cash ? Number(cash[1].replace(/\./g, '').replace(',', '.')) : 0, cashDiscountTotal: cash ? amount(cash[2]) : 0, items };
 }
 
-// Order confirmation from the Kärcher portal: "000010 1.512-600.0 SC 2 EasyFix *EU 24 2,004.96 EUR".
+// Order confirmation: Kärcher Zagreb's "Order Confirmation" form (above), or the Kärcher portal's
+// summary: "000010 1.512-600.0 SC 2 EasyFix *EU 24 2,004.96 EUR".
 export function readKarcherOrderConfirmation(lines) {
     const t = text(lines);
+    if (/^Order Confirmation\b/m.test(t) && /k[aä]rcher d\.o\.o\./i.test(t)) return karcherOrderForm(lines, 'confirmation');
     if (!/Your Order Summary/.test(t)) return null;
     const orderNo = (t.match(/Order No\.:\s*(\d+)/) || [])[1] || '';
     const d = t.match(/Order Date:\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/);
@@ -137,7 +147,8 @@ export function readPayment(lines) {
 // The Kärcher numbers a payment names. The owner shortens runs of invoice numbers, writing only
 // the digits that change: "7573087659, 660, 661" or "7573098150,1,5,6,7,8,3101841,2,2748,50".
 // A short number replaces the end of the last full one. "(part)" after a number marks a part
-// payment of that invoice.
+// payment of that invoice; a payment that calls itself one ("Pagesë pjesëshme faturës nr. ...",
+// "partial payment") is a part payment of every number it names.
 export function paymentRefs(details) {
     const refs = [], partial = [];
     let last = '';
@@ -152,6 +163,7 @@ export function paymentRefs(details) {
         if (part && !partial.includes(n)) partial.push(n);
         last = n;
     }
+    if (!partial.length && /pjes[ëe]?shme|\bpartial\b/i.test(details)) partial.push(...refs);
     return { refs, partial };
 }
 

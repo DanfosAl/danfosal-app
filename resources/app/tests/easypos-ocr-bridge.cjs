@@ -58,6 +58,7 @@ const saleData = p.extractInvoiceData(sale, capture);
 assert.equal(saleData.invoiceNumber, '68/2026/mv200vz195');
 assert.equal(saleData.invoiceDate, '07/02/2026');
 assert.equal(saleData.currency, 'EUR');
+assert.equal(saleData.lekPerEur, 95.5);           // the till's rate, for easyPOS e-invoices in lek
 assert.equal(saleData.grandTotal, 360);
 assert.deepEqual(saleData.items.map(i => [i.itemName, i.quantity, i.lineTotal]), [['K 5 Basic *EU', 1, 340], ['Qese per T11/1', 10, 20]]);
 assert.equal(saleData.linesMatchTotal, true);

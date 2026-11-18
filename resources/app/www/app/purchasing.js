@@ -81,7 +81,13 @@ export function buildPurchasing(allDocs, { products = [], receipts = [], today =
             return { status: part && direct.length < 2 ? 'part' : 'paid', how: 'payment', date: direct[direct.length - 1].date, payment: direct[direct.length - 1], note: part ? 'part paid' : 'paid' };
         }
         const pre = orderNos.flatMap(o => paidFor.get(o) || []);
-        if (pre.length) return { status: 'paid', how: 'prepaid', date: pre[0].date, payment: pre[0], note: pre[0].date <= date ? 'prepaid' : 'paid against the order' };
+        if (pre.length) {
+            // Part payments against the order ("Pagesë pjesëshme ...") leave the rest of the invoice open.
+            const paid = r2(pre.reduce((s, p) => s + (Number(p.amount) || 0), 0));
+            if (pre.every(p => orderNos.some(o => (p.partial || []).includes(o))) && paid < net - 0.5)
+                return { status: 'part', how: 'prepaid', date: pre[pre.length - 1].date, payment: pre[pre.length - 1], paid, amount: r2(net - paid), note: `€${paid} paid against the order, €${r2(net - paid)} open` };
+            return { status: 'paid', how: 'prepaid', date: pre[0].date, payment: pre[0], note: pre[0].date <= date ? 'prepaid' : 'paid against the order' };
+        }
         if (s) return { status: 'open', how: 'statement', amount: s.amount, note: `open on Kärcher's statement of ${statement.date}` };
         return { status: 'open', how: 'none', note: 'no payment found in the papers' };
     }
@@ -206,8 +212,8 @@ export function buildPurchasing(allDocs, { products = [], receipts = [], today =
     const unnamed = kPayments.filter(p => (!statement || p.date > statement.date) && !p.refs.length && !/mbetura/i.test(p.details));
     const account = {
         statementDate: statement?.date || '', statementOpen: statement ? r2(statement.openTotal) : null,
-        open: r2(openFromStatement.reduce((s, l) => s + l.amount, 0) + newer.reduce((s, i) => s + i.net, 0) - unnamed.reduce((s, p) => s + p.amount, 0)),
-        openInvoices: [...openFromStatement.map(l => ({ no: l.docNo, date: l.date, amount: l.amount, orderNo: l.orderNo })), ...newer.map(i => ({ no: i.invoiceNo, date: i.date, amount: i.net, orderNo: i.orderNos[0] }))],
+        open: r2(openFromStatement.reduce((s, l) => s + l.amount, 0) + newer.reduce((s, i) => s + (i.pay.amount ?? i.net), 0) - unnamed.reduce((s, p) => s + p.amount, 0)),
+        openInvoices: [...openFromStatement.map(l => ({ no: l.docNo, date: l.date, amount: l.amount, orderNo: l.orderNo })), ...newer.map(i => ({ no: i.invoiceNo, date: i.date, amount: i.pay.amount ?? i.net, orderNo: i.orderNos[0] }))],
         unnamedPayments: unnamed
     };
 

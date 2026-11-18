@@ -73,7 +73,8 @@ const byYear = folder => date => `${folder}/${(date || '').slice(0, 4) || 'Undat
 const RULES = [
     {
         type: 'karcher-invoice', label: 'Kärcher invoice', folder: byYear('Kärcher/Invoices'),
-        test: c => KARCHER.test(c.text) && /\b(Invoice|Ra\s?č\s?un|Racun)\b/.test(c.head) && !/Credit Note|Proforma/i.test(c.head),
+        // The order confirmation's "Invoice Address" block is no invoice: that rule is further down.
+        test: c => KARCHER.test(c.text) && /\b(Invoice|Ra\s?č\s?un|Racun)\b/.test(c.head) && !/Credit Note|Proforma/i.test(c.head) && !/^Order Confirmation\b/m.test(c.head),
         read(c) {
             const inv = parseKarcher(c.lines);
             if (!inv) return null;
@@ -100,6 +101,17 @@ const RULES = [
             const number = m ? m[1] : pick(c.text, /\b(757\d{7})\b/), date = m ? iso(m[4], m[3], m[2]) : '';
             const total = lastNumber(lineAfter(c.lines, /Net Amount.*Total Amount/));
             return { date, number, amount: total, currency: 'EUR', name: `${date} Kärcher proforma ${number} ${money('EUR', total)}` };
+        }
+    },
+    {
+        // Kärcher Zagreb's "Order Confirmation": the proforma's form, for an order on account.
+        type: 'karcher-order', label: 'Kärcher order confirmation', folder: byYear('Kärcher/Orders'),
+        test: c => KARCHER.test(c.text) && /^Order Confirmation\b/m.test(c.head),
+        read(c) {
+            const m = c.text.match(/\b(757\d{7})\s+(\d\d)\.(\d\d)\.(\d{4})/);
+            const number = m ? m[1] : pick(c.text, /\b(757\d{7})\b/), date = m ? iso(m[4], m[3], m[2]) : '';
+            const total = lastNumber(lineAfter(c.lines, /Net Amount.*Total Amount/));
+            return { date, number, amount: total, currency: 'EUR', name: `${date} Kärcher order confirmation ${number} ${money('EUR', total)}` };
         }
     },
     {
@@ -190,7 +202,8 @@ const RULES = [
         read(c) {
             const number = pick(c.text, /(?:Numri i Faturës|Invoice Number):\s*(\d+\/\d{4})/);
             const date = dmy(c.text, /^(?:Data|Date):\s*(\d\d)\.(\d\d)\.(\d{4})/m);
-            const cur = pick(c.text, /(?:Valuta e Faturës|Invoice Currency):\s*([A-Z]{3})/) || 'EUR';
+            // An e-invoice prints no "Valuta" line: its money is the one its total is in.
+            const cur = pick(c.text, /(?:Valuta e Faturës|Invoice Currency):\s*([A-Z]{3})/) || pick(c.text, /^(?:TOTALI NË|TOTAL) ([A-Z]{3})\s/m) || 'EUR';
             const buyer = lineAfter(c.lines, /(Shitësi|Seller):\s*(Blerësi|Buyer):/).replace(DANFOS, '').trim();
             const total = lastNumber(pick(c.text, new RegExp(`^(?:TOTALI NË|TOTAL) ${cur}\\s+(.+)$`, 'm')));
             return { direction: 'sale', date, number, party: buyer, amount: total, currency: cur, name: `${date} Invoice ${number} ${buyer} ${money(cur, total)}` };

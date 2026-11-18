@@ -895,6 +895,75 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **77. KÄRCHER'S "ORDER CONFIRMATION" FILED AND READ; A PART PAYMENT AGAINST AN ORDER LEAVES THE REST OPEN** — ✅ **LIVE (November 18, 2026)**
+
+The owner pressed *Check Downloads now* (18 Nov 2026) with two Kärcher papers in Downloads; the
+bank payment beside them was filed, the two Kärcher papers were not.
+
+- **Cause:** they were Kärcher Zagreb's **"Order Confirmation"** - an order on account ("Within 30
+  days"), on the same form as the proforma - which the filer had never seen (it knew the proforma
+  and the portal's "Your Order Summary"). Its "Invoice Address" block made the Kärcher-invoice rule
+  try it, `parseKarcher` found no invoice, and a paper no rule reads stays in Downloads.
+- **Fix** (`tools/paper-autopilot`): `classify.js` files it as a Kärcher order confirmation under
+  `Kärcher/Orders/<year>` (the invoice rule skips it); `purchase-read.js` reads it with the
+  proforma's reader (`karcherOrderForm`, source `confirmation`) - a confirmed line carries its
+  delivery date between the quantities and the price, which the line pattern already allowed.
+  Item names now stop at Kärcher's page footer and the "Kupac" signature line (one 2025 proforma's
+  item name had swallowed the footer; its stored record is left as it was).
+- **Part payments in words:** the payment's details said "Pagesë pjesëshme faturës nr. <order>"
+  (a part payment). `paymentRefs` only knew "(part)" after a number, so the payment counted as
+  paying the order in full: when the invoice came, Purchases would have called it prepaid and the
+  Kärcher account would have shown the rest as paid. Now a payment that calls itself partial
+  ("pjesëshme", "pjesshme", "partial") is a part payment of every number it names, and
+  `purchasing.js` gives an invoice whose order was part paid the status **part** with what is left
+  open, which the Kärcher account counts (`account.open`, `openInvoices`). Stock › Purchases shows
+  the order as "€paid of €total paid" and the invoice as "part paid · €… open". The one stored
+  payment record was given `partial` (what the reader now gives); an older payment worded the same
+  way changes nothing, since a second part payment followed it.
+- **Checked:** the filer's verdict on all 286 archived PDFs (Kärcher, sales and purchase invoices,
+  bank, proformas) before and after: only the two new papers changed (plus that proforma's item
+  name); both read completely (9 lines each, totals equal to the papers). The real sweep filed
+  both, synced them to `purchaseDocs` and put their 18 lines on the order list (17 matched to the
+  catalogue). `buildPurchasing` on the live papers is identical with the old and the new code; with
+  a made-up invoice for the part-paid order added in memory, the invoice is *part* and the account
+  shows the rest open (the old code: prepaid, nothing open).
+
+#### **76. E-INVOICES MADE IN EASYPOS GO INTO SALES; THE IMPORT READER'S CRASH FIXED** — ✅ **LIVE (November 17, 2026)**
+
+The owner issued an e-invoice from easyPOS (a business customer, in lek, paid by bank transfer),
+pressed *Check Downloads now*, and the sale never reached Sales.
+
+- **Cause:** easyPOS prints two papers in its "DETAJE" layout. A **"Faturë Tatimore"** is a till
+  sale: the till prints it and the EasyPOS bridge records it from that print. A **"Faturë
+  Elektronike"** is an e-invoice in the e-invoice series ("N/2026", shared with the Platforma
+  Qendrore's): never printed on the till, so the bridge never sees it - and the automatic sales
+  import (Finding #56) only took the Platforma's PDFs. The paper was filed as "Invoice …" and left.
+  The app's text builder also runs this layout's words together, and the shared reader
+  (`manual-pdf-processor.js`) crashed on it: `extractCustomerInfo` used an undefined `searchText`
+  whenever the buyer block had no "Emri:" line (since Finding #45's rewrite, 21 Sep) - Sell › Import
+  invoice would have failed on it too.
+- **Fix:** `tools/paper-autopilot/easypos-invoice.js` reads the layout from the filer's own text
+  lines (words kept apart): kind, number, date, buyer and NIPT from the side-by-side party block,
+  lines (name / code / barcode running on to the next lines), totals in the invoice's money.
+  `sales-import.js` takes "Faturë Elektronike" papers too (never a "Faturë Tatimore", never a credit
+  note), matches each line by its item code first, then by name, and saves through the same
+  processor (`source` stays "Manual PDF …", which the app reads as line prices without VAT). One in
+  **lek** is converted at easyPOS's own rate: the "Kursi" on the newest till receipt the bridge
+  recorded up to the invoice's day. The bridge now keeps it on every till sale
+  (`easypos.lekPerEur`); a rate more than a week older than the invoice converts it but sends it for
+  a look, and with none at all it waits for the owner's rate as before. The filer names these papers
+  with their total (an e-invoice prints no "Valuta" line). `searchText` → `text`.
+- **Checked:** `node --test easypos-invoice.test.js` (made-up invoices: lek with a code running
+  on, euros with a name running on, a till receipt, another layout) and the bridge test (reads the
+  rate); the reader on the real paper and on a till receipt and a Platforma invoice (left alone);
+  a dry run, then the real import: one sale, the product matched by code, stock down by one, the
+  customer created by NIPT, its cost attached; a second run adds nothing. The first rate was taken
+  from the previous day's till receipt and written onto that sale, as the bridge now does itself.
+- **Note:** the bridge change takes effect when the bridge restarts (DanfosalStartup.bat restarts a
+  bridge older than its file at the next start of the PC).
+
+---
+
 #### **75. SUGGESTED SELLING PRICES: ON EVERY DELIVERY, AND A PRICE REVIEW FROM THE SALES** — ✅ **LIVE (October 24, 2026)**
 
 The owner asked (24 Oct 2026) that importing goods suggest the selling price from the products'

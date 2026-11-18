@@ -116,7 +116,8 @@ for (const f of [names.exe, `${names.exe}.blockmap`]) if (!existsSync(join(dist,
 
 step('Android APK');
 npx(['cap', 'sync', 'android']);
-run('gradlew.bat', ['assembleDebug', '-q'], { cwd: join(APP, 'android'), env: { ANDROID_SDK_ROOT: SDK }, shell: true });
+// By full path: cmd may be told not to look in the current folder (NoDefaultCurrentDirectoryInExePath).
+run(join(APP, 'android', 'gradlew.bat'), ['assembleDebug', '-q'], { cwd: join(APP, 'android'), env: { ANDROID_SDK_ROOT: SDK }, shell: true });
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, names.apk), readFileSync(join(APP, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk')));

@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.7 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
+**Application Version:** 1.4.8 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **83. INSTAGRAM: WHO IS WRITING (BOUGHT BEFORE), THE CHAT BEHIND A BOT ORDER, AND HOW FOLLOW-UPS ENDED** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+#### **83. INSTAGRAM: WHO IS WRITING (BOUGHT BEFORE), THE CHAT BEHIND A BOT ORDER, AND HOW FOLLOW-UPS ENDED** — ✅ **LIVE (November 19, 2026, version 1.4.8: GitHub release v1.4.8, Hosting, shop PC installed, HQ refreshed)**
 
 Three more from the second list of ideas (owner, 19 Nov 2026: 2, 5 and 8). No AI, no change to the bot.
 

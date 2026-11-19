@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.7  
+**Version:** 1.4.8  
 **Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - Instagram: bought before, the chat behind a bot order, how follow-ups ended (version 1.4.8)
+## [Released] - 2026-11-19 - Instagram: bought before, the chat behind a bot order, how follow-ups ended (version 1.4.8)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #83.
 

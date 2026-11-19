@@ -31,6 +31,7 @@ statements are listed at the end of it.
 | **Danfos Garanci** (`WarrantyApp`) | 1.1.0, Electron 37.10.3. Issue certificates, register claims, repair board, machine passports, schedule. Same Firestore records (`warrantyCards`, `serviceTickets`, `counters`). Opens print pages on the website in the browser. |
 | **Paper Autopilot** (`tools/paper-autopilot`) | Files Downloads into `E:\Danfos Papers`, reads purchase papers into `purchaseDocs`, adds new e-invoices (and prepayments) to Sales. Runs from the repo (no release needed). Findings #52-#56, #59, #61. |
 | **EasyPOS pipeline** | Windows service `DanfosEasyPOSCapture` (automatic, running) captures till prints into `C:\Danfosal\Inbox\EasyPOS`; `easypos-ocr-bridge.js` (node, running since 5 Oct) turns them into `storeSales`/`returns`. 2,244 receipts processed; 0 bridge errors 2-9 Oct. |
+| **Instagram orders** (since 19 Nov 2026) | Customer DMs → Meta app **Danfosal Orders** (its Instagram webhook) → the Python bot **instagram-chatbot** on Render (Free plan, private repo `DanfosAl/instagram-chatbot`) → `onlineOrders` + `instagramBotChats`, read by Sell › Online orders and Sell › Instagram. The two Meta webhooks that were changed (Danfosal Orders and DM AI), where they are and how to change them: **OPERATIONAL GUIDE › Instagram messages: the two Meta webhooks**. |
 | **Access** | **Owner only** (Finding #64): one Firebase Auth account (email/password); `firestore.rules` allow that uid alone; Anonymous sign-in disabled. Signed in once on each: Danfosal App on the PC, Danfos Garanci, the phone, the browser (print pages), Danfos HQ - each remembers it until Sign out (Settings › General). A request without the sign-in is refused (403). Server keys (chatbot, webhook, EasyPOS bridge, Paper Autopilot) are not affected. |
 | **Danfos HQ** | Separate desktop companion at **`E:\Danfos HQ\app`** (Findings #51, #65; never OneDrive): local server `127.0.0.1:17846` + Electron shell. Signs in with the owner's account; shows the newest orders and sales with Danfosal App's own status, open-order and warranty-card rules, and the current Danfosal App and Garanci inside its monitors (copies refreshed by `sync-apps.py` after each release). |
 | **AI Commerce Manager** | Separate PHP panel on the website's hosting (danfosal.com) that edits the WooCommerce store with AI - products, prices, stock, orders, articles to WordPress, a monthly newsletter for Mailchimp - always plan → preview → confirm. 4.11.0 (Finding #73) links it to this app: a signed daily sync from the shop PC (`tools/website-sync`) compares the website with the shop, website price changes come here as proposals (Stock › Website), website orders become Online orders. Live: 4.11.0 since about 12 Oct 2026; the sync runs every morning on the shop PC. Source and package: `E:\AI Commerce` (not in this repository). |
@@ -3222,6 +3223,84 @@ Release reference: [WarrantyApp/RELEASE_NOTES.md](WarrantyApp/RELEASE_NOTES.md).
 ---
 
 ## 🚀 OPERATIONAL GUIDE
+
+### Instagram messages: the two Meta webhooks (where they point, how to change them)
+
+Changed on **19 November 2026** with the owner, to bring Instagram orders back (they had stopped on
+17 Oct 2026). Customer DMs now go to the **Instagram bot** (Python, on Render). It keeps each chat in
+`instagramBotChats` and writes orders to `onlineOrders`; Danfosal reads both (Sell › Online orders,
+Sell › Instagram). Two Meta apps send Instagram messages, and **both now point at the bot**.
+
+**The bot's address is deliberately not written in this repository.** The repository is public, and
+the bot accepts whatever is posted to it without checking Meta's signature. Find the address in
+Render:
+- dashboard.render.com › web service **instagram-chatbot** › the `…onrender.com` address at the top.
+- The callback URL is that address + `/webhook`.
+- The **verify token** is the service's `VERIFY_TOKEN` (Render › the service › Environment; the same
+  value is in `E:\instagram-chatbot\.env`). Copy it from there. Never paste it into a chat or into
+  this repository.
+- About the service: Python, Free plan, private repo `DanfosAl/instagram-chatbot`, deploys itself on
+  every push to main.
+
+#### Place 1: Meta app **Danfosal Orders** (App ID ends …9734). This is the one that matters
+- **Why it matters:** the app is in Development mode, but the Facebook Page (Danfos Albania /
+  Instagram @danfosalbania) is connected to it. **Meta delivers customers' DMs through this app.**
+- **Where:** developers.facebook.com › My Apps › **Danfosal Orders** › **Instagram › API setup with
+  Instagram login › Configure webhooks**.
+- **Before:** Danfosal's own Cloud Function `instagramWebhook` (its `…run.app` address + `/webhook`).
+  That function ignores DMs, so no orders were made from them.
+- **Now:** the bot + `/webhook`. Switched about 15:50 on 19 Nov; the first message reached the bot at
+  15:54.
+- **Subscribed fields:** `messages`, `messaging_handover`, `messaging_postbacks`. `messages` must
+  stay on.
+- **Not changed:** the same app's **Messenger** callback (Facebook Page Messenger chats). It still
+  goes to Danfosal's function. Leave it.
+
+#### Place 2: Meta app **DM AI** (App ID ends …2496)
+- **Where:** developers.facebook.com › My Apps › **DM AI** › **Instagram › API setup with Instagram
+  login › Configure webhooks**. If the menu looks different, try Use cases › Manage messaging &
+  content on Instagram › Customize › Configure webhooks, or Webhooks › Instagram › Edit subscription.
+- **Before:** the old Node bot **danfos-ig-chatbot** on Render (+ `/webhook`). The owner had suspended
+  that service, so from 17 Oct 2026 Render answered 503 and the messages were lost.
+- **Now:** the bot + `/webhook` (verified about 12:45 on 19 Nov), with `messages` subscribed.
+- **Limit:** DM AI has only *Standard* access to Instagram messages, so Meta delivers through it only
+  messages from people with a role on the app, not from customers. It points at the bot anyway: this
+  is harmless, and it will carry customer messages if DM AI ever passes App Review (Advanced access).
+  A message that arrives through both apps is counted once: the bot drops repeats by message id, and
+  order ids are create-only.
+
+#### To change it (new bot address, new token, the bot moved)
+1. Copy the current Callback URL into a note first. That is your way back.
+2. In **place 1** (and in place 2, to keep them the same): set the Callback URL to the new address +
+   `/webhook`, paste the bot's `VERIFY_TOKEN`, then press **Verify and save**.
+   - On the Free plan the bot may be asleep. If verifying fails, open the bot's address in a browser,
+     wait a minute, and press Verify and save again.
+3. Keep `messages` subscribed. Leave the Messenger callback alone.
+4. Check it works: send a DM to @danfosalbania from another account. Within a couple of minutes the
+   chat should appear in Sell › Instagram, and the bot's heartbeat
+   (`settings/instagramBot.lastWebhookAt`) should update. Today warns when that heartbeat is old.
+
+Whatever receives the callback must answer Meta's `GET /webhook` check (`hub.verify_token`). The
+Python bot does. The old Node danfos-ig-chatbot does **not** (it has no GET route), so Meta can't be
+pointed back at it.
+
+**To switch back** (only if the bot is retired): in place 1, set the callback to Danfosal's function
+(Firebase console › Functions › `instagramWebhook` › its address) + `/webhook`, with the function's
+verify token (`resources/app/functions/index.js`, `VERIFY_TOKEN`). DMs then stop becoming orders,
+because the function doesn't read them.
+
+**On Render, also 19 Nov 2026:**
+- The bot (instagram-chatbot) moved from Starter to the **Free** plan. It sleeps when idle, so a
+  message can arrive a minute late.
+- Its environment (names only): `VERIFY_TOKEN`, `ACCESS_TOKEN` (Graph API, used for @username
+  lookups), `GEMINI_API_KEY` (replaced by the owner on 19 Nov; model gemini-3.5-flash-lite),
+  `FIREBASE_CREDENTIALS_JSON`, plus settings.
+- The old Node service **danfos-ig-chatbot** and its scheduled-job twin are suspended. Leave them that
+  way.
+
+The whole story is in Findings #81-#86 and in the bot's own repository.
+
+---
 
 ### Daily Backups (Recommended)
 

@@ -99,7 +99,8 @@ export function navCountsFor(a) {
     return {
         stock: stock ? { n: stock, hot: a.reorder.length > 0 } : null,
         service: a.openTickets.length ? { n: a.openTickets.length } : null,
-        money: a.owed.length ? { n: a.owed.length } : null
+        money: a.owed.length ? { n: a.owed.length } : null,
+        sell: a.igFollow && a.igFollow.waiting.length ? { n: a.igFollow.waiting.length, hot: true } : null
     };
 }
 

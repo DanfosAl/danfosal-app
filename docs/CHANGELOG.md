@@ -6,6 +6,17 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Sell › Instagram: Follow up
+
+Full details are in GOLDEN_MANIFEST.md, Finding #81.
+
+### Added
+- Sell › Instagram: a Follow up panel from the Instagram bot's reading of each chat - customers waiting for your answer, and customers who went quiet after you answered a product question - with the summary, the next step, the products with price and stock, Open chat, Add as order and Done
+- Instagram usernames instead of "visitor 12345" where the bot knows them
+- Today: an item when Instagram customers are waiting for your answer
+
+---
+
 ## [Released] - 2026-11-18 - The phone app updates itself for real (version 1.4.4)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #80.

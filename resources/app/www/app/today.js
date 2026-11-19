@@ -89,6 +89,17 @@ export function needsYou(a) {
             why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
             action: ['Open Instagram', 'sell.html#leads'] });
     }
+    // The Instagram bot reads every chat; these customers wrote last and got no answer yet (Finding #81).
+    if (a.igFollow && a.igFollow.waiting.length) {
+        const w = a.igFollow.waiting;
+        const name = c => c.username ? '@' + c.username : 'a visitor';
+        items.push({ sev: w.some(c => a.now - c.since > 4 * 3600000) ? 'warn' : 'info',
+            title: `${plural(w.length, 'customer is', 'customers are')} waiting for your answer on Instagram`,
+            why: w.slice(0, 3).map(c => `${esc(name(c))}, ${ago(c.since, a.now)}${c.card.summary ? ': ' + esc(c.card.summary) : ''}`).join(' · ')
+                + (w.length > 3 ? ` · and ${w.length - 3} more` : '')
+                + (a.igFollow.quiet.length ? `. Also ${plural(a.igFollow.quiet.length, 'customer', 'customers')} to follow up after your answer.` : '.'),
+            action: ['Follow up', 'sell.html#leads'] });
+    }
     // Kärcher's confirmation says when each ordered line arrives (Stock › Next order, Finding #79).
     if (a.arriving && a.arriving.length) {
         const byDay = new Map();

@@ -895,6 +895,37 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **81. SELL › INSTAGRAM: FOLLOW UP - WHO IS WAITING FOR AN ANSWER, WHO WENT QUIET AFTER ONE** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+The Instagram bot that writes the online orders (a separate Python service on Render, its own
+private repository) had kept its chat memory in a file the free plan wipes on every sleep. On
+19 Nov 2026 it moved that memory into Firestore and started keeping, per chat, its own reading of
+it. The owner asked to put that to use in the app.
+
+- **The bot's memory** is `instagramBotChats/{instagram user id}` (written only by the bot, with
+  server credentials; the owner-only rules cover it for the app): the last messages, `lastCustomerAt`
+  / `lastShopAt`, the customer's `username` (looked up once through the Graph API, free), and `card`
+  = the AI's latest reading: `stage` (asking, deciding, ordering, ordered, after-sale, other), a
+  one-line `summary`, the `nextStep`, and the `products` with catalogue ids. Private chats (the owner
+  types `#privat`, or the AI sees a clearly private chat) are flagged `ignored` and hold no messages.
+- **Follow up** (`www/app/followups.js` decides, `www/app/followpanel.js` draws, `www/app/leads.js`
+  wires it) is a panel on top of Sell › Instagram with two lists: *waiting for your answer* (the
+  customer wrote last, up to 7 days, unless the AI's reading says there is nothing to do) and *went
+  quiet after your answer* (a product question the shop answered 1-14 days ago, no order since). Each
+  row: @username, stage, summary, next step, the products with price and stock, **Open chat**
+  (`ig.me/m/<username>`, the inbox when the name is unknown), **Add as order** (the products filled
+  in) and **Done** (`followUpDoneAt` on the chat; it comes back when anyone writes after it).
+- **Elsewhere:** the people and questions lists show @username instead of "visitor 12345" when the
+  bot knows it; Today has an item when customers are waiting for an answer; the Sell entry in the
+  sidebar counts them on Today.
+- **Privacy:** the app reads the chats slimmed (`slimChat`): the message texts are never put in the
+  browser's session storage, only the reading, the times and the name.
+- **Checked:** `tests/followups.test.mjs` (7, made-up chats): waiting order, "thanks" is not
+  waiting, the 1-14 day window, an order / Done / a private chat take a chat off, Done comes undone
+  by a new message, names and links. The panel was looked at in the browser with made-up chats at
+  desktop and phone width (a first version squeezed the text on a phone; the row now wraps). The
+  bot's side has its own tests in its repository.
+
 #### **80. THE PHONE NEVER UPDATED ITSELF: IT LOOKED FOR A FUNCTION THE ANDROID APP DOESN'T HAVE** — ✅ **FIXED AND RELEASED (November 18, 2026, version 1.4.4: GitHub release v1.4.4 with the APK, Hosting manifest 1.4.4, shop PC installed, HQ refreshed); each phone installs the 1.4.4 APK once**
 
 The owner (18 Nov 2026): after 1.4.3 the phone still showed 1.4.2, and Settings › Check for
@@ -1265,7 +1296,8 @@ function; redesign it to be friendlier and modern (design approved before buildi
   take stock; a hand-typed duplicate is linked instead); writes **`websiteSync/status`**. Products
   without a code go out as `id:<doc id>`. Dry-run against the real database: 341 products, 313 with a
   cost; real names matched 37 website products as suggestions, all plausible.
-- **AI Commerce 4.11.0** (`E:\AI Commerce\dev`, package `E:\AI Commerceeleasesi-commerce-4.11.0.zip`,
+- **AI Commerce 4.11.0** (`E:\AI Commerce\dev`, package `E:\AI Commerce
+eleasesi-commerce-4.11.0.zip`,
   steps in its `UPGRADE-4.11.md`): `sync.php` for the shop PC; **Produktet** compares every website
   product with its shop product (stock, both prices, margin, state), links suggested by name and
   confirmed by the owner; fixing stock, prices or SKUs builds a plan with before → after and an

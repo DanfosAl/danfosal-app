@@ -15,6 +15,7 @@
 // VAT, as in the catalogue). Months are 'YYYY-MM' in local time, days 'YYYY-MM-DD'.
 import * as D from './data.js';
 import { db, ready, collection, getDocs } from './firebase.js';
+import { slimChat } from './followups.js';
 
 const DAY = 86400000;
 const VAT = D.VAT;
@@ -46,7 +47,9 @@ const plain = (v) => {
 };
 const SOURCES = {
     events: async () => (await getDocs(collection(db, 'analytics_events'))).docs.map((d) => d.data()).filter((e) => EVENT_NAMES.has(e.event_name)).map(slimEvent),
-    purchaseDocs: async () => (await getDocs(collection(db, 'purchaseDocs'))).docs.map((d) => ({ _id: d.id, ...plain(d.data()) }))
+    purchaseDocs: async () => (await getDocs(collection(db, 'purchaseDocs'))).docs.map((d) => ({ _id: d.id, ...plain(d.data()) })),
+    // The Instagram bot's memory, one row per chat, without the messages (www/app/followups.js).
+    igChats: async () => (await getDocs(collection(db, 'instagramBotChats'))).docs.map((d) => slimChat(d.id, plain(d.data())))
 };
 const memory = {};
 const KEY = (name) => `danfosal.dashboard.${name}`;

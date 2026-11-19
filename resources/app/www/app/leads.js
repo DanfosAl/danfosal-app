@@ -1,5 +1,10 @@
 // Sell > Instagram: what the chatbot did, which nobody in the shop could see.
 //
+// Follow up (19 Nov 2026, Finding #81): the bot now keeps a memory of each chat
+// (instagramBotChats) with its reading of it; the panel on top lists the customers waiting for an
+// answer and the ones who went quiet after one (www/app/followups.js). "Open chat" opens the
+// conversation in Instagram, "Done" takes it off until someone writes again.
+//
 // The chatbot answers on Instagram and writes what happened to `analytics_events`
 // (message_received, product_inquiry, order_created). Nothing read that collection, so 25 product
 // questions a month arrived and left again unseen.
@@ -21,6 +26,8 @@ import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, Timesta
 import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast } from './ui.js';
 import { DAY, toMs, squash, orderTime, orderTotal } from './data.js';
 import { openNewOrder, orderDetail } from './online.js';
+import { slimChat, followUps, who as chatWho } from './followups.js';
+import { followPanel } from './followpanel.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
 const state = { period: '30', only: 'all', view: 'questions', sender: null };
@@ -79,6 +86,15 @@ function matchAsked(text, index) {
 
 const topicsOf = text => { const hay = squash(text); return WORDS.filter(([, s]) => s.some(x => hay.includes(x))).map(([l]) => l); };
 const visitor = id => 'visitor ' + (String(id || '').slice(-5) || '?');
+// The bot now looks up each customer's @username (Finding #81); older chats stay "visitor ...".
+let chatsById = new Map();
+const nameOf = id => chatsById.has(String(id)) && chatsById.get(String(id)).username ? '@' + chatsById.get(String(id)).username : visitor(id);
+
+// The bot's memory of each chat (instagramBotChats), read fresh on every visit - it changes by the minute.
+async function loadChats() {
+    const docs = (await getDocs(collection(db, 'instagramBotChats'))).docs;
+    return docs.map(d => slimChat(d.id, d.data()));
+}
 
 // ---------------------------------------------------------------- loading
 
@@ -111,9 +127,11 @@ async function markEvent(ev, fields) {
 
 export async function renderLeads(ctx) {
     ctx.body.innerHTML = '<p class="empty">Reading the chatbot’s log…</p>';
-    let events;
+    let events, chats = [];
     try { events = await loadEvents(ctx.model); }
     catch (e) { ctx.body.innerHTML = `<p class="err">Couldn't read the chatbot log: ${esc(e.message)}</p>`; return; }
+    try { chats = await loadChats(); } catch (e) { console.warn('Instagram bot chats not readable', e); }
+    chatsById = new Map(chats.map(c => [c._id, c]));
 
     const index = buildIndex(ctx.model.products);
     const orderById = new Map(ctx.model.orders.map(o => [o._id, o]));
@@ -154,7 +172,9 @@ export async function renderLeads(ctx) {
             <button class="kpi pick" type="button" data-view="${id}" aria-pressed="${state.view === id}">
                 <small>${esc(label)}</small><span class="v"${warn ? ' style="color:var(--warn)"' : ''}>${value}</span><span class="d">${detail}</span></button>`;
 
+        const fu = followUps(chats, now);
         ctx.body.innerHTML = `
+            <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length)}</div>
             <div class="toolbar">
                 <div class="seg" role="group" aria-label="Period" id="lq-period">${PERIODS.map(([id, label]) => `<button type="button" data-p="${id}" aria-pressed="${id === state.period}">${label}</button>`).join('')}</div>
                 <span class="muted" style="font-size:12.5px">Press a figure to see what is behind it.</span>
@@ -176,7 +196,7 @@ export async function renderLeads(ctx) {
             view.innerHTML = `<div class="table-wrap" style="max-height:calc(100vh - 430px);min-height:240px"><table class="dt"><thead><tr>
                 <th>Who</th><th>Last asked about</th><th class="n">Messages</th><th class="n">Questions</th><th class="n">First wrote</th><th class="n">Last wrote</th></tr></thead>
                 <tbody id="lq-body">${list.map(s => `<tr data-sender="${esc(s.id)}" tabindex="0">
-                    <td class="name"><b>${esc(visitor(s.id))}</b><span>Instagram</span></td>
+                    <td class="name"><b>${esc(nameOf(s.id))}</b><span>Instagram</span></td>
                     <td class="muted" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.asked.length ? esc(s.asked[0]) : 'only messages, no product named'}</td>
                     <td class="n">${int(s.messages)}</td><td class="n${s.questions ? '' : ' muted'}">${int(s.questions)}</td>
                     <td class="n muted">${esc(day(s.first))}</td><td class="n muted">${esc(day(s.last))}</td></tr>`).join('')
@@ -205,7 +225,7 @@ export async function renderLeads(ctx) {
             const topics = [...demand.values()].sort((a, b) => b.n - a.n);
 
             view.innerHTML = `
-                ${state.sender ? `<div class="filters"><button class="filter" type="button" id="lq-allpeople" aria-pressed="true">${icon('close')}Only ${esc(visitor(state.sender))} · show everyone</button></div>` : ''}
+                ${state.sender ? `<div class="filters"><button class="filter" type="button" id="lq-allpeople" aria-pressed="true">${icon('close')}Only ${esc(nameOf(state.sender))} · show everyone</button></div>` : ''}
                 <div class="panel">
                     <div class="viz-head"><h2 class="panel-title">What people ask for</h2></div>
                     ${topics.length ? `<div class="lines">${topics.map(t => `<div class="line"><div><b>${esc(t.topic)}</b><span>${t.products.size ? esc([...t.products.values()].slice(0, 3).map(p => p.name).join(', ')) : 'no catalogue product recognised'}</span></div><span class="n">${plural(t.n, 'question', 'questions')}</span></div>`).join('')}</div>`
@@ -223,7 +243,7 @@ export async function renderLeads(ctx) {
                     <tbody id="lq-body">${shown.map((x, i) => {
                         const p = x.hits[0], stock = p ? Number(p.stock) || 0 : null;
                         return `<tr>
-                            <td class="muted" style="white-space:nowrap">${esc(day(x.t))}<span class="muted" style="display:block;font-size:11px">${esc(visitor(x.sender))}</span></td>
+                            <td class="muted" style="white-space:nowrap">${esc(day(x.t))}<span class="muted" style="display:block;font-size:11px">${esc(nameOf(x.sender))}</span></td>
                             <td style="max-width:280px">${esc(x.text)}${x.topics.length ? `<span class="muted" style="display:block;font-size:11px">${esc(x.topics.join(' · '))}</span>` : ''}</td>
                             <td>${p ? `<a href="stock.html?q=${encodeURIComponent(p.name)}#catalogue" style="text-decoration:none"><b>${esc(p.name)}</b></a>${x.hits.length > 1 ? `<span class="muted" style="display:block;font-size:11px">or ${esc(x.hits.slice(1).map(h => h.name).join(', '))}</span>` : ''}` : '<span class="muted">not recognised</span>'}</td>
                             <td class="n"${stock === 0 ? ' style="color:var(--bad)"' : ''}>${stock === null ? '–' : int(stock)}</td>
@@ -313,6 +333,26 @@ export async function renderLeads(ctx) {
             view.querySelector('#lq-body').addEventListener('keydown', e => { if (e.key === 'Enter') open(e); });
         }
 
+        ctx.body.querySelector('#lq-follow').addEventListener('click', async e => {
+            const done = e.target.closest('[data-fu-done]'), add = e.target.closest('[data-fu-order]');
+            if (done) {
+                const c = chatsById.get(done.dataset.fuDone); if (!c) return;
+                try {
+                    const at = Date.now();
+                    await updateDoc(doc(db, 'instagramBotChats', c._id), { followUpDoneAt: at });
+                    c.followUpDoneAt = at;
+                    toast(`${chatWho(c)} done – back on the list if they write again`);
+                    draw();
+                } catch (err) { toast(`Couldn't save that: ${err.message}`, { bad: true }); }
+            }
+            if (add) {
+                const c = chatsById.get(add.dataset.fuOrder); if (!c) return;
+                const items = c.card.products.map(x => ctx.model.products.find(p => p._id === x.id)).filter(Boolean)
+                    .map(p => ({ name: p.name, quantity: 1, price: Number(p.price) || 0, id: p._id }));
+                openNewOrder(ctx, { source: 'Instagram', items });
+                toast(`${chatWho(c)}${c.card.summary ? ': ' + c.card.summary : ''}`);
+            }
+        });
         ctx.body.querySelector('#lq-period').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { state.period = b.dataset.p; draw(); } });
         ctx.body.querySelector('#lq-tiles').addEventListener('click', e => {
             const b = e.target.closest('[data-view]'); if (!b) return;

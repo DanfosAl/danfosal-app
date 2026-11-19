@@ -6,7 +6,7 @@
 
 ---
 
-## [Unreleased] - 2026-11-19 - An online order and its easyPOS receipt count once; printing the receipt moves the order to Processing (version 1.4.12)
+## [Released] - 2026-11-19 - An online order and its easyPOS receipt count once; printing the receipt moves the order to Processing (version 1.4.12)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #87.
 
@@ -14,7 +14,7 @@ Full details are in GOLDEN_MANIFEST.md, Finding #87.
 - An online order rung through easyPOS was counted twice (revenue, units sold, customers, the plan); now the receipt counts once, as an online sale
 ### Added
 - When the easyPOS receipt of an open online order arrives, the order is linked to it and moves to Processing
-- Online orders: the receipt inside each order, a "Counted twice?" list to confirm unclear pairs, a receipt mark in the list; Sell › All sales marks such receipts "online order"
+- Online orders: the receipt inside each order, a "Counted twice?" list to confirm unclear pairs of the last 30 days, a receipt mark in the list; Sell › All sales marks such receipts "online order"
 
 ---
 

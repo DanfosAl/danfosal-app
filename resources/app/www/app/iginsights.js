@@ -313,3 +313,69 @@ export function botHealth(status, now = Date.now(), { quietDays = 3 } = {}) {
     }
     return null;
 }
+
+// ---------------------------------------------------------------- 6. the bot's report card
+
+// Of the orders the new bot wrote (ids "ig-...", from 19 Nov 2026), per week: kept as written,
+// corrected by the owner (which fields - ownerEdits, written by Online orders when he saves a
+// change), or deleted (the bot logged order_created, the order is gone).
+// events: [{event_name, t, params: {order_id}}]; weeks: newest first.
+export function botReportCard(orders = [], events = [], now = Date.now(), { weeks = 8 } = {}) {
+    const byId = new Map(orders.map(o => [o._id, o]));
+    const weekStart = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+    const rows = new Map();
+    const seen = new Set();
+    for (const e of events) {
+        const id = String((e.params || {}).order_id || '');
+        if (e.event_name !== 'order_created' || !id.startsWith('ig-') || seen.has(id) || !e.t || now - e.t > weeks * 7 * DAY) continue;
+        seen.add(id);
+        const w = weekStart(e.t);
+        const r = rows.get(w) || { week: w, written: 0, kept: 0, corrected: 0, deleted: 0, fields: {} };
+        const o = byId.get(id);
+        r.written++;
+        if (!o) r.deleted++;
+        else if (o.ownerEdits && (o.ownerEdits.fields || []).length) { r.corrected++; o.ownerEdits.fields.forEach(f => { r.fields[f] = (r.fields[f] || 0) + 1; }); }
+        else r.kept++;
+        rows.set(w, r);
+    }
+    const list = [...rows.values()].sort((a, b) => b.week - a.week);
+    const all = list.reduce((s, r) => ({ written: s.written + r.written, kept: s.kept + r.kept }), { written: 0, kept: 0 });
+    return { weeks: list, written: all.written, kept: all.kept, rate: all.written ? Math.round(100 * all.kept / all.written) : null };
+}
+
+// Which fields the owner changed on a bot order (Online orders > Edit), for the report card.
+export function changedFields(before = {}, after = {}) {
+    const norm = s => String(s || '').trim().toLowerCase();
+    const items = o => JSON.stringify((o.items || []).map(i => [i.id || norm(i.name), Number(i.quantity) || 1]).sort());
+    const prices = o => JSON.stringify((o.items || []).map(i => Math.round((Number(i.price) || 0) * 100)).sort());
+    const out = [];
+    if (norm(before.clientName) !== norm(after.clientName)) out.push('name');
+    if (String(before.telephone || '').replace(/\D/g, '') !== String(after.telephone || '').replace(/\D/g, '')) out.push('phone');
+    if (norm(before.address) !== norm(after.address)) out.push('address');
+    if (items(before) !== items(after)) out.push('products');
+    else if (prices(before) !== prices(after)) out.push('price');
+    return out;
+}
+
+// ---------------------------------------------------------------- 7. same time last year
+
+// What people asked about in the coming 30 days LAST year, more than in an average month of that
+// year: 3+ people and at least 1.5x usual. The chatbot's log goes back to 30 Oct 2025.
+export function sameTimeLastYear(asks, products, now = Date.now(), { windowDays = 30, minPeople = 3 } = {}) {
+    const from = now - 365 * DAY, to = from + windowDays * DAY;
+    const byId = new Map(products.map(p => [p._id, p]));
+    const rows = new Map();
+    for (const a of asks) {
+        if (a.t < from || a.t >= now) continue;
+        const p = a.id && byId.get(a.id);
+        const k = p ? 'id:' + p._id : 'model:' + (modelOf(a.name) || squash(a.name));
+        const r = rows.get(k) || { key: k, name: p ? p.name : (modelOf(a.name) || a.name), product: p || null, window: new Set(), year: 0 };
+        if (a.t < to) r.window.add(a.sender);
+        r.year++;
+        rows.set(k, r);
+    }
+    const months = 365 / windowDays;
+    return [...rows.values()].map(r => ({ key: r.key, name: r.name, product: r.product, lastYear: r.window.size, usual: Math.round(r.year / months * 10) / 10 }))
+        .filter(r => r.lastYear >= minPeople && r.lastYear >= 1.5 * Math.max(r.usual, 0.5))
+        .sort((a, b) => b.lastYear - a.lastYear);
+}

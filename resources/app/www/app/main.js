@@ -1,6 +1,7 @@
 // Entry point of the new app shell (index.html).
 import { mountShell, setPipelineStatus, setSearchData, setNavCounts, navCountsFor } from './shell.js';
-import { loadAll, analyze, saleTime } from './data.js';
+import { loadAll, analyze, saleTime, orderTime, orderTotal } from './data.js';
+import { withCourier } from './courier.js';
 import { planAttention } from './planmodel.js';
 import { renderToday, renderLoading, renderError } from './today.js';
 import { db } from './firebase.js';
@@ -21,6 +22,7 @@ function paint() {
     a.plan = planAttention(model, a.now);   // products off this year's purchase plan
     a.arriving = arrivingSoon(model.orderLines, deliveryDates(purchaseDocs), a.now);   // Kärcher lines due this week
     a.igFollow = followUps(igChats, a.now);   // Instagram customers waiting for an answer / to follow up
+    a.courier = withCourier(model.orders, a.now, { orderTime, orderTotal });   // cash the courier still holds
     a.igHealth = botHealth(igStatus, a.now);   // the bot gone quiet, or unable to read orders
     a.igBackIn = backInStock(allAsks({ chats: igChats, products: model.products }), model.products, igChats, a.now);   // asked while out of stock, back now
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);

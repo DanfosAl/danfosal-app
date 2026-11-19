@@ -16,7 +16,8 @@ import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, to
 import { warrantyDialog } from './warranty.js';
 import { orderChat, withPhones } from './igcustomers.js';
 import { orderChecks, agreedPrices } from './ordercheck.js';
-import { aliasFromCorrection, aliasKey } from './iginsights.js';
+import { aliasFromCorrection, aliasKey, changedFields } from './iginsights.js';
+import { withCourier } from './courier.js';
 import { chatLink } from './followups.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -33,6 +34,21 @@ const itemsTotal = items => r2(items.reduce((a, i) => a + (Number(i.price) || 0)
 const productFor = (products, it) => (it.id && products.find(p => p._id === it.id)) || products.find(p => p.name === it.name) || null;
 
 const on = { filter: 'open', q: '', opened: false };
+
+// Cash still with the courier (Finding #85): Shipped or Delivered, not Paid - oldest first.
+function courierPanel(c, now) {
+    if (!c.list.length) return '';
+    const shown = c.list.slice(0, 10);
+    return `<div class="panel" id="on-courier">
+        <div class="viz-head"><h2 class="panel-title">${icon('local_shipping')} Cash with the courier</h2><span class="muted" style="font-size:12.5px">${eur(c.total)} from ${plural(c.list.length, 'order', 'orders')}${c.late ? ` · ${c.late} over a week` : ''}</span></div>
+        <div class="lines">${shown.map(x => `<div class="line" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap">
+            <div style="flex:1 1 200px;min-width:0"><b>${esc(who(x.o) || 'Order')}</b><span${x.days > 7 ? ' style="color:var(--warn)"' : ''}>${esc(x.o.status)} ${x.since ? esc(day(x.since)) : ''}${x.days !== null ? ' · ' + (x.days === 0 ? 'today' : plural(x.days, 'day', 'days') + ' ago') : ''}</span></div>
+            <span class="n" style="margin-left:auto">${eur(x.amount, 2)}</span>
+            <button class="btn small" type="button" data-paid="${esc(x.o._id)}">${icon('payments')}Paid</button></div>`).join('')}</div>
+        ${c.list.length > shown.length ? `<p class="muted" style="margin:6px 0 0">and ${plural(c.list.length - shown.length, 'more order', 'more orders')} – filter by Shipped or Delivered below.</p>` : ''}
+        <p class="chart-note">Orders marked Shipped or Delivered but not Paid: the courier still holds that cash. Press Paid when it’s handed over.</p>
+    </div>`;
+}
 
 // Bot orders worth a second look before shipping (Finding #84): a "Check" chip, reasons on hover.
 function checkChip(o, orders) {
@@ -52,7 +68,9 @@ export function renderOnline(ctx) {
     const FILTERS = [['open', 'Open', o => !CLOSED.has(o.status || 'Ordered')], ...ORDER_STATUSES.map(s => [s, s, o => (o.status || 'Ordered') === s]), ['all', 'All', () => true]];
     const month = new Date(ctx.a.now); month.setDate(1); month.setHours(0, 0, 0, 0);
     const thisMonth = orders.filter(o => orderTime(o) >= month.getTime() && !GIVES_BACK.has(o.status));
+    const courier = withCourier(ctx.model.orders, ctx.a.now, { orderTime, orderTotal });
     ctx.body.innerHTML = `
+        ${courierPanel(courier, ctx.a.now)}
         ${since !== null && since > 30 ? `<div class="panel" style="padding:12px 16px;display:flex;gap:12px;align-items:center">${icon('info')}<span class="muted" style="flex:1">No online order has been recorded for ${plural(since, 'day', 'days')}. If Instagram sales are still happening, record them here with “New order” so they count in stock, customers and Insights.</span></div>` : ''}
         <div class="kpis">
             <div class="kpi"><small>Open orders</small><span class="v">${int(open.length)}</span><span class="d">${eur(open.reduce((a, o) => a + orderTotal(o), 0))} not yet paid</span></div>
@@ -84,6 +102,18 @@ export function renderOnline(ctx) {
     draw();
     ctx.body.querySelector('#on-q').addEventListener('input', e => { on.q = e.target.value; draw(); });
     ctx.body.querySelector('#on-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { on.filter = b.dataset.f; draw(); } });
+    const cp = ctx.body.querySelector('#on-courier');
+    if (cp) cp.addEventListener('click', async e => {
+        const b = e.target.closest('[data-paid]'); if (!b) return;
+        const o = ctx.model.orders.find(x => x._id === b.dataset.paid); if (!o) return;
+        b.disabled = true;
+        try {
+            const logNow = [{ status: 'Paid', timestamp: new Date() }, ...(o.activityLog && o.activityLog.length ? o.activityLog : [{ status: 'Order Placed', timestamp: o.timestamp || new Date() }])];
+            await updateDoc(doc(db, 'onlineOrders', o._id), { status: 'Paid', activityLog: logNow });
+            toast(`${who(o) || 'Order'} marked Paid – €${money2(orderTotal(o))} in`);
+            await ctx.reload();
+        } catch (x) { b.disabled = false; toast(`Couldn't save: ${x.message}`, { bad: true }); }
+    });
     const openRow = e => { const tr = e.target.closest('tr[data-id]'); if (tr) orderDetail(ctx, ctx.model.orders.find(o => o._id === tr.dataset.id)); };
     ctx.body.querySelector('#on-body').addEventListener('click', openRow);
     ctx.body.querySelector('#on-body').addEventListener('keydown', e => { if (e.key === 'Enter') openRow(e); });
@@ -281,6 +311,11 @@ function orderDrawer(ctx, existing, prefill) {
             body: `<p>${short.map(x => `${esc(x.p.name)}: ${int(Number(x.p.stock) || 0)} in stock, ${int(x.i.quantity)} ordered`).join('; ')}. Stock will go below zero until it's corrected.</p>` })) return;
         const data = { clientName: name.value.trim(), telephone: phone.value.trim(), address: addr.value.trim(), items, shippingFee: r2(Number(el.querySelector('#no-ship').value) || 0),
             price: itemsTotal(items), source: el.querySelector('#no-src').value };
+        // A correction to an order the bot wrote counts on its report card (Finding #85).
+        if (!isNew && o.source === 'Instagram Chatbot') {
+            const fields = changedFields(o, data);
+            if (fields.length) data.ownerEdits = { at: Date.now(), fields: [...new Set([...((o.ownerEdits && o.ownerEdits.fields) || []), ...fields])] };
+        }
         const batch = writeBatch(db);
         const fresh = isNew ? doc(collection(db, 'onlineOrders')) : null;
         if (isNew) {

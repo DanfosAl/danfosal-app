@@ -89,6 +89,13 @@ export function needsYou(a) {
             why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
             action: ['Open Instagram', 'sell.html#leads'] });
     }
+    // Cash the courier still holds: shipped or delivered, not marked paid (Finding #85).
+    if (a.courier && a.courier.list.length && a.courier.list[0].days >= 3) {
+        const c = a.courier, oldest = c.list[0];
+        items.push({ sev: c.late ? 'warn' : 'info', title: `€${money2(c.total)} still with the courier`,
+            why: `${plural(c.list.length, 'order is', 'orders are')} shipped or delivered and not marked paid${c.late ? `, ${c.late} for over a week` : ''}. The oldest: ${esc(oldest.o.clientName || 'an order')}, ${plural(oldest.days, 'day', 'days')} ago.`,
+            action: ['Cash with courier', 'sell.html#online'] });
+    }
     // The Instagram bot itself: quiet for days, or unable to read orders (Finding #84). On 19 Nov 2026
     // it turned out it had received nothing since 17 Oct - this is so that can't go unseen again.
     if (a.igHealth) items.push({ sev: a.igHealth.sev, title: a.igHealth.title, why: esc(a.igHealth.why), action: ['Instagram', 'sell.html#leads'] });

@@ -20,7 +20,7 @@ import { loadExtras, askedByProduct } from './dashboard-data.js';
 import { buildPurchasing, deliveryDates, arrivalOf } from './purchasing.js';
 import { COVER_DAYS, assess, proposeOrder, supplierPrices, customsShare, waitingByProductId, materialNo, portalText, supplierKey, codeKey } from './proposal.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
-import { allAsks, askedCounts, askedReport, aliasMap, demandTrend } from './iginsights.js';
+import { allAsks, askedCounts, askedReport, aliasMap, demandTrend, sameTimeLastYear } from './iginsights.js';
 
 const TAB = 'reorder';
 const KARCHER = 'karcher';
@@ -134,6 +134,7 @@ export async function renderNextOrder(ctx) {
     const asks = allAsks({ chats, events, products, aliases });
     const notSold = askedReport(asks, products, a.now, { days: 183 }).filter(r => r.status === 'none' && r.people >= 2).slice(0, 8);
     const rising = demandTrend(asks, products, a.now).slice(0, 6);
+    const lastYear = sameTimeLastYear(asks, products, a.now).slice(0, 6);   // Finding #85
     const customs = isK && docs.length ? customsShare(buildPurchasing(docs, { products }).customs, a.now) : null;
     const dates = deliveryDates(docs);
 
@@ -236,6 +237,12 @@ export async function renderNextOrder(ctx) {
             <h2 class="panel-title" id="ri-h">Asked about more than usual on Instagram<span>${int(rising.length)}</span></h2>
             <div class="lines">${rising.map(r => `<div class="line"><div><b>${esc(r.name)}</b><span>${r.product ? `${int(Number(r.product.stock) || 0)} in stock` : 'not in your catalogue'} · usually ${r.usual} ${r.usual === 1 ? 'person' : 'people'} a month</span></div><span class="n">${plural(r.recent, 'person', 'people')} in 30 days</span></div>`).join('')}</div>
             <p class="chart-note">Questions on Instagram come weeks before the sales. When a product is asked about twice as often as usual, it may be worth ordering earlier or more.</p>
+        </section>` : ''}
+
+        ${lastYear.length ? `<section class="panel" aria-labelledby="ly-h">
+            <h2 class="panel-title" id="ly-h">Same time last year on Instagram<span>${int(lastYear.length)}</span></h2>
+            <div class="lines">${lastYear.map(r => `<div class="line"><div><b>${esc(r.name)}</b><span>${r.product ? `${int(Number(r.product.stock) || 0)} in stock now` : 'not in your catalogue'} · usually ${r.usual} ${r.usual === 1 ? 'person' : 'people'} a month last year</span></div><span class="n">${plural(r.lastYear, 'person', 'people')} in the next 30 days, a year ago</span></div>`).join('')}</div>
+            <p class="chart-note">What people asked about in the coming month a year ago, more than in an average month of that year. If it’s seasonal, it may be worth having stock before the questions start.</p>
         </section>` : ''}
 
         ${notSold.length ? `<section class="panel" aria-labelledby="ns-h">

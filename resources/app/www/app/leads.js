@@ -30,7 +30,7 @@ import { openNewOrder, orderDetail } from './online.js';
 import { slimChat, followUps, privateChats, privateFields, publicFields, doneFields, doneReasons, REASONS, who as chatWho } from './followups.js';
 import { findCustomer, customerSummary } from './igcustomers.js';
 import { followPanel, privatePanel } from './followpanel.js';
-import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL, aliasMap, aliasKey, demandTrend, postIdeas } from './iginsights.js';
+import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL, aliasMap, aliasKey, demandTrend, postIdeas, botReportCard } from './iginsights.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
 const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false, askedOnly: 'all' };
@@ -213,7 +213,7 @@ export async function renderLeads(ctx) {
         const rising = new Set(trend.map(t => t.key));
         const ideas = postIdeas({ backIn, asked: askedReport(asks, products, now, { days: 30 }), trend, unsold: ctx.a.unsold || [] });
         const MORE = [['backin', 'Back in stock', backIn.reduce((n, g) => n + g.people.length, 0), 'inventory'], ['idle', 'Offer idle stock', idle.length, 'sell'],
-            ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer'], ['ideas', 'Post ideas', ideas.length, 'lightbulb']];
+            ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer'], ['ideas', 'Post ideas', ideas.length, 'lightbulb'], ['report', 'Bot report card', null, 'fact_check']];
         ctx.body.innerHTML = `
             <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length, { known, reasons: doneReasons(chats, now) })}${privatePanel(privateChats(chats), state.showPrivate)}</div>
             <div class="toolbar">
@@ -441,6 +441,20 @@ export async function renderLeads(ctx) {
                     <td class="n muted">${r.chats ? Math.round(100 * r.orders / r.chats) + '%' : '–'}</td><td class="n muted">${esc(day(r.last))}</td></tr>`).join('')
                 || '<tr><td colspan="5" class="muted" style="padding:18px">No chats in this period yet.</td></tr>'}</tbody></table>
                 <div class="table-foot">${total ? plural(total, 'chat', 'chats') + ' in the period. ' : ''}From the bot’s memory, so from 19 Nov 2026 on: what the customer’s first message came with – an ad, a reply to your story, a post or reel they shared, a link – or nothing (“Wrote directly”).</div></div>`;
+        }
+
+        // ---- 6. the bot's report card (Finding #85)
+        if (state.view === 'report') {
+            const card = botReportCard(ctx.model.orders, events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), now);
+            const FIELD = { name: 'name', phone: 'phone', address: 'address', products: 'products', price: 'price' };
+            view.innerHTML = `<div class="panel">
+                <div class="viz-head"><h2 class="panel-title">How well the bot writes orders</h2><span class="muted" style="font-size:12.5px">${card.written ? `${card.rate}% kept as written · ${plural(card.written, 'order', 'orders')} in 8 weeks` : 'no orders from the new bot yet'}</span></div>
+                <div class="table-wrap" style="max-height:none"><table class="dt"><thead><tr><th>Week of</th><th class="n">Written</th><th class="n">Kept as written</th><th class="n">You corrected</th><th>What you corrected</th><th class="n">Deleted</th></tr></thead>
+                <tbody>${card.weeks.map(w => `<tr><td>${esc(day(w.week))}</td><td class="n">${int(w.written)}</td><td class="n">${int(w.kept)}</td><td class="n">${int(w.corrected)}</td>
+                    <td class="muted">${Object.entries(w.fields).map(([f, n]) => `${esc(FIELD[f] || f)} ${int(n)}`).join(' · ') || '–'}</td><td class="n">${int(w.deleted)}</td></tr>`).join('')
+                    || '<tr><td colspan="6" class="muted" style="padding:18px">The report fills as the bot writes orders (it started on 19 Nov 2026).</td></tr>'}</tbody></table></div>
+                <p class="chart-note">Every order the bot wrote since 19 Nov 2026: kept as it was, corrected in Online orders › Edit (which field), or deleted. A rising share of corrections, or the same field again and again, is worth telling about.</p>
+            </div>`;
         }
 
         // ---- 9. what to post this week (Finding #84)

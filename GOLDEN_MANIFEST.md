@@ -895,6 +895,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **85. CASH WITH THE COURIER, INSTAGRAM ON THE CUSTOMER'S PAGE, THE BOT'S REPORT CARD, SAME TIME LAST YEAR** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+From the fourth list of ideas the owner chose 1, 5, 6 and 7. Danfosal only; no AI.
+
+- **Cash with the courier** (`www/app/courier.js`): online orders are paid in cash to the courier,
+  so an order marked Shipped or Delivered and not Paid is money the courier still holds. Sell ›
+  Online orders opens with that list (oldest first, when it was shipped from the order's history,
+  the amount, late after a week) and a **Paid** button that marks the order Paid the same way the
+  order's status does (status + activityLog; stock untouched). Today shows the total once the
+  oldest has been out 3 days.
+- **Instagram on the customer's page** (`igcustomers.js chatsForCustomer`): Customers › a customer
+  shows their Instagram chats (matched like "Bought before": a phone they typed, a bot order from
+  the chat, or its name) - @username, how many messages from them the bot holds, the last one, and
+  Open chat. Read once per visit, only when a page opens.
+- **The bot's report card** (`botReportCard`, Sell › Instagram › Bot report card): per week, the
+  orders the new bot wrote (ids `ig-…`, from its `order_created` log) - kept as written, corrected,
+  deleted - and which fields were corrected. Online orders › Edit now writes `ownerEdits {at,
+  fields}` (`changedFields`: name, phone, address, products, price) when the owner saves a change to
+  a bot order.
+- **Same time last year** (`sameTimeLastYear`, Stock › Next order): what people asked about in the
+  coming 30 days a year ago, 3+ people and at least 1.5x an average month of that year. The chatbot
+  log starts 30 Oct 2025, so it covers the coming year from now.
+- **Checked:** `tests/igmore.test.mjs` (5, made-up data); 53 tests in all. In the browser with a
+  stand-in database: the courier panel (total, the late order highlighted, Paid writes Paid) and the
+  report card (written 3, kept 1, corrected 1 - phone, deleted 1).
+
 #### **84. A SMARTER INSTAGRAM BOT: AGREED PRICES, LEARNED WORDS, CHECKS ON BOT ORDERS, ITS OWN HEALTH ON TODAY, DEMAND RISING, POST IDEAS** — ✅ **LIVE (November 19, 2026, version 1.4.9: GitHub release v1.4.9, Hosting, shop PC installed, HQ refreshed; the bot's side deployed on Render the same day)**
 
 From the third list of ideas the owner chose 3, 4, 5, 6, 7, 8 and 9 (photos were dropped: "it was a

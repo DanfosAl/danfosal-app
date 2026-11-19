@@ -7,7 +7,9 @@
 // Nothing here deletes a customer: merging records the other spelling as an alias, and a merged
 // profile is only marked `mergedInto` (the classic delete also deleted the customer's sales).
 import { bootWorkspace } from './workspace.js';
-import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp } from './firebase.js';
+import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp, getDocs } from './firebase.js';
+import { chatsForCustomer } from './igcustomers.js';
+import { chatLink } from './followups.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs, realSerial, soldOrder
 } from './data.js';
@@ -136,6 +138,22 @@ function machinesOf(e) {
     return [...byName.values()].sort((a, b) => b.last - a.last);
 }
 
+// Their Instagram (Finding #85): the bot's chats matched to this customer by a phone they typed,
+// a bot order from the chat, or that order's name. Read once per visit, only when a page opens.
+let chatsRaw = null;
+async function showInstagram(box, e) {
+    if (!box) return;
+    try {
+        chatsRaw = chatsRaw || getDocs(collection(db, 'instagramBotChats')).then(s => new Map(s.docs.map(d => [d.id, d.data()])));
+        const list = chatsForCustomer(e, await chatsRaw);
+        if (!list.length) return;
+        box.innerHTML = `<h3>Instagram</h3><div class="lines">${list.slice(0, 3).map(c => `<div class="line" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap">
+            <div style="flex:1 1 200px;min-width:0"><b>${esc(c.username ? '@' + c.username : 'Instagram chat')}</b><span>${plural(c.wrote, 'message', 'messages')} from them${c.last ? ' · last ' + esc(day(c.last)) + ' ' + new Date(c.last).getFullYear() : ''}</span></div>
+            <a class="btn small primary" href="${esc(chatLink({ _id: c.id, username: c.username }))}" target="_blank" rel="noopener">${icon('chat')}Open chat</a></div>`).join('')}</div>`;
+        box.hidden = false;
+    } catch (err) { console.warn('Instagram chats not readable', err); }
+}
+
 function customerDrawer(ctx, e) {
     const isNew = !e;
     e = e || { id: null, name: '', profile: null, keys: new Set(), sales: [], orders: [], warranties: [], tickets: [], debts: [], nipt: '', phone: '', email: '', address: '', revenue: 0, count: 0, owed: 0 };
@@ -153,6 +171,7 @@ function customerDrawer(ctx, e) {
                 <div><small>Spent</small><b>${eur(e.revenue)}</b>${e.refunded > 0 ? `<small style="color:var(--muted)">after ${eur(e.refunded)} refunded</small>` : ''}</div>
                 <div><small>Purchases</small><b>${int(e.count)}</b></div>
                 <div><small>${e.owed > 0.005 ? 'Owes' : 'Last purchase'}</small><b>${e.owed > 0.005 ? eur(e.owed) : e.last ? esc(day(e.last)) : '–'}</b></div></div>`}
+            ${isNew ? '' : '<section id="cu-ig" hidden></section>'}
             ${missing.length ? `<p class="empty" style="margin:0">${icon('info')} Missing: ${missing.join(' and ')}. Add ${missing.length > 1 ? 'them' : 'it'} below so repair updates and invoices reach the right person.</p>` : ''}
             <form class="form-grid" id="cf" novalidate>
                 <label class="fld wide">Name<input id="cf-name" value="${esc(e.name)}" required></label>
@@ -175,6 +194,8 @@ function customerDrawer(ctx, e) {
                ${isNew ? '' : `<a class="btn" href="service.html?customer=${encodeURIComponent(e.name)}#tickets">${icon('build')}New repair</a>
                <a class="btn" href="sell.html#new">${icon('point_of_sale')}New sale</a>`}`
     });
+
+    if (!isNew) showInstagram(el.querySelector('#cu-ig'), e);
 
     el.querySelector('#cf-save').addEventListener('click', async () => {
         const v = id => el.querySelector(id).value.trim();

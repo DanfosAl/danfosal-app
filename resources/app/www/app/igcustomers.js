@@ -73,3 +73,17 @@ export function withPhones(text) {
     if (last < String(text || '').length) out.push({ text: String(text).slice(last), phone: false });
     return out;
 }
+
+// The other way round, for the customer's page: their Instagram chats (raw: Map(chat id -> doc)).
+// -> [{id, username, wrote, last}] - wrote = their messages the bot still holds (its last 40).
+export function chatsForCustomer(entry, raw = new Map()) {
+    if (!entry) return [];
+    const out = [];
+    raw.forEach((data, id) => {
+        if (!data || data.ignored) return;
+        if (findCustomer(id, data, [entry]) !== entry) return;
+        const mine = (data.messages || []).filter(m => m && m.role !== 'shop');
+        out.push({ id, username: data.username || '', wrote: mine.length, last: Number(data.lastCustomerAt) || Math.max(0, ...mine.map(m => Number(m.at) || 0)) });
+    });
+    return out.sort((a, b) => b.last - a.last);
+}

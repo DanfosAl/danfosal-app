@@ -6,6 +6,18 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Cash with the courier, Instagram on the customer's page, the bot's report card, same time last year (version 1.4.10)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #85.
+
+### Added
+- Sell › Online orders: Cash with the courier - shipped or delivered orders not yet paid, with a Paid button; Today shows the total
+- Customers: a customer's Instagram chats, with Open chat
+- Sell › Instagram › Bot report card: per week, the bot's orders kept as written, corrected (which field) or deleted
+- Stock › Next order: what people asked about at this time last year
+
+---
+
 ## [Released] - 2026-11-19 - A smarter Instagram bot: agreed prices, learned words, checks, health, demand rising, post ideas (version 1.4.9)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #84.

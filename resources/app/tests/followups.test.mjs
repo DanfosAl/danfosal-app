@@ -3,7 +3,7 @@
 // Every chat, username and product below is made up. This repository is public.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { slimChat, followUps, who, chatLink } from '../www/app/followups.js';
+import { slimChat, followUps, who, chatLink, privateChats, privateFields, publicFields } from '../www/app/followups.js';
 
 const NOW = new Date(2026, 10, 19, 12).getTime();          // 19 Nov 2026, noon
 const H = 3600000, D = 24 * H;
@@ -64,4 +64,20 @@ test('who and the chat link', () => {
     assert.equal(who(slimChat('12345678')), 'visitor 45678');
     assert.equal(chatLink(slimChat('1', { username: 'test.user' })), 'https://ig.me/m/test.user');
     assert.equal(chatLink(slimChat('1')), 'https://www.instagram.com/direct/inbox/');
+});
+
+test('Private from the app: what is written, and the list of private chats', () => {
+    const p = privateFields(NOW);
+    assert.deepEqual(p, { ignored: true, ignoredBy: 'owner', ignoredAt: NOW, messages: [], card: null });
+    assert.deepEqual(publicFields(), { ignored: false, ignoredBy: 'owner', ignoredAt: null });
+    const chats = [
+        slimChat('a', { username: 'test.a', ...p }),
+        slimChat('b', { ignored: true, ignoredBy: 'ai', ignoredAt: NOW - D }),
+        slimChat('c', { lastCustomerAt: NOW - H }),
+        slimChat('d', { ignored: false, ignoredBy: 'owner' }),
+    ];
+    assert.deepEqual(privateChats(chats).map(c => [c._id, c.ignoredBy]), [['a', 'owner'], ['b', 'ai']]);
+    assert.equal(slimChat('d', { ignored: false, ignoredBy: 'owner' }).ignoredBy, '', 'not private: no "by"');
+    // A private chat is neither waiting nor to follow up, even with a fresh message on it.
+    assert.deepEqual(followUps([slimChat('x', { ...p, lastCustomerAt: NOW - H })], NOW).waiting, []);
 });

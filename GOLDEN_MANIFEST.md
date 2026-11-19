@@ -920,6 +920,16 @@ it. The owner asked to put that to use in the app.
   sidebar counts them on Today.
 - **Privacy:** the app reads the chats slimmed (`slimChat`): the message texts are never put in the
   browser's session storage, only the reading, the times and the name.
+- **Private from the app (version 1.4.6, same day):** the owner asked to mark an account private
+  from the app, for good, until he says otherwise. **Private** on a Follow up row, or on anyone in
+  the People list (even someone who wrote before the bot kept a memory), merges `privateFields()` into
+  `instagramBotChats/{id}`: `ignored: true, ignoredBy: 'owner', ignoredAt`, and drops the stored
+  messages and the reading. The bot checks that flag before anything else, so from then on it stores,
+  reads (no AI cost) and logs nothing from that account. A **Private chats** panel lists every ignored
+  account, with who decided (you, or the bot when the AI saw a clearly private chat), and **Not
+  private** (`publicFields()`) gives it back to the bot. `#privat` / `#biznes` typed in the chat set
+  the same flag. Tests: one more in `tests/followups.test.mjs`; the panel checked in the browser with
+  made-up chats.
 - **Checked:** `tests/followups.test.mjs` (7, made-up chats): waiting order, "thanks" is not
   waiting, the 1-14 day window, an order / Done / a private chat take a chat off, Done comes undone
   by a new message, names and links. The panel was looked at in the browser with made-up chats at

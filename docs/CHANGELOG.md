@@ -6,6 +6,16 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Sell › Instagram: Private accounts (version 1.4.6)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #81.
+
+### Added
+- Sell › Instagram: Private on a Follow up row or on anyone in the People list - the bot then ignores that account (stores, reads and logs nothing) until you press Not private
+- A Private chats panel: every account the bot ignores, whether you or the bot decided, and Not private to undo
+
+---
+
 ## [Released] - 2026-11-19 - Sell › Instagram: Follow up (version 1.4.5)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #81.

@@ -22,15 +22,15 @@
 // What the data does NOT have: names, phone numbers, and the text of ordinary messages (only its
 // length). Instagram gives the bot a scoped sender id, so a lead is "someone asked for X on this
 // day", and the reply still happens in the Instagram inbox.
-import { db, collection, getDocs, doc, updateDoc, query, where, orderBy, Timestamp } from './firebase.js';
+import { db, collection, getDocs, doc, updateDoc, setDoc, query, where, orderBy, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast } from './ui.js';
 import { DAY, toMs, squash, orderTime, orderTotal } from './data.js';
 import { openNewOrder, orderDetail } from './online.js';
-import { slimChat, followUps, who as chatWho } from './followups.js';
-import { followPanel } from './followpanel.js';
+import { slimChat, followUps, privateChats, privateFields, publicFields, who as chatWho } from './followups.js';
+import { followPanel, privatePanel } from './followpanel.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
-const state = { period: '30', only: 'all', view: 'questions', sender: null };
+const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false };
 
 // Albanian shop words, as they are actually typed. A question rarely names a model: it says
 // "fshese me avull" (steam cleaner) or "solucion" (detergent), so this is what makes the demand
@@ -89,6 +89,7 @@ const visitor = id => 'visitor ' + (String(id || '').slice(-5) || '?');
 // The bot now looks up each customer's @username (Finding #81); older chats stay "visitor ...".
 let chatsById = new Map();
 const nameOf = id => chatsById.has(String(id)) && chatsById.get(String(id)).username ? '@' + chatsById.get(String(id)).username : visitor(id);
+const isPrivate = id => !!(chatsById.get(String(id)) || {}).ignored;
 
 // The bot's memory of each chat (instagramBotChats), read fresh on every visit - it changes by the minute.
 async function loadChats() {
@@ -133,6 +134,21 @@ export async function renderLeads(ctx) {
     try { chats = await loadChats(); } catch (e) { console.warn('Instagram bot chats not readable', e); }
     chatsById = new Map(chats.map(c => [c._id, c]));
 
+    // Private / Not private: written onto the bot's memory of that account, which the bot reads
+    // before anything else. Works for anyone who ever wrote, even before the bot kept a memory.
+    const setPrivate = async (id, on) => {
+        const fields = on ? privateFields(Date.now()) : publicFields();
+        try {
+            await setDoc(doc(db, 'instagramBotChats', String(id)), fields, { merge: true });
+            const c = chatsById.get(String(id)) || slimChat(id, {});
+            const next = slimChat(id, { ...c, card: on ? null : c.card, ...fields, ignoredAt: fields.ignoredAt || 0 });
+            chats = [...chats.filter(x => x._id !== next._id), next];
+            chatsById.set(next._id, next);
+            toast(on ? `${chatWho(next)} is private – the bot ignores this account. Undo under Private chats.` : `${chatWho(next)} is not private any more – the bot reads it again`);
+            draw();
+        } catch (err) { toast(`Couldn't save that: ${err.message}`, { bad: true }); }
+    };
+
     const index = buildIndex(ctx.model.products);
     const orderById = new Map(ctx.model.orders.map(o => [o._id, o]));
 
@@ -174,7 +190,7 @@ export async function renderLeads(ctx) {
 
         const fu = followUps(chats, now);
         ctx.body.innerHTML = `
-            <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length)}</div>
+            <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length)}${privatePanel(privateChats(chats), state.showPrivate)}</div>
             <div class="toolbar">
                 <div class="seg" role="group" aria-label="Period" id="lq-period">${PERIODS.map(([id, label]) => `<button type="button" data-p="${id}" aria-pressed="${id === state.period}">${label}</button>`).join('')}</div>
                 <span class="muted" style="font-size:12.5px">Press a figure to see what is behind it.</span>
@@ -194,15 +210,18 @@ export async function renderLeads(ctx) {
         if (state.view === 'people') {
             const list = [...senders.values()].sort((a, b) => b.last - a.last);
             view.innerHTML = `<div class="table-wrap" style="max-height:calc(100vh - 430px);min-height:240px"><table class="dt"><thead><tr>
-                <th>Who</th><th>Last asked about</th><th class="n">Messages</th><th class="n">Questions</th><th class="n">First wrote</th><th class="n">Last wrote</th></tr></thead>
+                <th>Who</th><th>Last asked about</th><th class="n">Messages</th><th class="n">Questions</th><th class="n">First wrote</th><th class="n">Last wrote</th><th></th></tr></thead>
                 <tbody id="lq-body">${list.map(s => `<tr data-sender="${esc(s.id)}" tabindex="0">
                     <td class="name"><b>${esc(nameOf(s.id))}</b><span>Instagram</span></td>
                     <td class="muted" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.asked.length ? esc(s.asked[0]) : 'only messages, no product named'}</td>
                     <td class="n">${int(s.messages)}</td><td class="n${s.questions ? '' : ' muted'}">${int(s.questions)}</td>
-                    <td class="n muted">${esc(day(s.first))}</td><td class="n muted">${esc(day(s.last))}</td></tr>`).join('')
-                || '<tr><td colspan="6" class="muted" style="padding:18px">Nobody wrote in this period.</td></tr>'}</tbody></table>
+                    <td class="n muted">${esc(day(s.first))}</td><td class="n muted">${esc(day(s.last))}</td>
+                    <td class="n">${isPrivate(s.id) ? `<button class="btn small" type="button" data-public="${esc(s.id)}">${icon('visibility')}Not private</button>` : `<button class="btn small ghost" type="button" data-private="${esc(s.id)}" title="Family, friends: the bot ignores this account">${icon('visibility_off')}Private</button>`}</td></tr>`).join('')
+                || '<tr><td colspan="7" class="muted" style="padding:18px">Nobody wrote in this period.</td></tr>'}</tbody></table>
                 <div class="table-foot">Instagram gives the chatbot a sender id, not a name or a phone number. Press a row to see everything that person asked for.</div></div>`;
             view.querySelector('#lq-body').addEventListener('click', e => {
+                const priv = e.target.closest('[data-private],[data-public]');
+                if (priv) { setPrivate(priv.dataset.private || priv.dataset.public, !!priv.dataset.private); return; }
                 const tr = e.target.closest('tr[data-sender]'); if (!tr) return;
                 state.sender = tr.dataset.sender; state.view = 'questions'; state.only = 'all'; draw();
             });
@@ -335,6 +354,9 @@ export async function renderLeads(ctx) {
 
         ctx.body.querySelector('#lq-follow').addEventListener('click', async e => {
             const done = e.target.closest('[data-fu-done]'), add = e.target.closest('[data-fu-order]');
+            const priv = e.target.closest('[data-fu-private]'), pub = e.target.closest('[data-fu-public]');
+            if (e.target.closest('[data-fu-privlist]')) { state.showPrivate = !state.showPrivate; draw(); return; }
+            if (priv || pub) { setPrivate((priv || pub).dataset[priv ? 'fuPrivate' : 'fuPublic'], !!priv); return; }
             if (done) {
                 const c = chatsById.get(done.dataset.fuDone); if (!c) return;
                 try {

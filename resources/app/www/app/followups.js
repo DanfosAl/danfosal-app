@@ -9,6 +9,10 @@
 //              and didn't order: the follow-up that turns a question into a sale
 // "Done" stamps followUpDoneAt; the chat comes back if anyone writes after that. Private chats
 // (#privat, or ones the AI saw as family/friends) never show. Pure functions - no Firestore here.
+//
+// Private from the app: "Private" on a chat writes privateFields() onto it (the bot then stores,
+// reads and logs nothing from that account, until "Not private" writes publicFields()). The bot
+// honours the same flag it sets itself for #privat / #biznes typed in the chat.
 export const WAITING_DAYS = 7;
 export const QUIET_FROM_DAYS = 1;
 export const QUIET_TO_DAYS = 14;
@@ -24,6 +28,7 @@ export function slimChat(id, d = {}) {
         _id: String(id), username: d.username || '', profileName: d.profileName || '',
         lastCustomerAt: n(d.lastCustomerAt), lastShopAt: n(d.lastShopAt), lastOrderAt: n(d.lastOrderAt),
         lastOrderId: d.lastOrderId || null, followUpDoneAt: n(d.followUpDoneAt), ignored: !!d.ignored,
+        ignoredBy: d.ignored ? (d.ignoredBy || 'owner') : '', ignoredAt: n(d.ignoredAt),
         card: {
             stage: card.stage || '', summary: card.summary || '', nextStep: card.nextStep || '',
             products: Array.isArray(card.products) ? card.products.filter(p => p && p.name).map(p => ({ name: String(p.name), id: p.id || null })) : []
@@ -52,6 +57,14 @@ export function followUps(chats = [], now = Date.now()) {
     quiet.sort((a, b) => b.since - a.since);        // freshest follow-up first
     return { waiting, quiet };
 }
+
+// The chats the bot ignores, newest first - so a wrong guess by the AI can be undone.
+export const privateChats = (chats = []) => chats.filter(c => c && c.ignored).sort((a, b) => b.ignoredAt - a.ignoredAt);
+
+// What "Private" / "Not private" write onto instagramBotChats/{id} (merged). Private also drops the
+// stored messages and the reading: nothing of a private chat stays in the database.
+export const privateFields = (now = Date.now()) => ({ ignored: true, ignoredBy: 'owner', ignoredAt: now, messages: [], card: null });
+export const publicFields = () => ({ ignored: false, ignoredBy: 'owner', ignoredAt: null });
 
 export const who = c => c && c.username ? '@' + c.username : 'visitor ' + (String((c && c._id) || '').slice(-5) || '?');
 

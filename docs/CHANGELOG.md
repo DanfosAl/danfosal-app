@@ -6,6 +6,17 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Instagram: bought before, the chat behind a bot order, how follow-ups ended (version 1.4.8)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #83.
+
+### Added
+- Sell › Instagram › Follow up: "Bought before as …" when the person writing is already a customer - purchases, the last one, warranties still running
+- Online orders: a bot order shows the Instagram messages it came from, to check the name, phone and address
+- Follow up: Done asks how it ended (sold, too expensive, bought elsewhere, no stock, no reply, other), and the panel shows the totals for 90 days
+
+---
+
 ## [Released] - 2026-11-19 - Instagram: back in stock, idle stock offers, asked for, where chats come from, answer speed (version 1.4.7)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #82.

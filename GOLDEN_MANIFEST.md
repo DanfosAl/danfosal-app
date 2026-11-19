@@ -895,6 +895,32 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **83. INSTAGRAM: WHO IS WRITING (BOUGHT BEFORE), THE CHAT BEHIND A BOT ORDER, AND HOW FOLLOW-UPS ENDED** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+Three more from the second list of ideas (owner, 19 Nov 2026: 2, 5 and 8). No AI, no change to the bot.
+
+- **Bought before** (`www/app/igcustomers.js`): each Follow up row shows, in green, when the person
+  writing is already a customer - matched on a phone number they typed in the chat (or gave for a
+  bot order) against Customers and online orders, on a bot order made from that very chat
+  (`instagramId`), or on the name of the bot's last order for the chat (6+ letters). It says how many
+  purchases, the last one and what it was, the total spent, and any warranty still running (from the
+  warranty cards). Phone numbers are read from the stored messages when Sell › Instagram opens and
+  kept in memory for that visit only.
+- **The chat behind a bot order** (`online.js`): an Online order the bot made (`instagramId`) shows
+  "From the Instagram chat" in its drawer - the messages up to half an hour after the order, newest
+  25, phone numbers in bold - next to the name, phone and address the bot wrote down, with Open the
+  chat. Read from the bot's memory when the order is opened. Orders from before 19 Nov 2026 have no
+  `instagramId` and show nothing extra.
+- **How follow-ups ended**: Done in Follow up now asks one question - Sold, Too expensive, Bought
+  elsewhere, No stock, No reply, Other - and writes `followUpReason` plus a line in `followUpLog`
+  (arrayUnion). Under the panel: how follow-ups ended in the last 90 days.
+- **Checked:** `tests/igcustomers.test.mjs` (6, made-up records): phones typed by the customer but
+  not the shop, the three ways to match, what is said about a customer, the messages behind an order,
+  phones in bold, Done reasons (39 tests in all). In the browser with a stand-in database of made-up
+  chats: the green line, the Done menu (the row leaves, the summary counts it) and the chat in the
+  order drawer. On that check the browser first served an older cached `online.js` - a fresh reload
+  showed the new one; the installed apps carry their own files.
+
 #### **82. WHAT THE INSTAGRAM CHATS ARE WORTH: BACK IN STOCK, IDLE STOCK OFFERS, ASKED FOR, WHERE CHATS COME FROM, ANSWER SPEED** — ✅ **LIVE (November 19, 2026, version 1.4.7: GitHub release v1.4.7, Hosting, shop PC installed, HQ refreshed; the bot's side deployed on Render the same day)**
 
 Of the eleven ideas for the Instagram bot (19 Nov 2026), the owner chose five: tell people when

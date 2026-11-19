@@ -9,11 +9,13 @@
 // when one was cancelled - so every cancellation inflated stock. New orders now take their items
 // off stock in the same batch and are marked stockDeducted; only those give stock back when
 // cancelled or returned. Older orders offer "Take from stock" instead of guessing.
-import { db, collection, doc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
+import { db, collection, doc, getDoc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs, realSerial
 } from './data.js';
 import { warrantyDialog } from './warranty.js';
+import { orderChat, withPhones } from './igcustomers.js';
+import { chatLink } from './followups.js';
 
 const r2 = n => Math.round(n * 100) / 100;
 export const ORDER_STATUSES = ['New Lead', 'Ordered', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Paid', 'Returned', 'Cancelled'];
@@ -87,6 +89,25 @@ export function renderOnline(ctx) {
 
 // ------------------------------------------------------------------ one order
 
+// A bot order: the messages it came from, beside the name, phone and address it wrote down, so a
+// misread can be caught before shipping (Finding #83). Read from the bot's memory when opened.
+async function showOrderChat(box, o) {
+    if (!box) return;
+    try {
+        const snap = await getDoc(doc(db, 'instagramBotChats', String(o.instagramId)));
+        const chat = snap.exists() ? snap.data() : null;
+        const lines = chat ? orderChat(chat.messages || [], orderTime(o) || Date.now()) : [];
+        if (!lines.length) { box.innerHTML = `<h3>From the Instagram chat</h3><p class="empty">${chat && chat.ignored ? 'This chat is marked private.' : 'The bot no longer has these messages.'}</p>`; return; }
+        const text = t => withPhones(t).map(x => x.phone ? `<b style="color:var(--ink)">${esc(x.text)}</b>` : esc(x.text)).join('');
+        box.innerHTML = `<h3>From the Instagram chat</h3>
+            <div class="lines">${lines.map(m => `<div class="line" style="display:block"><span class="muted" style="font-size:11px">${esc(dateTime(m.at))} · ${m.role === 'shop' ? 'You' : 'Customer'}</span>
+                <div style="white-space:pre-wrap;${m.role === 'shop' ? 'color:var(--muted)' : ''}">${text(m.text)}</div></div>`).join('')}</div>
+            <p class="chart-note">Check the name, phone and address above against what was written. <a href="${esc(chatLink({ _id: String(o.instagramId), username: chat.username || '' }))}" target="_blank" rel="noopener" style="color:var(--violet-2)">Open the chat</a></p>`;
+    } catch (e) {
+        box.innerHTML = `<h3>From the Instagram chat</h3><p class="empty">Couldn't read the chat: ${esc(e.message)}</p>`;
+    }
+}
+
 export function orderDetail(ctx, o) {
     const status = o.status || 'Ordered';
     const log = (o.activityLog || []).slice().sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp));
@@ -104,6 +125,7 @@ export function orderDetail(ctx, o) {
                 <span class="hint" id="od-hint">${o.stockDeducted ? 'Returned or Cancelled puts the items back in stock.' : 'This order never took stock, so changing its status doesn’t change stock.'}</span></label>
             <section><h3>Customer</h3><p style="margin:0">${esc(who(o) || '–')}${phoneOf(o) ? ` · <a href="tel:${esc(phoneOf(o).replace(/\s/g, ''))}">${esc(phoneOf(o))}</a>` : ''}</p>
                 <p class="empty" style="margin:2px 0 0">${esc(addressOf(o) || 'No address')}</p></section>
+            ${o.instagramId ? `<section id="od-chat"><h3>From the Instagram chat</h3><p class="empty">Reading the chat…</p></section>` : ''}
             <section><h3>Items</h3><div class="lines">${(o.items || []).map(i => { const p = productFor(products, i); return `
                 <div class="line"><div><b>${Number(i.quantity) > 1 ? int(i.quantity) + ' × ' : ''}${esc(i.name)}</b><span>${p ? `${int(Number(p.stock) || 0)} in stock` : 'not in the catalogue'}${realSerial(i.serialNumber) ? ' · S/N ' + esc(realSerial(i.serialNumber)) : ''}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`; }).join('') || '<p class="empty">No items recorded.</p>'}</div></section>
             ${log.length ? `<section><h3>History</h3><div class="lines">${log.map(x => `<div class="line"><div><b>${esc(x.status)}</b><span>${isNaN(toMs(x.timestamp)) ? '' : esc(dateTime(toMs(x.timestamp)))}</span></div></div>`).join('')}</div></section>` : ''}`,
@@ -113,6 +135,8 @@ export function orderDetail(ctx, o) {
             <button class="btn" type="button" id="od-warranty">${icon('verified')}Warranty</button>
             <button class="btn ghost" type="button" id="od-del" style="margin-left:auto;color:var(--bad)">${icon('delete')}Delete order</button>`
     });
+
+    if (o.instagramId) showOrderChat(el.querySelector('#od-chat'), o);
 
     el.querySelector('#od-save').addEventListener('click', async () => {
         const next = el.querySelector('#od-status').value;

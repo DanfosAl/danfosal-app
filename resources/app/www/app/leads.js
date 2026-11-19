@@ -22,12 +22,13 @@
 // What the data does NOT have: names, phone numbers, and the text of ordinary messages (only its
 // length). Instagram gives the bot a scoped sender id, so a lead is "someone asked for X on this
 // day", and the reply still happens in the Instagram inbox.
-import { db, collection, getDocs, doc, updateDoc, setDoc, query, where, orderBy, Timestamp } from './firebase.js';
+import { db, collection, getDocs, doc, updateDoc, setDoc, query, where, orderBy, Timestamp, arrayUnion } from './firebase.js';
 import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast } from './ui.js';
 import { chatLink } from './followups.js';
-import { DAY, toMs, squash, orderTime, orderTotal } from './data.js';
+import { DAY, toMs, squash, orderTime, orderTotal, customerDirectory, saleTime } from './data.js';
 import { openNewOrder, orderDetail } from './online.js';
-import { slimChat, followUps, privateChats, privateFields, publicFields, who as chatWho } from './followups.js';
+import { slimChat, followUps, privateChats, privateFields, publicFields, doneFields, doneReasons, REASONS, who as chatWho } from './followups.js';
+import { findCustomer, customerSummary } from './igcustomers.js';
 import { followPanel, privatePanel } from './followpanel.js';
 import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL } from './iginsights.js';
 
@@ -64,7 +65,10 @@ async function loadChats() {
         lastOrderAt: Number(v.lastOrderAt) || 0,
         messages: (Array.isArray(v.messages) ? v.messages : []).map(m => ({ at: Number(m && m.at) || 0, role: m && m.role }))
     }));
-    return { chats, talks };
+    // Who they are in the shop's records needs their phone numbers, which live in the messages:
+    // worked out here, kept in memory for this visit only.
+    const raw = new Map(docs.filter(d => !d.data().ignored).map(d => [d.id, d.data()]));
+    return { chats, talks, raw };
 }
 const linkOf = id => chatLink(chatsById.get(String(id)) || { _id: String(id) });
 
@@ -105,10 +109,16 @@ async function markEvent(ev, fields) {
 
 export async function renderLeads(ctx) {
     ctx.body.innerHTML = '<p class="empty">Reading the chatbot’s log…</p>';
-    let events, chats = [], talks = [];
+    let events, chats = [], talks = [], raw = new Map();
     try { events = await loadEvents(ctx.model); }
     catch (e) { ctx.body.innerHTML = `<p class="err">Couldn't read the chatbot log: ${esc(e.message)}</p>`; return; }
-    try { ({ chats, talks } = await loadChats()); } catch (e) { console.warn('Instagram bot chats not readable', e); }
+    try { ({ chats, talks, raw } = await loadChats()); } catch (e) { console.warn('Instagram bot chats not readable', e); }
+    // People writing on Instagram who bought before (Finding #83): matched once per visit.
+    const known = new Map();
+    try {
+        const dir = customerDirectory(ctx.model);
+        raw.forEach((data, id) => { const e = findCustomer(id, data, dir); const k = e && customerSummary(e, ctx.a.now, x => saleTime(x) || orderTime(x)); if (k) known.set(id, k); });
+    } catch (e) { console.warn('Customer match failed', e); }
     chatsById = new Map(chats.map(c => [c._id, c]));
 
     // Private / Not private: written onto the bot's memory of that account, which the bot reads
@@ -177,7 +187,7 @@ export async function renderLeads(ctx) {
         const MORE = [['backin', 'Back in stock', backIn.reduce((n, g) => n + g.people.length, 0), 'inventory'], ['idle', 'Offer idle stock', idle.length, 'sell'],
             ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer']];
         ctx.body.innerHTML = `
-            <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length)}${privatePanel(privateChats(chats), state.showPrivate)}</div>
+            <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length, { known, reasons: doneReasons(chats, now) })}${privatePanel(privateChats(chats), state.showPrivate)}</div>
             <div class="toolbar">
                 <div class="seg" role="group" aria-label="Period" id="lq-period">${PERIODS.map(([id, label]) => `<button type="button" data-p="${id}" aria-pressed="${id === state.period}">${label}</button>`).join('')}</div>
                 <span class="muted" style="font-size:12.5px">Press a figure to see what is behind it.</span>
@@ -425,19 +435,21 @@ export async function renderLeads(ctx) {
         }
 
         ctx.body.querySelector('#lq-follow').addEventListener('click', async e => {
-            const done = e.target.closest('[data-fu-done]'), add = e.target.closest('[data-fu-order]');
+            const add = e.target.closest('[data-fu-order]');
             const priv = e.target.closest('[data-fu-private]'), pub = e.target.closest('[data-fu-public]');
             if (e.target.closest('[data-fu-privlist]')) { state.showPrivate = !state.showPrivate; draw(); return; }
             if (priv || pub) { setPrivate((priv || pub).dataset[priv ? 'fuPrivate' : 'fuPublic'], !!priv); return; }
-            if (done) {
-                const c = chatsById.get(done.dataset.fuDone); if (!c) return;
+            const reason = e.target.closest('[data-fu-reason]');
+            if (reason) {
+                const c = chatsById.get(reason.dataset.fuReason); if (!c) return;
+                const at = Date.now(), fields = doneFields(reason.dataset.reason, at);
                 try {
-                    const at = Date.now();
-                    await updateDoc(doc(db, 'instagramBotChats', c._id), { followUpDoneAt: at });
-                    c.followUpDoneAt = at;
-                    toast(`${chatWho(c)} done – back on the list if they write again`);
+                    await updateDoc(doc(db, 'instagramBotChats', c._id), { ...fields, followUpLog: arrayUnion({ at, reason: fields.followUpReason }) });
+                    Object.assign(c, fields, { followUpLog: [...(c.followUpLog || []), { at, reason: fields.followUpReason }] });
+                    toast(`${chatWho(c)}: ${REASONS[fields.followUpReason]} – back on the list if they write again`);
                     draw();
                 } catch (err) { toast(`Couldn't save that: ${err.message}`, { bad: true }); }
+                return;
             }
             if (add) {
                 const c = chatsById.get(add.dataset.fuOrder); if (!c) return;

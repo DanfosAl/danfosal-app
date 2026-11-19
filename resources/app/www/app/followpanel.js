@@ -1,12 +1,14 @@
 // Sell › Instagram's Follow up panel (Finding #81): the customers who need the owner now, from
 // the Instagram bot's reading of each chat. Drawing only - the lists come from followups.js, the
-// clicks are handled in leads.js (data-fu-order / data-fu-done). No Firestore here.
+// clicks are handled in leads.js (data-fu-order / data-fu-reason / data-fu-private). No Firestore here.
 import { esc, eur, int, icon, ago, day } from './ui.js';
-import { who, chatLink } from './followups.js';
+import { who, chatLink, REASONS } from './followups.js';
 
 const STAGE_CHIP = { asking: 'vio', deciding: 'warn', ordering: 'ok', ordered: 'ok', 'after-sale': '', other: '' };
 
-export function followPanel(fu, products, now, total) {
+// known: Map(chat id -> customerSummary) for people who bought before (igcustomers.js).
+// reasons: [{label, n}] - how follow-ups ended lately (followups.js doneReasons).
+export function followPanel(fu, products, now, total, { known = new Map(), reasons = [] } = {}) {
     const byId = new Map(products.map(p => [p._id, p]));
     const productLine = c => c.card.products.map(x => {
         const p = (x.id && byId.get(x.id)) || products.find(q => q.name === x.name);
@@ -21,13 +23,20 @@ export function followPanel(fu, products, now, total) {
                 <span>${c.card.summary ? esc(c.card.summary) : 'No reading yet – the bot reads the chat at the next message.'}</span>
                 ${c.card.nextStep ? `<span>${icon('arrow_forward')} ${esc(c.card.nextStep)}</span>` : ''}
                 ${c.card.products.length ? `<span>${productLine(c)}</span>` : ''}
+                ${knownLine(known.get(c._id), now)}
             </div>
             <div class="n" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:auto;max-width:100%">
                 <span class="muted" style="white-space:nowrap">${kind === 'waiting' ? 'wrote ' : 'you answered '}${esc(ago(c.since, now))}</span>
                 <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
                     <a class="btn small primary" href="${esc(chatLink(c))}" target="_blank" rel="noopener">${icon('chat')}Open chat</a>
                     ${c.card.products.some(x => x.id && byId.get(x.id)) ? `<button class="btn small" type="button" data-fu-order="${esc(c._id)}">${icon('add')}Add as order</button>` : ''}
-                    <button class="btn small ghost" type="button" data-fu-done="${esc(c._id)}">${icon('check')}Done</button>
+                    <details class="fu-done" style="position:relative">
+                        <summary class="btn small ghost" style="list-style:none;cursor:pointer">${icon('check')}Done</summary>
+                        <div class="panel" style="position:absolute;right:0;top:calc(100% + 4px);z-index:5;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35)">
+                            <span class="muted" style="font-size:11.5px;padding:2px 4px">How did it end?</span>
+                            ${Object.entries(REASONS).map(([k, l]) => `<button class="btn small ghost" type="button" data-fu-reason="${esc(c._id)}" data-reason="${k}" style="justify-content:flex-start">${esc(l)}</button>`).join('')}
+                        </div>
+                    </details>
                     <button class="btn small ghost" type="button" data-fu-private="${esc(c._id)}" title="Family, friends: the bot ignores this account until you say otherwise">${icon('visibility_off')}Private</button>
                 </span>
             </div>
@@ -40,7 +49,18 @@ export function followPanel(fu, products, now, total) {
             ${fu.waiting.length ? `<h3 style="margin:8px 0 4px">Waiting for your answer <span class="muted">· ${int(fu.waiting.length)}</span></h3><div class="lines">${fu.waiting.map(c => row(c, 'waiting')).join('')}</div>` : ''}
             ${fu.quiet.length ? `<h3 style="margin:14px 0 4px">Went quiet after your answer <span class="muted">· ${int(fu.quiet.length)}</span></h3><div class="lines">${fu.quiet.map(c => row(c, 'quiet')).join('')}</div>
                 <p class="chart-note">They asked about a product, you answered, and they didn’t order. A short follow-up (“still interested? we can send it tomorrow”) often turns that into a sale.</p>` : ''}
+            ${reasons.length ? `<p class="chart-note" style="margin-top:10px">How follow-ups ended, last 90 days: ${reasons.map(r => `<b style="color:var(--ink)">${esc(r.label)}</b> ${int(r.n)}`).join(' · ')}</p>` : ''}
         </div>`;
+}
+
+// "Bought before": who this is in the shop's own records.
+function knownLine(k, now) {
+    if (!k) return '';
+    const bits = [`${k.purchases} ${k.purchases === 1 ? 'purchase' : 'purchases'}`];
+    if (k.last) bits.push(`last ${day(k.last)} ${new Date(k.last).getFullYear()}${k.lastItems.length ? ' (' + k.lastItems.join(', ') + ')' : ''}`);
+    if (k.spent) bits.push(eur(k.spent) + ' in all');
+    const w = k.warranties.map(x => `${x.items[0]} under warranty to ${day(x.until)} ${new Date(x.until).getFullYear()}`);
+    return `<span style="color:var(--ok)">${icon('person_check')} Bought before as <a href="customers.html?q=${encodeURIComponent(k.name)}#all" style="text-decoration:none;color:inherit"><b>${esc(k.name)}</b></a>: ${esc(bits.join(' · '))}${w.length ? ' · ' + esc(w.join(' · ')) : ''}</span>`;
 }
 
 // The accounts the bot ignores, with who decided and a way back. Folded unless asked for.

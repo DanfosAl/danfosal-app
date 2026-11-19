@@ -33,6 +33,9 @@ export function slimChat(id, d = {}) {
         // the Instagram reports in www/app/iginsights.js.
         askedProducts: Array.isArray(d.askedProducts) ? d.askedProducts.filter(a => a && a.name).map(a => ({
             name: String(a.name), id: a.id || null, stock: Number.isFinite(Number(a.stock)) && a.stock !== null ? Number(a.stock) : null, at: n(a.at) })) : [],
+        // Why follow-ups ended, one tap on Done (owner's idea 8): [{at, reason}], newest 20.
+        followUpLog: Array.isArray(d.followUpLog) ? d.followUpLog.filter(x => x && REASONS[x.reason]).map(x => ({ at: n(x.at), reason: x.reason })).slice(-20) : [],
+        followUpReason: REASONS[d.followUpReason] ? d.followUpReason : '',
         firstSource: d.firstSource && d.firstSource.key ? { kind: String(d.firstSource.kind || ''), key: String(d.firstSource.key),
             title: String(d.firstSource.title || ''), url: String(d.firstSource.url || ''), at: n(d.firstSource.at) } : null,
         card: {
@@ -62,6 +65,18 @@ export function followUps(chats = [], now = Date.now()) {
     waiting.sort((a, b) => a.since - b.since);      // longest waiting first
     quiet.sort((a, b) => b.since - a.since);        // freshest follow-up first
     return { waiting, quiet };
+}
+
+// Done, with the reason (one tap): it takes the chat off the lists like before, and over a few
+// weeks shows why questions didn't become sales - without any AI.
+export const REASONS = { sold: 'Sold', price: 'Too expensive', elsewhere: 'Bought elsewhere', stock: 'No stock', noreply: 'No reply', other: 'Other' };
+export const doneFields = (reason, now = Date.now()) => ({ followUpDoneAt: now, followUpReason: REASONS[reason] ? reason : 'other' });
+
+// How the follow-ups ended in the last `days`: [{reason, label, n}], most first.
+export function doneReasons(chats = [], now = Date.now(), days = 90) {
+    const n = {};
+    for (const c of chats) for (const x of c.followUpLog || []) if (now - x.at <= days * DAY) n[x.reason] = (n[x.reason] || 0) + 1;
+    return Object.entries(n).map(([reason, k]) => ({ reason, label: REASONS[reason], n: k })).sort((a, b) => b.n - a.n);
 }
 
 // The chats the bot ignores, newest first - so a wrong guess by the AI can be undone.

@@ -1,6 +1,6 @@
 {
     "name": "danfosal-app",
-    "version": "1.4.10",
+    "version": "1.4.11",
     "description": "A business management application with auto-updates and Instagram integration",
     "main": "main.js",
     "scripts": {

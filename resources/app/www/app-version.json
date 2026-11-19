@@ -1,11 +1,11 @@
 {
-  "version": "1.4.10",
+  "version": "1.4.11",
   "date": "2026-11-19",
-  "notes": "Online orders: cash still with the courier, with a Paid button (and on Today). Customers: their Instagram chats. Sell › Instagram: the bot's report card. Next order: what people asked about at this time last year.",
+  "notes": "Customers › Phone numbers: customers without a phone, and the number they typed in an Instagram chat - add it in one click, or say it isn't them.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.10/Danfosal-App-1.4.10.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.10/danfosal-www-1.4.10.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.10/Danfosal-App-Setup-1.4.10.exe",
-  "bundleSha256": "4df3f8a6c7dbb77d123f7e5ffd005e4b41662f5459036a1f9c2d35799a27e05c",
-  "bundleBytes": 420900
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/Danfosal-App-1.4.11.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/danfosal-www-1.4.11.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/Danfosal-App-Setup-1.4.11.exe",
+  "bundleSha256": "f647c9281af18377f8432a81381f73f1bf256ad746044c1787b8ebda3b0d6f4c",
+  "bundleBytes": 422932
 }

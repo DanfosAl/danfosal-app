@@ -1,11 +1,11 @@
 {
-  "version": "1.4.7",
+  "version": "1.4.8",
   "date": "2026-11-19",
-  "notes": "Sell › Instagram: Back in stock (people who asked while it was out of stock, with a ready message), Offer idle stock, Asked for (incl. not in your catalogue), Where chats come from, Answer speed. Stock › Next order counts Instagram questions for every product.",
+  "notes": "Sell › Instagram: shows when the person writing already bought from you (purchases, warranty); Done asks how it ended and totals it. Online orders: a bot order shows the Instagram messages it came from.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/Danfosal-App-1.4.7.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/danfosal-www-1.4.7.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/Danfosal-App-Setup-1.4.7.exe",
-  "bundleSha256": "c2044a13217c41fb30831ba623aaf2ec8c48fc296cb98e7211d0419443d328b6",
-  "bundleBytes": 404961
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/Danfosal-App-1.4.8.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/danfosal-www-1.4.8.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/Danfosal-App-Setup-1.4.8.exe",
+  "bundleSha256": "2bfbfc5060292b6c705fec50c11b0fd00971336fcf2a5123147e21f0083e5021",
+  "bundleBytes": 409169
 }

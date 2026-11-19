@@ -1,11 +1,11 @@
 {
-  "version": "1.4.8",
+  "version": "1.4.9",
   "date": "2026-11-19",
-  "notes": "Sell › Instagram: shows when the person writing already bought from you (purchases, warranty); Done asks how it ended and totals it. Online orders: a bot order shows the Instagram messages it came from.",
+  "notes": "Instagram: bot orders use the price agreed in the chat and the courier fee; teach the bot words (This means…), it learns from your corrections; Check label on doubtful bot orders; Today warns when the bot can't read or goes quiet; products asked about more than usual; Post ideas.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/Danfosal-App-1.4.8.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/danfosal-www-1.4.8.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.8/Danfosal-App-Setup-1.4.8.exe",
-  "bundleSha256": "2bfbfc5060292b6c705fec50c11b0fd00971336fcf2a5123147e21f0083e5021",
-  "bundleBytes": 409169
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.9/Danfosal-App-1.4.9.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.9/danfosal-www-1.4.9.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.9/Danfosal-App-Setup-1.4.9.exe",
+  "bundleSha256": "4ed8fcd7ee1cdad7fc6e286226c0591b32dbe662314828fe3bd02a83cb6fee36",
+  "bundleBytes": 416492
 }

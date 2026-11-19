@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.6 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
+**Application Version:** 1.4.7 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **82. WHAT THE INSTAGRAM CHATS ARE WORTH: BACK IN STOCK, IDLE STOCK OFFERS, ASKED FOR, WHERE CHATS COME FROM, ANSWER SPEED** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+#### **82. WHAT THE INSTAGRAM CHATS ARE WORTH: BACK IN STOCK, IDLE STOCK OFFERS, ASKED FOR, WHERE CHATS COME FROM, ANSWER SPEED** — ✅ **LIVE (November 19, 2026, version 1.4.7: GitHub release v1.4.7, Hosting, shop PC installed, HQ refreshed; the bot's side deployed on Render the same day)**
 
 Of the eleven ideas for the Instagram bot (19 Nov 2026), the owner chose five: tell people when
 what they asked for is back; offer idle stock to the people who asked about it; what customers ask
@@ -927,7 +927,9 @@ five read what the bot already writes, so none of them costs an AI call.
   in 6 months that isn't in the catalogue.
 - **Limits:** sources, answer speed and the stock-at-the-time start with the bot's memory (19 Nov
   2026); older questions only count as "back in stock" when a delivery was received after them.
-  People from the older log show as "visitor 12345" until the bot meets them again.
+  People from the older log show as "visitor 12345" until the bot meets them again - except the
+  234 of 434 people who asked in the 12 months before, whose @username was looked up once through
+  the Graph API on 19 Nov 2026 with the owner's yes (Instagram didn't give it for the other 200).
 - **Checked:** `tests/iginsights.test.mjs` (8, made-up data), the existing tests (33 in all); the
   real Sell › Instagram screen was opened in the browser with a stand-in database of made-up chats
   (a first run showed the screen passed the log in another shape than Next order - fixed) at desktop

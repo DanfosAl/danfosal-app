@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.6  
+**Version:** 1.4.7  
 **Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - Instagram: back in stock, idle stock offers, asked for, where chats come from, answer speed (version 1.4.7)
+## [Released] - 2026-11-19 - Instagram: back in stock, idle stock offers, asked for, where chats come from, answer speed (version 1.4.7)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #82.
 

@@ -1,11 +1,11 @@
 {
-  "version": "1.4.5",
+  "version": "1.4.6",
   "date": "2026-11-19",
-  "notes": "Sell › Instagram: Follow up - customers waiting for your answer, and customers who went quiet after you answered, from the Instagram bot's reading of each chat. Instagram usernames instead of visitor numbers; Today shows who is waiting.",
+  "notes": "Sell › Instagram: mark an account private (family, friends) - the bot ignores it for good until you press Not private; a Private chats list shows every ignored account and who decided.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/Danfosal-App-1.4.5.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/danfosal-www-1.4.5.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/Danfosal-App-Setup-1.4.5.exe",
-  "bundleSha256": "1af7fef5f78e6dacb6d31b40d19e7f9683e6d314f85291d206cb6e47fabc09d3",
-  "bundleBytes": 395862
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/Danfosal-App-1.4.6.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/danfosal-www-1.4.6.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/Danfosal-App-Setup-1.4.6.exe",
+  "bundleSha256": "18eb8eed7247f00a53955033ffbcabdb2930ef8ed484a4005661745b64e944c9",
+  "bundleBytes": 397205
 }

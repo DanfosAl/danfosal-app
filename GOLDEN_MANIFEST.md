@@ -895,6 +895,44 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **82. WHAT THE INSTAGRAM CHATS ARE WORTH: BACK IN STOCK, IDLE STOCK OFFERS, ASKED FOR, WHERE CHATS COME FROM, ANSWER SPEED** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+Of the eleven ideas for the Instagram bot (19 Nov 2026), the owner chose five: tell people when
+what they asked for is back; offer idle stock to the people who asked about it; what customers ask
+for that the shop doesn't sell; which posts and ads bring chats; answer speed against sales. All
+five read what the bot already writes, so none of them costs an AI call.
+
+- **The bot** (its own repository) now also keeps, per chat: `askedProducts` (every product asked
+  about, with its catalogue id and **the stock at that moment**; the catalogue is re-read hourly)
+  and `sources` / `firstSource` (what the customer's message came with: a Click-to-message ad and
+  its title and photo, a reply to a story, a shared post or reel, a story mention, an ig.me link).
+- **`www/app/iginsights.js`** (pure, tested) puts every product question together: the bot's
+  memory (exact product, since 19 Nov 2026) and the older chatbot log (Oct 2025 on, matched to the
+  catalogue by model number - the matching moved here from `leads.js`). The old log's lines filed
+  under the shop's own Instagram account (the echo bug fixed on 19 Nov) and private chats are left out.
+- **Sell › Instagram** has five buttons under the figures:
+  - *Back in stock* - people who asked while it was out of stock (or before the last delivery, by
+    `lastRestockDate`) and haven't ordered it from the bot since; per product, with **Copy message**
+    (a short note in Albanian) and **Open chat**. Today shows how many are waiting for that.
+  - *Offer idle stock* - Danfosal's unsold stock (in stock, nothing sold in 90 days) with the people
+    who asked about that product or its model in 90 days; the message leaves the price to the owner.
+  - *Asked for* - every product question in the period, per product: in stock, out of stock, or
+    not in the catalogue (grouped by model, e.g. "RM 519").
+  - *Where chats come from* - chats per source (ad, story reply, shared post, link, wrote
+    directly), how many became orders, the rate.
+  - *Answer speed* - a new question (a customer message after 6 quiet hours) and how fast the shop
+    answered, in bands, against how many became an order within 14 days; the typical answer time.
+- **Stock › Next order** counts Instagram questions for every catalogue product (detergents and
+  accessories by the exact product; machines still by model), and lists what 2+ people asked for
+  in 6 months that isn't in the catalogue.
+- **Limits:** sources, answer speed and the stock-at-the-time start with the bot's memory (19 Nov
+  2026); older questions only count as "back in stock" when a delivery was received after them.
+  People from the older log show as "visitor 12345" until the bot meets them again.
+- **Checked:** `tests/iginsights.test.mjs` (8, made-up data), the existing tests (33 in all); the
+  real Sell › Instagram screen was opened in the browser with a stand-in database of made-up chats
+  (a first run showed the screen passed the log in another shape than Next order - fixed) at desktop
+  and phone width. The bot: 33 tests in its repository.
+
 #### **81. SELL › INSTAGRAM: FOLLOW UP - WHO IS WAITING FOR AN ANSWER, WHO WENT QUIET AFTER ONE** — ✅ **LIVE (November 19, 2026, version 1.4.5: GitHub release v1.4.5, Hosting, shop PC installed, HQ refreshed; the bot's side deployed on Render the same day)**
 
 The Instagram bot that writes the online orders (a separate Python service on Render, its own

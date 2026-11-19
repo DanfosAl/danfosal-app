@@ -100,6 +100,14 @@ export function needsYou(a) {
                 + (a.igFollow.quiet.length ? `. Also ${plural(a.igFollow.quiet.length, 'customer', 'customers')} to follow up after your answer.` : '.'),
             action: ['Follow up', 'sell.html#leads'] });
     }
+    // People asked the Instagram bot for something while it was out of stock; it is back (Finding #81).
+    if (a.igBackIn && a.igBackIn.length) {
+        const people = a.igBackIn.reduce((n, g) => n + g.people.length, 0);
+        items.push({ sev: 'warn', title: `${plural(people, 'person', 'people')} asked for something that is back in stock`,
+            why: a.igBackIn.slice(0, 3).map(g => `${esc(g.product.name)} (${plural(g.people.length, 'person', 'people')})`).join(', ')
+                + (a.igBackIn.length > 3 ? ` and ${a.igBackIn.length - 3} more` : '') + '. A short message often turns that into a sale.',
+            action: ['Back in stock', 'sell.html#leads'] });
+    }
     // Kärcher's confirmation says when each ordered line arrives (Stock › Next order, Finding #79).
     if (a.arriving && a.arriving.length) {
         const byDay = new Map();

@@ -6,6 +6,19 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Instagram: back in stock, idle stock offers, asked for, where chats come from, answer speed (version 1.4.7)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #82.
+
+### Added
+- Sell › Instagram › Back in stock: people who asked for something while it was out of stock, now that it's back - with a ready message and Open chat; Today counts them
+- Sell › Instagram › Offer idle stock: stock that hasn't sold in 90 days and the people who asked about it
+- Sell › Instagram › Asked for: every product question per product - in stock, out of stock, not in your catalogue
+- Sell › Instagram › Where chats come from (ads, story replies, shared posts, links) and Answer speed against orders
+- Stock › Next order: Instagram questions count for every product, and a list of what people ask for that isn't in the catalogue
+
+---
+
 ## [Released] - 2026-11-19 - Sell › Instagram: Private accounts (version 1.4.6)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #81.

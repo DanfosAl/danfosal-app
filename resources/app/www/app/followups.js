@@ -29,6 +29,12 @@ export function slimChat(id, d = {}) {
         lastCustomerAt: n(d.lastCustomerAt), lastShopAt: n(d.lastShopAt), lastOrderAt: n(d.lastOrderAt),
         lastOrderId: d.lastOrderId || null, followUpDoneAt: n(d.followUpDoneAt), ignored: !!d.ignored,
         ignoredBy: d.ignored ? (d.ignoredBy || 'owner') : '', ignoredAt: n(d.ignoredAt),
+        // What they asked for (with the stock at that moment) and where the chat came from - for
+        // the Instagram reports in www/app/iginsights.js.
+        askedProducts: Array.isArray(d.askedProducts) ? d.askedProducts.filter(a => a && a.name).map(a => ({
+            name: String(a.name), id: a.id || null, stock: Number.isFinite(Number(a.stock)) && a.stock !== null ? Number(a.stock) : null, at: n(a.at) })) : [],
+        firstSource: d.firstSource && d.firstSource.key ? { kind: String(d.firstSource.kind || ''), key: String(d.firstSource.key),
+            title: String(d.firstSource.title || ''), url: String(d.firstSource.url || ''), at: n(d.firstSource.at) } : null,
         card: {
             stage: card.stage || '', summary: card.summary || '', nextStep: card.nextStep || '',
             products: Array.isArray(card.products) ? card.products.filter(p => p && p.name).map(p => ({ name: String(p.name), id: p.id || null })) : []

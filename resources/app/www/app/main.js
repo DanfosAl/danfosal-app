@@ -7,6 +7,7 @@ import { db } from './firebase.js';
 import { loadExtras } from './dashboard-data.js';
 import { deliveryDates, arrivingSoon } from './purchasing.js';
 import { followUps } from './followups.js';
+import { allAsks, backInStock } from './iginsights.js';
 
 const content = mountShell({ active: 'today' });
 let model = null;
@@ -19,6 +20,7 @@ function paint() {
     a.plan = planAttention(model, a.now);   // products off this year's purchase plan
     a.arriving = arrivingSoon(model.orderLines, deliveryDates(purchaseDocs), a.now);   // Kärcher lines due this week
     a.igFollow = followUps(igChats, a.now);   // Instagram customers waiting for an answer / to follow up
+    a.igBackIn = backInStock(allAsks({ chats: igChats, products: model.products }), model.products, igChats, a.now);   // asked while out of stock, back now
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
     setPipelineStatus(a.lastEasypos, a.now);

@@ -20,6 +20,7 @@ import { loadExtras, askedByProduct } from './dashboard-data.js';
 import { buildPurchasing, deliveryDates, arrivalOf } from './purchasing.js';
 import { COVER_DAYS, assess, proposeOrder, supplierPrices, customsShare, waitingByProductId, materialNo, portalText, supplierKey, codeKey } from './proposal.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
+import { allAsks, askedCounts, askedReport } from './iginsights.js';
 
 const TAB = 'reorder';
 const KARCHER = 'karcher';
@@ -61,7 +62,7 @@ function productForLine(products, l) {
 
 // The figures the proposal needs (proposal.js): sales from analyze(), the order list, the year
 // plans at their real pace, and - when loaded - Kärcher's prices and the chatbot's questions.
-function figuresFor(m, a, { docs = [], events = [] } = {}) {
+function figuresFor(m, a, { docs = [], events = [], chats = [] } = {}) {
     const year = new Date(a.now).getFullYear();
     const plans = [year, year + 1].map(y => planFor(m, y)).filter(Boolean);
     const demandByYear = plans.length ? new Map(plans.map(pl => [Number(pl.year), new Map((pl.products || []).map(r => [r.id, r.demand || []]))])) : null;
@@ -70,11 +71,23 @@ function figuresFor(m, a, { docs = [], events = [] } = {}) {
     return {
         soldUnits: a.soldUnits, soldUnits12: a.soldUnits12, lastSoldAt: a.lastSoldAt,
         waiting: waitingByProductId(m.products, m.orderLines || []),
-        asked: events.length ? askedByProduct(m.products, events, a.now) : new Map(),
+        asked: askedFor(m.products, events, chats, a.now),
         prices: docs.length ? supplierPrices(docs) : new Map(),
         demandByYear, paceOf: id => pace.get(id) ?? 1, now: a.now,
         windowDays: SALES_WINDOW_DAYS, restockDays: RESTOCK_DAYS, minUnits: MIN_UNITS_FOR_TREND
     };
+}
+
+// What people asked the Instagram bot for, per catalogue product, in 6 months. Machines count by
+// model (all the SC 3s together, askedByProduct); everything else - detergents, accessories - by the
+// exact product the question named (Finding #81: the bot's memory, and the old log matched by name).
+function askedFor(products, events, chats, now) {
+    const out = events.length ? askedByProduct(products, events, now) : new Map();
+    if (!events.length && !chats.length) return out;
+    askedCounts(allAsks({ chats, events, products }), now).forEach((x, id) => {
+        if (!out.has(id)) out.set(id, { questions: x.questions_6m, questions_6m: x.questions_6m });
+    });
+    return out;
 }
 
 // The tab's count: the Kärcher proposal from what is already loaded (the chatbot's questions,
@@ -106,14 +119,16 @@ export async function renderNextOrder(ctx) {
 
     // The purchase papers (prices, customs, delivery dates) and what people ask the chatbot. The
     // proposal still works without either; it just knows less.
-    let docs = [], events = [], missing = [];
+    let docs = [], events = [], chats = [], missing = [];
     await Promise.all([
         getDocs(collection(db, 'purchaseDocs')).then(s => { docs = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => missing.push('the purchase papers')),
-        loadExtras(['events']).then(x => { events = x.events || []; }).catch(() => missing.push('the chatbot questions'))
+        loadExtras(['events', 'igChats']).then(x => { events = x.events || []; chats = x.igChats || []; }).catch(() => missing.push('the chatbot questions'))
     ]);
     if (ctx.tab !== TAB) return;   // the owner moved on while it loaded
 
-    const f = figuresFor(m, a, { docs: isK ? docs : [], events });
+    const f = figuresFor(m, a, { docs: isK ? docs : [], events, chats });
+    // Asked for on Instagram in the last 6 months, but not in the catalogue at all (Finding #81).
+    const notSold = askedReport(allAsks({ chats, events, products }), products, a.now, { days: 183 }).filter(r => r.status === 'none' && r.people >= 2).slice(0, 8);
     const customs = isK && docs.length ? customsShare(buildPurchasing(docs, { products }).customs, a.now) : null;
     const dates = deliveryDates(docs);
 
@@ -210,6 +225,12 @@ export async function renderNextOrder(ctx) {
         ${ordered.length ? `<section class="panel" aria-labelledby="ow-h">
             <h2 class="panel-title" id="ow-h">Ordered, on the way<span>${int(ordered.length)}</span></h2>
             ${onTheWay(ordered, products, dates)}
+        </section>` : ''}
+
+        ${notSold.length ? `<section class="panel" aria-labelledby="ns-h">
+            <h2 class="panel-title" id="ns-h">Asked for on Instagram, not in your catalogue<span>${int(notSold.length)}</span></h2>
+            <div class="lines">${notSold.map(r => `<div class="line"><div><b>${esc(r.name)}</b><span>last asked ${esc(day(r.last))}</span></div><span class="n">${plural(r.people, 'person', 'people')}</span></div>`).join('')}</div>
+            <p class="chart-note">Two or more people in 6 months asked for these and you don’t list them. Add one in Catalogue to order it. The full list is in Sell › Instagram › Asked for.</p>
         </section>` : ''}`;
 
     // ---- the proposal: ticks and quantities update the totals in place (no redraw, so the cursor stays)

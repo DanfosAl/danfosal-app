@@ -24,13 +24,15 @@
 // day", and the reply still happens in the Instagram inbox.
 import { db, collection, getDocs, doc, updateDoc, setDoc, query, where, orderBy, Timestamp } from './firebase.js';
 import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast } from './ui.js';
+import { chatLink } from './followups.js';
 import { DAY, toMs, squash, orderTime, orderTotal } from './data.js';
 import { openNewOrder, orderDetail } from './online.js';
 import { slimChat, followUps, privateChats, privateFields, publicFields, who as chatWho } from './followups.js';
 import { followPanel, privatePanel } from './followpanel.js';
+import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL } from './iginsights.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
-const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false };
+const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false, askedOnly: 'all' };
 
 // Albanian shop words, as they are actually typed. A question rarely names a model: it says
 // "fshese me avull" (steam cleaner) or "solucion" (detergent), so this is what makes the demand
@@ -46,44 +48,6 @@ const WORDS = [
     ['Spare parts', ['filter', 'filtr', 'koka', 'kapak', 'valvul', 'bateri', 'rezine', 'bisht', 'pjes', 'zevendes']]
 ];
 
-// A product is "named" in a question when its model number reads inside the squashed text:
-// "sc3easyfix" contains "sc3", "Steam cleaner sg 4/4" contains "sg44". Only keys that mix letters
-// and digits count - a key of plain words would match half the catalogue, because "Karcher" and
-// "fshese" (vacuum) are in most names. That is what "not recognised" means in the table: the
-// person described what they wanted instead of naming a model.
-function productKeys(p) {
-    const words = String(p.name || '').split(/\s+/).filter(Boolean);
-    const keys = new Set();
-    const ok = k => k.length >= 3 && /\d/.test(k) && /[a-z]/.test(k);
-    for (let i = 0; i < words.length; i++) {
-        for (let n = 1; n <= 3 && i + n <= words.length; n++) {
-            const k = squash(words.slice(i, i + n).join(' '));
-            if (ok(k)) keys.add(k);
-        }
-    }
-    const code = squash(p.code || '');
-    if (code.length >= 6) keys.add(code);
-    return [...keys];
-}
-
-function buildIndex(products) {
-    const index = [];
-    products.forEach(p => productKeys(p).forEach(k => index.push({ k, p })));
-    return index.sort((a, b) => b.k.length - a.k.length);   // "sc3easyfix" should win over "sc3"
-}
-
-function matchAsked(text, index) {
-    const hay = squash(text);
-    if (!hay) return [];
-    const out = [], seen = new Set();
-    for (const { k, p } of index) {
-        if (out.length >= 3) break;
-        if (seen.has(p._id) || !hay.includes(k)) continue;
-        seen.add(p._id); out.push(p);
-    }
-    return out;
-}
-
 const topicsOf = text => { const hay = squash(text); return WORDS.filter(([, s]) => s.some(x => hay.includes(x))).map(([l]) => l); };
 const visitor = id => 'visitor ' + (String(id || '').slice(-5) || '?');
 // The bot now looks up each customer's @username (Finding #81); older chats stay "visitor ...".
@@ -92,9 +56,22 @@ const nameOf = id => chatsById.has(String(id)) && chatsById.get(String(id)).user
 const isPrivate = id => !!(chatsById.get(String(id)) || {}).ignored;
 
 // The bot's memory of each chat (instagramBotChats), read fresh on every visit - it changes by the minute.
+// Answer speed needs when each message was written, not what it said: `talks` keeps only the times.
 async function loadChats() {
     const docs = (await getDocs(collection(db, 'instagramBotChats'))).docs;
-    return docs.map(d => slimChat(d.id, d.data()));
+    const chats = docs.map(d => slimChat(d.id, d.data()));
+    const talks = docs.map(d => d.data()).filter(v => !v.ignored).map(v => ({
+        lastOrderAt: Number(v.lastOrderAt) || 0,
+        messages: (Array.isArray(v.messages) ? v.messages : []).map(m => ({ at: Number(m && m.at) || 0, role: m && m.role }))
+    }));
+    return { chats, talks };
+}
+const linkOf = id => chatLink(chatsById.get(String(id)) || { _id: String(id) });
+
+// Copies a short message in Albanian to paste into the Instagram chat.
+async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); toast('Copied – paste it in the chat'); }
+    catch { toast(text); }
 }
 
 // ---------------------------------------------------------------- loading
@@ -128,10 +105,10 @@ async function markEvent(ev, fields) {
 
 export async function renderLeads(ctx) {
     ctx.body.innerHTML = '<p class="empty">Reading the chatbot’s log…</p>';
-    let events, chats = [];
+    let events, chats = [], talks = [];
     try { events = await loadEvents(ctx.model); }
     catch (e) { ctx.body.innerHTML = `<p class="err">Couldn't read the chatbot log: ${esc(e.message)}</p>`; return; }
-    try { chats = await loadChats(); } catch (e) { console.warn('Instagram bot chats not readable', e); }
+    try { ({ chats, talks } = await loadChats()); } catch (e) { console.warn('Instagram bot chats not readable', e); }
     chatsById = new Map(chats.map(c => [c._id, c]));
 
     // Private / Not private: written onto the bot's memory of that account, which the bot reads
@@ -189,6 +166,16 @@ export async function renderLeads(ctx) {
                 <small>${esc(label)}</small><span class="v"${warn ? ' style="color:var(--warn)"' : ''}>${value}</span><span class="d">${detail}</span></button>`;
 
         const fu = followUps(chats, now);
+        const products = ctx.model.products;
+        // This screen keeps the log as {name, p, t}; the reports read it the way Next order does.
+        const asks = allAsks({ chats, events: events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), products });
+        const backIn = backInStock(asks, products, chats, now);
+        const idle = idleOffers(ctx.a.unsold || [], asks, chats, now);
+        const askedRows = askedReport(asks, products, now, { days: Number(state.period) });
+        const srcRows = sourcesReport(chats, now, { days: Number(state.period) });
+        const speed = answerSpeed(talks, now);
+        const MORE = [['backin', 'Back in stock', backIn.reduce((n, g) => n + g.people.length, 0), 'inventory'], ['idle', 'Offer idle stock', idle.length, 'sell'],
+            ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer']];
         ctx.body.innerHTML = `
             <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length)}${privatePanel(privateChats(chats), state.showPrivate)}</div>
             <div class="toolbar">
@@ -202,6 +189,9 @@ export async function renderLeads(ctx) {
                 ${tile('orders', 'Online orders recorded', int(orders.length), 'in the same period')}
             </div>
             ${lostMoney.length ? `<div class="panel" style="padding:12px 16px;display:flex;gap:12px;align-items:center;border-color:#5a4320">${icon('warning')}<span class="muted" style="flex:1">${plural(lostMoney.length, 'order the bot logged carries', 'orders the bot logged carry')} money (${esc(lostMoney.map(x => eur(x.revenue)).join(', '))}) and ${lostMoney.length === 1 ? 'is' : 'are'} not in Online orders. Open <b>Orders the bot logged</b> and add ${lostMoney.length === 1 ? 'it' : 'them'}, or mark ${lostMoney.length === 1 ? 'it' : 'them'} as nothing to do.</span></div>` : ''}
+            <div class="filters" id="lq-more" role="group" aria-label="More from the chats">
+                ${MORE.map(([id, label, n, ic]) => `<button class="filter" type="button" data-more="${id}" aria-pressed="${state.view === id}">${icon(ic)}${esc(label)}${n === null ? '' : `<span class="n">${int(n)}</span>`}</button>`).join('')}
+            </div>
             <div id="lq-view"></div>`;
 
         const view = ctx.body.querySelector('#lq-view');
@@ -332,6 +322,88 @@ export async function renderLeads(ctx) {
             });
         }
 
+
+        // ---- 1. back in stock: asked while it was out, it's on the shelf again (Finding #81)
+        if (state.view === 'backin') {
+            const texts = [];
+            const msg = p => `Përshëndetje! ${p.name} që pyetët është sërish në gjendje${Number(p.price) ? ` (${money2(Number(p.price))} €)` : ''}. Dëshironi ta rezervojmë për ju?`;
+            view.innerHTML = backIn.length ? backIn.map(g => {
+                const t = texts.push(msg(g.product)) - 1;
+                return `<div class="panel">
+                    <div class="viz-head"><h2 class="panel-title">${esc(g.product.name)}</h2><span class="muted" style="font-size:12.5px">${int(Number(g.product.stock) || 0)} in stock${Number(g.product.price) ? ' · ' + eur(Number(g.product.price)) : ''}${Number(g.product.lastRestockDate) ? ' · received ' + esc(day(Number(g.product.lastRestockDate))) : ''}</span></div>
+                    <div class="lines">${g.people.map(x => `<div class="line" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap">
+                        <div style="flex:1 1 220px;min-width:0"><b>${esc(nameOf(x.sender))}</b><span>asked ${esc(day(x.t))}, when it wasn’t in stock</span></div>
+                        <span style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto"><button class="btn small ghost" type="button" data-copy="${t}">${icon('content_copy')}Copy message</button>
+                        <a class="btn small primary" href="${esc(linkOf(x.sender))}" target="_blank" rel="noopener">${icon('chat')}Open chat</a></span></div>`).join('')}</div>
+                </div>`;
+            }).join('') + '<p class="chart-note">People who asked for it while it was out of stock (or before the last delivery) and haven’t ordered it from the bot since. “Copy message” copies a short note in Albanian to paste in the chat.</p>'
+                : '<div class="panel"><p class="empty">Nobody is waiting for something that came back. When people ask for an out-of-stock product, they show here once it’s back on the shelf.</p></div>';
+            view.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) copyText(texts[Number(b.dataset.copy)]); });
+        }
+
+        // ---- 2. idle stock and the people who asked for it
+        if (state.view === 'idle') {
+            const texts = [];
+            const msg = (u, x) => x.exact
+                ? `Përshëndetje! Kemi në gjendje ${u.product.name} për të cilin pyetët. Ju intereson? Mund t'ju bëjmë një ofertë.`
+                : `Përshëndetje! Pyetët për ${x.asked}: kemi në gjendje ${u.product.name}. Ju intereson? Mund t'ju bëjmë një ofertë.`;
+            const lastSold = id => (ctx.a.lastSoldAt || {})[id] || null;
+            view.innerHTML = idle.length ? idle.map(u => `<div class="panel">
+                    <div class="viz-head"><h2 class="panel-title">${esc(u.product.name)}</h2><span class="muted" style="font-size:12.5px">${int(u.stock)} on the shelf${u.value ? ' · ' + eur(u.value) + ' at cost' : ''} · ${lastSold(u.product._id) ? 'last sold ' + esc(day(lastSold(u.product._id))) + ' ' + new Date(lastSold(u.product._id)).getFullYear() : 'not sold in 90 days'}</span></div>
+                    <div class="lines">${u.people.map(x => { const t = texts.push(msg(u, x)) - 1; return `<div class="line" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap">
+                        <div style="flex:1 1 220px;min-width:0"><b>${esc(nameOf(x.sender))}</b><span>asked for ${esc(x.asked)} · ${esc(day(x.t))}${x.exact ? '' : ' · same model'}</span></div>
+                        <span style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto"><button class="btn small ghost" type="button" data-copy="${t}">${icon('content_copy')}Copy message</button>
+                        <a class="btn small primary" href="${esc(linkOf(x.sender))}" target="_blank" rel="noopener">${icon('chat')}Open chat</a></span></div>`; }).join('')}</div>
+                </div>`).join('') + '<p class="chart-note">Stock that hasn’t sold in 90 days, and the people who asked about that product or model in the same 90 days without ordering. The message leaves the price to you.</p>'
+                : '<div class="panel"><p class="empty">None of the stock that sits unsold was asked about on Instagram in the last 90 days.</p></div>';
+            view.addEventListener('click', e => { const b = e.target.closest('[data-copy]'); if (b) copyText(texts[Number(b.dataset.copy)]); });
+        }
+
+        // ---- 8. what people ask for, per product
+        if (state.view === 'asked') {
+            const shown = askedRows.filter(r => state.askedOnly === 'all' || r.status === state.askedOnly);
+            const label = { in: 'in stock', out: 'out of stock', none: 'not in your catalogue' };
+            view.innerHTML = `
+                <div class="filters" id="lq-asked-only" role="group" aria-label="Show">
+                    ${[['all', 'All'], ['in', 'You have it'], ['out', 'Out of stock'], ['none', 'Not in your catalogue']].map(([id, l]) => `<button class="filter" type="button" data-ao="${id}" aria-pressed="${state.askedOnly === id}">${l}<span class="n">${int(id === 'all' ? askedRows.length : askedRows.filter(r => r.status === id).length)}</span></button>`).join('')}
+                </div>
+                <div class="table-wrap" style="max-height:calc(100vh - 470px);min-height:240px"><table class="dt"><thead><tr>
+                    <th>Asked for</th><th class="n">People</th><th class="n">Questions</th><th class="n">Last asked</th><th>Status</th><th class="n">In stock</th><th class="n">Price</th></tr></thead>
+                    <tbody>${shown.map(r => `<tr>
+                        <td>${r.product ? `<a href="stock.html?q=${encodeURIComponent(r.product.name)}#catalogue" style="text-decoration:none"><b>${esc(r.name)}</b></a>` : `<b>${esc(r.name)}</b>`}</td>
+                        <td class="n">${int(r.people)}</td><td class="n muted">${int(r.asks)}</td><td class="n muted">${esc(day(r.last))}</td>
+                        <td><span class="chip ${r.status === 'in' ? 'ok' : r.status === 'out' ? 'bad' : 'warn'}">${label[r.status]}</span></td>
+                        <td class="n">${r.product ? int(Number(r.product.stock) || 0) : '–'}</td>
+                        <td class="n">${r.product && Number(r.product.price) ? eur(Number(r.product.price)) : '–'}</td></tr>`).join('')
+                    || '<tr><td colspan="7" class="muted" style="padding:18px">Nothing asked in this period.</td></tr>'}</tbody></table>
+                    <div class="table-foot">Every product question in the period: the bot’s memory (exact product, since 19 Nov 2026) and the older chatbot log (matched by model number). Out-of-stock products asked for twice in 6 months are proposed in Stock › Next order; the ones not in your catalogue are listed there too.</div></div>`;
+            view.querySelector('#lq-asked-only').addEventListener('click', e => { const b = e.target.closest('[data-ao]'); if (b) { state.askedOnly = b.dataset.ao; draw(); } });
+        }
+
+        // ---- 10. where chats come from
+        if (state.view === 'sources') {
+            const total = srcRows.reduce((n, r) => n + r.chats, 0);
+            view.innerHTML = `<div class="table-wrap" style="max-height:calc(100vh - 430px);min-height:200px"><table class="dt"><thead><tr>
+                <th>Came from</th><th class="n">Chats</th><th class="n">Became orders</th><th class="n">Rate</th><th class="n">Last chat</th></tr></thead>
+                <tbody>${srcRows.map(r => `<tr>
+                    <td><b>${esc(SOURCE_LABEL[r.kind] || r.kind)}</b>${r.title ? ` <span class="muted">“${esc(r.title)}”</span>` : ''}${r.url && r.kind !== 'story' ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--violet-2)">open</a>` : ''}</td>
+                    <td class="n">${int(r.chats)}</td><td class="n">${int(r.orders)}</td>
+                    <td class="n muted">${r.chats ? Math.round(100 * r.orders / r.chats) + '%' : '–'}</td><td class="n muted">${esc(day(r.last))}</td></tr>`).join('')
+                || '<tr><td colspan="5" class="muted" style="padding:18px">No chats in this period yet.</td></tr>'}</tbody></table>
+                <div class="table-foot">${total ? plural(total, 'chat', 'chats') + ' in the period. ' : ''}From the bot’s memory, so from 19 Nov 2026 on: what the customer’s first message came with – an ad, a reply to your story, a post or reel they shared, a link – or nothing (“Wrote directly”).</div></div>`;
+        }
+
+        // ---- 11. how fast you answer, against orders
+        if (state.view === 'speed') {
+            const fmt = m => m === null ? '–' : m < 60 ? `${Math.round(m)} min` : m < 1440 ? `${(m / 60).toFixed(m < 600 ? 1 : 0)} h` : `${(m / 1440).toFixed(1)} days`;
+            view.innerHTML = `<div class="panel">
+                <div class="viz-head"><h2 class="panel-title">How fast you answer a new question</h2><span class="muted" style="font-size:12.5px">${speed.questions ? `${plural(speed.questions, 'question', 'questions')} · typical answer ${fmt(speed.median)}` : 'no questions yet'}</span></div>
+                <div class="table-wrap" style="max-height:none"><table class="dt"><thead><tr><th>Answered</th><th class="n">New questions</th><th class="n">Became orders</th><th class="n">Rate</th></tr></thead>
+                <tbody>${speed.rows.map(r => `<tr><td>${esc(r.label)}</td><td class="n">${int(r.questions)}</td><td class="n">${int(r.orders)}</td><td class="n muted">${r.questions ? Math.round(100 * r.orders / r.questions) + '%' : '–'}</td></tr>`).join('')}</tbody></table></div>
+                <p class="chart-note">A new question is a customer message after 6 quiet hours; its answer is your next reply. An order counts when the bot made one from that chat within 14 days. From the bot’s memory (19 Nov 2026 on), so it fills up over the coming weeks.</p>
+            </div>`;
+        }
+
         // ---- the online orders that really exist
         if (state.view === 'orders') {
             view.innerHTML = `<div class="table-wrap" style="max-height:calc(100vh - 430px);min-height:240px"><table class="dt"><thead><tr>
@@ -376,6 +448,10 @@ export async function renderLeads(ctx) {
             }
         });
         ctx.body.querySelector('#lq-period').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { state.period = b.dataset.p; draw(); } });
+        ctx.body.querySelector('#lq-more').addEventListener('click', e => {
+            const b = e.target.closest('[data-more]'); if (!b) return;
+            state.view = b.dataset.more; state.sender = null; draw();
+        });
         ctx.body.querySelector('#lq-tiles').addEventListener('click', e => {
             const b = e.target.closest('[data-view]'); if (!b) return;
             state.view = b.dataset.view;

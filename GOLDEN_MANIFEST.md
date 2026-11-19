@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.10 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
+**Application Version:** 1.4.11 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -895,7 +895,7 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
-#### **86. CUSTOMERS › PHONE NUMBERS: THE NUMBER A CUSTOMER TYPED ON INSTAGRAM, ADDED IN ONE CLICK** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+#### **86. CUSTOMERS › PHONE NUMBERS: THE NUMBER A CUSTOMER TYPED ON INSTAGRAM, ADDED IN ONE CLICK** — ✅ **LIVE (November 19, 2026, version 1.4.11: GitHub release v1.4.11, Hosting, shop PC installed, HQ refreshed)**
 
 Only 18 of 166 customer profiles had a phone (18 Nov 2026); 375 customers who bought something have
 none. The owner chose idea 4 of the fifth list.
@@ -911,7 +911,8 @@ none. The owner chose idea 4 of the fifth list.
 - **The older inbox:** the bot's memory starts on 19 Nov 2026, so today it finds none. The Instagram
   inbox downloaded on 18 Nov 2026 for the assistant tests (local only) holds 43 such matches; they
   can be brought in once as `phoneSuggestions` documents (name, number, username, date, the one
-  message, at most 140 characters) - only with the owner's yes.
+  message, at most 140 characters) - only with the owner's yes. **He released 1.4.11 without it
+  (19 Nov 2026): the inbox stays on the PC; the tab fills from new chats.**
 - **Checked:** `tests/phones.test.mjs` (3, made-up names and numbers); 56 tests in all. The real
   Customers page in the browser with a stand-in database: both kinds of suggestion listed, Add wrote
   the phone to the profile, Not them saved the pairing and closed the stored suggestion.

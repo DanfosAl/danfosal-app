@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.4  
-**Last Updated:** November 18, 2026
+**Version:** 1.4.5  
+**Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - Sell › Instagram: Follow up
+## [Released] - 2026-11-19 - Sell › Instagram: Follow up (version 1.4.5)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #81.
 

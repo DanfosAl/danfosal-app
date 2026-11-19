@@ -13,6 +13,11 @@
 //   askedCounts  - questions per catalogue product in 6 months (Stock › Next order)
 //   sourcesReport- which ads, stories, posts and links start chats, and how many became orders
 //   answerSpeed  - how fast the shop answered a new question, against how often it became an order
+//   demandTrend  - products asked about more in the last 30 days than before (order earlier)
+//   postIdeas    - what to post about this week, from all of the above
+//   botHealth    - the bot gone quiet, or unable to read (settings/instagramBot)
+// Learned words (`productAliases`, Finding #84): "fshese e vogel" means WD 1 - taught in Asked for
+// (This means...) or learned when the owner corrects a bot order; used here and by the bot.
 // Pure functions: no Firestore, no DOM. Private chats are left out everywhere.
 
 const DAY = 86400000;
@@ -59,6 +64,20 @@ export function matchAsked(text, index) {
     return out;
 }
 
+// Learned words: productAliases docs [{text, productId}] -> Map(squash(text) -> productId).
+export const aliasKey = text => squash(text).slice(0, 120);
+export const aliasMap = (docs = []) => new Map(docs.filter(a => a && a.text && a.productId).map(a => [aliasKey(a.text), a.productId]));
+
+// Correcting a bot order teaches a word: when exactly one item the bot couldn't match (no id) was
+// replaced by exactly one catalogue product. -> {text, productId} or null.
+export function aliasFromCorrection(before = [], after = []) {
+    const unknown = before.filter(i => i && !i.id && i.name && i.name !== '00');
+    const added = after.filter(i => i && i.id && !before.some(b => b && b.id === i.id));
+    const gone = unknown.filter(u => !after.some(a => a && !a.id && a.name === u.name));
+    if (gone.length !== 1 || added.length !== 1 || !aliasKey(gone[0].name)) return null;
+    return { text: gone[0].name, productId: added[0].id };
+}
+
 // "SC 3 EasyFix" -> "SC 3", "rm519" -> "RM 519": the first model number in a name.
 export function modelOf(text) {
     const m = String(text || '').match(/\b([a-z]{1,4})\s*-?\s*(\d{1,4})\b/i);
@@ -69,7 +88,7 @@ export function modelOf(text) {
 
 // [{sender, t, id, name, stockThen, from}] - one per person, product and day. The bot's own record
 // wins over the log line it also wrote for the same question.
-export function allAsks({ chats = [], events = [], products = [] } = {}) {
+export function allAsks({ chats = [], events = [], products = [], aliases = new Map() } = {}) {
     const privateIds = new Set(chats.filter(c => c.ignored).map(c => c._id));
     const byId = new Map(products.map(p => [p._id, p]));
     const out = [], seen = new Set();
@@ -78,7 +97,8 @@ export function allAsks({ chats = [], events = [], products = [] } = {}) {
         if (c.ignored) continue;
         for (const a of c.askedProducts || []) {
             if (!a || !a.name || !a.at) continue;
-            const id = a.id && byId.has(a.id) ? a.id : null;
+            const learned = !a.id ? aliases.get(aliasKey(a.name)) : null;
+            const id = a.id && byId.has(a.id) ? a.id : learned && byId.has(learned) ? learned : null;
             const k = key(c._id, id || squash(a.name), a.at);
             if (seen.has(k)) continue;
             seen.add(k);
@@ -93,7 +113,8 @@ export function allAsks({ chats = [], events = [], products = [] } = {}) {
         for (const part of String((e.params || {}).products || '').split(/[,;]/)) {
             const text = part.trim();
             if (!squash(text)) continue;
-            const hit = matchAsked(text, index)[0];
+            const learned = aliases.get(aliasKey(text)) || aliases.get(aliasKey(modelOf(text)));
+            const hit = learned && byId.has(learned) ? byId.get(learned) : matchAsked(text, index)[0];
             const id = hit ? hit._id : null;
             const k = key(sender, id || squash(text), e.t);
             if (seen.has(k)) continue;
@@ -227,4 +248,68 @@ export function answerSpeed(talks, now = Date.now(), { gapHours = 6, orderWithin
     }
     minutes.sort((a, b) => a - b);
     return { rows, median: minutes.length ? minutes[Math.floor(minutes.length / 2)] : null, questions: rows.reduce((s, r) => s + r.questions, 0) };
+}
+
+// ---------------------------------------------------------------- 8. demand rising
+
+// Products (or models not in the catalogue) asked about by more people in the last 30 days than
+// usual: at least 3 people, and at least twice the monthly average of the 90 days before.
+export function demandTrend(asks, products, now = Date.now(), { recentDays = 30, baseDays = 90, minPeople = 3 } = {}) {
+    const byId = new Map(products.map(p => [p._id, p]));
+    const rows = new Map();
+    for (const a of asks) {
+        const age = now - a.t;
+        if (age > (recentDays + baseDays) * DAY) continue;
+        const p = a.id && byId.get(a.id);
+        const k = p ? 'id:' + p._id : 'model:' + (modelOf(a.name) || squash(a.name));
+        const r = rows.get(k) || { key: k, name: p ? p.name : (modelOf(a.name) || a.name), product: p || null, recent: new Set(), before: new Set() };
+        (age <= recentDays * DAY ? r.recent : r.before).add(a.sender);
+        rows.set(k, r);
+    }
+    return [...rows.values()].map(r => {
+        const usual = r.before.size * recentDays / baseDays;
+        return { key: r.key, name: r.name, product: r.product, recent: r.recent.size, usual: Math.round(usual * 10) / 10,
+            ratio: r.recent.size / Math.max(usual, 0.5) };
+    }).filter(r => r.recent >= minPeople && r.ratio >= 2).sort((a, b) => b.ratio - a.ratio || b.recent - a.recent);
+}
+
+// ---------------------------------------------------------------- 9. what to post this week
+
+// Ideas, strongest first: back in stock, what people keep asking for (in stock), what's asked more
+// than usual, and unsold stock worth an offer. Each with the reason and a caption to start from
+// (Albanian, plain; the owner edits it).
+export function postIdeas({ backIn = [], asked = [], trend = [], unsold = [] } = {}, { max = 6 } = {}) {
+    const ideas = [], seen = new Set();
+    const add = (p, kind, why, caption) => { if (!p || seen.has(p._id)) return; seen.add(p._id); ideas.push({ product: p, kind, why, caption }); };
+    const price = p => Number(p.price) ? ` ${Math.round(Number(p.price))} €.` : '';
+    backIn.forEach(g => add(g.product, 'back', `Back in stock - ${g.people.length} ${g.people.length === 1 ? 'person' : 'people'} asked while it was out`,
+        `${g.product.name} është sërish në gjendje!${price(g.product)} Na shkruani në DM për porosi dhe dërgesë.`));
+    trend.filter(t => t.product && (Number(t.product.stock) || 0) > 0).forEach(t => add(t.product, 'rising', `Asked about more than usual: ${t.recent} people in 30 days`,
+        `Shumë pyetje këto ditë për ${t.product.name} - e kemi në gjendje.${price(t.product)} Na shkruani në DM!`));
+    asked.filter(r => r.status === 'in' && r.people >= 2).forEach(r => add(r.product, 'asked', `${r.people} people asked about it lately - show it working`,
+        `Si punon ${r.product.name}? Shikoni videon!${price(r.product)} Në gjendje - na shkruani në DM.`));
+    unsold.filter(u => u.product && (u.value || 0) > 0).slice(0, 3).forEach(u => add(u.product, 'offer', `${u.stock} on the shelf, not sold in 90 days - an offer of the week`,
+        `Oferta e javës: ${u.product.name}. Sasi e kufizuar - na shkruani në DM për çmimin.`));
+    return ideas.slice(0, max);
+}
+
+// ---------------------------------------------------------------- 7. the bot's health
+
+// status = settings/instagramBot {lastWebhookAt, lastCustomerMessageAt, lastAiOkAt, lastAiError}.
+// -> {sev, title, why} or null. Quiet = no customer message for 3 days (it usually gets about one a day).
+export function botHealth(status, now = Date.now(), { quietDays = 3 } = {}) {
+    if (!status) return null;
+    const err = status.lastAiError || null;
+    if (err && err.at && err.at > (status.lastAiOkAt || 0)) {
+        const credit = /credit|prepay|billing|spending cap|quota|429|402/i.test(err.message || '');
+        return { sev: 'crit', title: 'The Instagram bot can’t read orders',
+            why: credit ? 'Its AI key has run out of credit or hit its spending cap. Top it up in Google AI Studio; until then messages arrive but no orders are written.'
+                : `Its last attempt failed (${String(err.message || 'unknown error').slice(0, 120)}). Messages still arrive; orders aren't written until it reads again.` };
+    }
+    const last = Math.max(status.lastCustomerMessageAt || 0, 0);
+    if (last && now - last > quietDays * DAY) {
+        return { sev: 'warn', title: 'The Instagram bot hasn’t received a customer message for ' + Math.floor((now - last) / DAY) + ' days',
+            why: 'If customers wrote in that time, the bot isn’t getting their messages - check its webhook in Meta (Danfosal Orders › Webhooks › Instagram) and that the bot is running on Render.' };
+    }
+    return null;
 }

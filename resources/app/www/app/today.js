@@ -89,6 +89,9 @@ export function needsYou(a) {
             why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
             action: ['Open Instagram', 'sell.html#leads'] });
     }
+    // The Instagram bot itself: quiet for days, or unable to read orders (Finding #84). On 19 Nov 2026
+    // it turned out it had received nothing since 17 Oct - this is so that can't go unseen again.
+    if (a.igHealth) items.push({ sev: a.igHealth.sev, title: a.igHealth.title, why: esc(a.igHealth.why), action: ['Instagram', 'sell.html#leads'] });
     // The Instagram bot reads every chat; these customers wrote last and got no answer yet (Finding #81).
     if (a.igFollow && a.igFollow.waiting.length) {
         const w = a.igFollow.waiting;

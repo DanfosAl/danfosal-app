@@ -6,6 +6,20 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - A smarter Instagram bot: agreed prices, learned words, checks, health, demand rising, post ideas (version 1.4.9)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #84.
+
+### Added
+- Bot orders carry the price you agreed in the chat (and the courier fee you told the customer); the order shows the catalogue price beside it
+- Sell › Instagram › Asked for: "This means…" teaches the bot a customer's word for a product; correcting a bot order teaches it too
+- Online orders: a Check label on bot orders worth a second look (one name, no town, Kosovo, odd phone, product to fill in, a second order today)
+- Today: a warning when the Instagram bot can't read orders (e.g. AI credit used up) or hasn't received a message for 3 days
+- Stock › Next order and Asked for: products asked about more than usual lately
+- Sell › Instagram › Post ideas: what to post this week, with a caption to copy
+
+---
+
 ## [Released] - 2026-11-19 - Instagram: bought before, the chat behind a bot order, how follow-ups ended (version 1.4.8)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #83.

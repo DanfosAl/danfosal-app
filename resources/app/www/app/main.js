@@ -7,12 +7,13 @@ import { db } from './firebase.js';
 import { loadExtras } from './dashboard-data.js';
 import { deliveryDates, arrivingSoon } from './purchasing.js';
 import { followUps } from './followups.js';
-import { allAsks, backInStock } from './iginsights.js';
+import { allAsks, backInStock, botHealth } from './iginsights.js';
 
 const content = mountShell({ active: 'today' });
 let model = null;
 let purchaseDocs = [];   // for Kärcher's confirmed delivery dates
 let igChats = [];        // the Instagram bot's chats, for the follow-up item
+let igStatus = null;     // the Instagram bot's heartbeat
 let loading = false;
 
 function paint() {
@@ -20,6 +21,7 @@ function paint() {
     a.plan = planAttention(model, a.now);   // products off this year's purchase plan
     a.arriving = arrivingSoon(model.orderLines, deliveryDates(purchaseDocs), a.now);   // Kärcher lines due this week
     a.igFollow = followUps(igChats, a.now);   // Instagram customers waiting for an answer / to follow up
+    a.igHealth = botHealth(igStatus, a.now);   // the bot gone quiet, or unable to read orders
     a.igBackIn = backInStock(allAsks({ chats: igChats, products: model.products }), model.products, igChats, a.now);   // asked while out of stock, back now
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
@@ -32,10 +34,11 @@ async function refresh({ quiet = false } = {}) {
     loading = true;
     if (!quiet || !model) renderLoading(content);
     try {
-        const [m, x] = await Promise.all([loadAll(), loadExtras(['purchaseDocs', 'igChats']).catch(() => ({}))]);
+        const [m, x] = await Promise.all([loadAll(), loadExtras(['purchaseDocs', 'igChats', 'igStatus']).catch(() => ({}))]);
         model = m;
         purchaseDocs = x.purchaseDocs || purchaseDocs;
         igChats = x.igChats || igChats;
+        igStatus = x.igStatus || igStatus;
         setSearchData(model);
         paint();
     } catch (error) {

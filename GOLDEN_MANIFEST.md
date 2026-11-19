@@ -895,6 +895,44 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **84. A SMARTER INSTAGRAM BOT: AGREED PRICES, LEARNED WORDS, CHECKS ON BOT ORDERS, ITS OWN HEALTH ON TODAY, DEMAND RISING, POST IDEAS** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+From the third list of ideas the owner chose 3, 4, 5, 6, 7, 8 and 9 (photos were dropped: "it was a
+mistake"). No new AI calls; the bot's reading grows by two small fields.
+
+- **Agreed price and courier fee (bot):** the reading also returns the price per unit the shop
+  stated in the chat and the delivery fee the shop told the customer. Kept only when that number
+  really appears in the shop's own messages, so a guess can't change an order's money. The order
+  then carries the agreed price (with `catalogPrice` when it differs, and `priceAgreed`) and
+  `shippingFee`. The order drawer shows "Price agreed in the chat: … (catalogue €…)".
+- **Learned words (`productAliases`, doc id = the words squashed):** taught in Sell › Instagram ›
+  Asked for with **This means…** (pick the catalogue product for a "not in your catalogue" line), or
+  learned when the owner edits a bot order and replaces exactly one item the bot couldn't place with
+  exactly one catalogue product. The bot reads them with the catalogue (hourly), matches them first
+  and lists them in its prompt; the reports and Next order match them too.
+- **Check on bot orders (`www/app/ordercheck.js`):** an open order the bot made gets a **Check**
+  chip in Online orders and a "Check before shipping" box in its drawer when: only one name, no
+  address, no Albanian town or area in the address (municipalities, main towns, Tirana/Durrës
+  neighbourhoods), a Kosovo address (not delivered), no phone or one that isn't an Albanian
+  mobile, a product to fill in (unmatched or "00"), or a second order from the same person that day.
+- **The bot's health on Today:** the bot writes `settings/instagramBot` (lastWebhookAt,
+  lastCustomerMessageAt, lastAiOkAt, lastAiError). Today shows a red item when its last AI read failed
+  after the last good one (credit used up or another error), and a warning when no customer message
+  has arrived for 3 days. On 19 Nov 2026 the bot was found to have received nothing since 17 Oct;
+  this is so that can't go unseen again.
+- **Demand rising (`demandTrend`):** a product (or a model not in the catalogue) asked about by
+  3+ people in 30 days and at least twice the monthly average of the 90 days before. Shown in Stock ›
+  Next order ("Asked about more than usual on Instagram") and as "↑ asked more lately" in Asked for.
+- **Post ideas (`postIdeas`):** a sixth button in Sell › Instagram: up to six ideas a week - back in
+  stock, asked more than usual (in stock), what people keep asking for, unsold stock as an offer of
+  the week - each with the reason and a plain Albanian caption to copy and edit (no AI).
+- **Checked:** `tests/igsmart.test.mjs` (9, made-up data) - checks, agreed prices, learning from a
+  correction, learned words in the counts, demand trend, post ideas, the health rule; 48 tests in all.
+  The bot: 37 tests (agreed price used, a price nobody wrote ignored, a learned word mapped and shown
+  in the prompt, health written). In the browser with a stand-in database: This means… saved the word
+  and the line became the catalogue product, the rising chip, Post ideas, the Check chip with its
+  reasons, the drawer's check box with the agreed price, the chat.
+
 #### **83. INSTAGRAM: WHO IS WRITING (BOUGHT BEFORE), THE CHAT BEHIND A BOT ORDER, AND HOW FOLLOW-UPS ENDED** — ✅ **LIVE (November 19, 2026, version 1.4.8: GitHub release v1.4.8, Hosting, shop PC installed, HQ refreshed)**
 
 Three more from the second list of ideas (owner, 19 Nov 2026: 2, 5 and 8). No AI, no change to the bot.

@@ -23,14 +23,14 @@
 // length). Instagram gives the bot a scoped sender id, so a lead is "someone asked for X on this
 // day", and the reply still happens in the Instagram inbox.
 import { db, collection, getDocs, doc, updateDoc, setDoc, query, where, orderBy, Timestamp, arrayUnion } from './firebase.js';
-import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast } from './ui.js';
+import { esc, eur, int, icon, plural, day, ago, dateTime, money2, toast, openModal } from './ui.js';
 import { chatLink } from './followups.js';
-import { DAY, toMs, squash, orderTime, orderTotal, customerDirectory, saleTime } from './data.js';
+import { DAY, toMs, squash, orderTime, orderTotal, customerDirectory, saleTime, rankProducts } from './data.js';
 import { openNewOrder, orderDetail } from './online.js';
 import { slimChat, followUps, privateChats, privateFields, publicFields, doneFields, doneReasons, REASONS, who as chatWho } from './followups.js';
 import { findCustomer, customerSummary } from './igcustomers.js';
 import { followPanel, privatePanel } from './followpanel.js';
-import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL } from './iginsights.js';
+import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL, aliasMap, aliasKey, demandTrend, postIdeas } from './iginsights.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
 const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false, askedOnly: 'all' };
@@ -71,6 +71,27 @@ async function loadChats() {
     return { chats, talks, raw };
 }
 const linkOf = id => chatLink(chatsById.get(String(id)) || { _id: String(id) });
+
+// "This means...": pick the catalogue product a customer's words stand for.
+function pickProduct(words, products, ctx) {
+    return new Promise(resolve => {
+        let chosen = null;
+        const done = openModal({ title: `“${words}” means…`, confirmLabel: 'Teach the bot', validate: () => chosen ? '' : 'Pick a product from the list.',
+            body: `<p class="muted" style="margin-top:0">Pick the product customers mean when they write this. The bot and these reports will match it from now on.</p>
+                <label class="field-search" style="max-width:none">${icon('search')}<input id="pm-q" type="search" placeholder="Type a name or code" aria-label="Search products"></label>
+                <div class="results" id="pm-res" style="max-height:240px;overflow:auto;margin-top:6px"></div>` });
+        const root = document.querySelector('#pm-q').closest('.modal, [role=dialog]') || document;
+        const q = root.querySelector('#pm-q'), res = root.querySelector('#pm-res');
+        const show = () => {
+            const list = q.value.trim() ? rankProducts(products, q.value, ctx.a.soldUnits || {}, 8) : [];
+            res.innerHTML = list.map(p => `<div class="res" role="option" data-id="${esc(p._id)}" aria-selected="${chosen && chosen._id === p._id}"><div><b>${esc(p.name)}</b><span class="sub">${esc(p.code || '')}</span></div><span class="stk ${Number(p.stock) > 0 ? '' : 'zero'}">${int(Number(p.stock) || 0)} in stock</span></div>`).join('');
+        };
+        q.value = words; show(); q.focus();
+        q.addEventListener('input', show);
+        res.addEventListener('click', e => { const r = e.target.closest('[data-id]'); if (r) { chosen = products.find(p => p._id === r.dataset.id); show(); } });
+        Promise.resolve(done).then(ok => resolve(ok ? chosen : null));
+    });
+}
 
 // Copies a short message in Albanian to paste into the Instagram chat.
 async function copyText(text) {
@@ -113,6 +134,10 @@ export async function renderLeads(ctx) {
     try { events = await loadEvents(ctx.model); }
     catch (e) { ctx.body.innerHTML = `<p class="err">Couldn't read the chatbot log: ${esc(e.message)}</p>`; return; }
     try { ({ chats, talks, raw } = await loadChats()); } catch (e) { console.warn('Instagram bot chats not readable', e); }
+    // Words taught to the bot (Finding #84): "fshese e vogel" = WD 1.
+    let aliasDocs = [];
+    const loadAliases = async () => { try { aliasDocs = (await getDocs(collection(db, 'productAliases'))).docs.map(d => d.data()); } catch (e) { console.warn('Learned words not readable', e); } };
+    await loadAliases();
     // People writing on Instagram who bought before (Finding #83): matched once per visit.
     const known = new Map();
     try {
@@ -178,14 +203,17 @@ export async function renderLeads(ctx) {
         const fu = followUps(chats, now);
         const products = ctx.model.products;
         // This screen keeps the log as {name, p, t}; the reports read it the way Next order does.
-        const asks = allAsks({ chats, events: events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), products });
+        const asks = allAsks({ chats, events: events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), products, aliases: aliasMap(aliasDocs) });
         const backIn = backInStock(asks, products, chats, now);
         const idle = idleOffers(ctx.a.unsold || [], asks, chats, now);
         const askedRows = askedReport(asks, products, now, { days: Number(state.period) });
         const srcRows = sourcesReport(chats, now, { days: Number(state.period) });
         const speed = answerSpeed(talks, now);
+        const trend = demandTrend(asks, products, now);
+        const rising = new Set(trend.map(t => t.key));
+        const ideas = postIdeas({ backIn, asked: askedReport(asks, products, now, { days: 30 }), trend, unsold: ctx.a.unsold || [] });
         const MORE = [['backin', 'Back in stock', backIn.reduce((n, g) => n + g.people.length, 0), 'inventory'], ['idle', 'Offer idle stock', idle.length, 'sell'],
-            ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer']];
+            ['asked', 'Asked for', askedRows.length, 'search'], ['sources', 'Where chats come from', null, 'campaign'], ['speed', 'Answer speed', null, 'timer'], ['ideas', 'Post ideas', ideas.length, 'lightbulb']];
         ctx.body.innerHTML = `
             <div id="lq-follow">${followPanel(fu, ctx.model.products, now, chats.length, { known, reasons: doneReasons(chats, now) })}${privatePanel(privateChats(chats), state.showPrivate)}</div>
             <div class="toolbar">
@@ -378,16 +406,28 @@ export async function renderLeads(ctx) {
                     ${[['all', 'All'], ['in', 'You have it'], ['out', 'Out of stock'], ['none', 'Not in your catalogue']].map(([id, l]) => `<button class="filter" type="button" data-ao="${id}" aria-pressed="${state.askedOnly === id}">${l}<span class="n">${int(id === 'all' ? askedRows.length : askedRows.filter(r => r.status === id).length)}</span></button>`).join('')}
                 </div>
                 <div class="table-wrap" style="max-height:calc(100vh - 470px);min-height:240px"><table class="dt"><thead><tr>
-                    <th>Asked for</th><th class="n">People</th><th class="n">Questions</th><th class="n">Last asked</th><th>Status</th><th class="n">In stock</th><th class="n">Price</th></tr></thead>
+                    <th>Asked for</th><th class="n">People</th><th class="n">Questions</th><th class="n">Last asked</th><th>Status</th><th class="n">In stock</th><th class="n">Price</th><th></th></tr></thead>
                     <tbody>${shown.map(r => `<tr>
-                        <td>${r.product ? `<a href="stock.html?q=${encodeURIComponent(r.product.name)}#catalogue" style="text-decoration:none"><b>${esc(r.name)}</b></a>` : `<b>${esc(r.name)}</b>`}</td>
+                        <td>${r.product ? `<a href="stock.html?q=${encodeURIComponent(r.product.name)}#catalogue" style="text-decoration:none"><b>${esc(r.name)}</b></a>` : `<b>${esc(r.name)}</b>`}${rising.has(r.key) ? ' <span class="chip vio" title="More people asked in the last 30 days than usual">↑ asked more lately</span>' : ''}</td>
                         <td class="n">${int(r.people)}</td><td class="n muted">${int(r.asks)}</td><td class="n muted">${esc(day(r.last))}</td>
                         <td><span class="chip ${r.status === 'in' ? 'ok' : r.status === 'out' ? 'bad' : 'warn'}">${label[r.status]}</span></td>
                         <td class="n">${r.product ? int(Number(r.product.stock) || 0) : '–'}</td>
-                        <td class="n">${r.product && Number(r.product.price) ? eur(Number(r.product.price)) : '–'}</td></tr>`).join('')
-                    || '<tr><td colspan="7" class="muted" style="padding:18px">Nothing asked in this period.</td></tr>'}</tbody></table>
+                        <td class="n">${r.product && Number(r.product.price) ? eur(Number(r.product.price)) : '–'}</td>
+                        <td class="n">${r.status === 'none' ? `<button class="btn small ghost" type="button" data-means="${esc(r.name)}" title="Tell the bot which product this is">${icon('link')}This means…</button>` : ''}</td></tr>`).join('')
+                    || '<tr><td colspan="8" class="muted" style="padding:18px">Nothing asked in this period.</td></tr>'}</tbody></table>
                     <div class="table-foot">Every product question in the period: the bot’s memory (exact product, since 19 Nov 2026) and the older chatbot log (matched by model number). Out-of-stock products asked for twice in 6 months are proposed in Stock › Next order; the ones not in your catalogue are listed there too.</div></div>`;
             view.querySelector('#lq-asked-only').addEventListener('click', e => { const b = e.target.closest('[data-ao]'); if (b) { state.askedOnly = b.dataset.ao; draw(); } });
+            view.addEventListener('click', async e => {
+                const b = e.target.closest('[data-means]'); if (!b) return;
+                const p = await pickProduct(b.dataset.means, products, ctx);
+                if (!p) return;
+                try {
+                    await setDoc(doc(db, 'productAliases', aliasKey(b.dataset.means)), { text: b.dataset.means, productId: p._id, productName: p.name, source: 'owner', at: Date.now() });
+                    await loadAliases();
+                    toast(`Learned: “${b.dataset.means}” means ${p.name} – the bot uses it within the hour`);
+                    draw();
+                } catch (err) { toast(`Couldn't save that: ${err.message}`, { bad: true }); }
+            });
         }
 
         // ---- 10. where chats come from
@@ -401,6 +441,19 @@ export async function renderLeads(ctx) {
                     <td class="n muted">${r.chats ? Math.round(100 * r.orders / r.chats) + '%' : '–'}</td><td class="n muted">${esc(day(r.last))}</td></tr>`).join('')
                 || '<tr><td colspan="5" class="muted" style="padding:18px">No chats in this period yet.</td></tr>'}</tbody></table>
                 <div class="table-foot">${total ? plural(total, 'chat', 'chats') + ' in the period. ' : ''}From the bot’s memory, so from 19 Nov 2026 on: what the customer’s first message came with – an ad, a reply to your story, a post or reel they shared, a link – or nothing (“Wrote directly”).</div></div>`;
+        }
+
+        // ---- 9. what to post this week (Finding #84)
+        if (state.view === 'ideas') {
+            const KIND = { back: ['Back in stock', 'ok'], rising: ['Asked more lately', 'vio'], asked: ['People keep asking', ''], offer: ['Offer of the week', 'warn'] };
+            view.innerHTML = ideas.length ? ideas.map((x, i) => `<div class="panel">
+                    <div class="viz-head"><h2 class="panel-title"><a href="stock.html?q=${encodeURIComponent(x.product.name)}#catalogue" style="text-decoration:none;color:inherit">${esc(x.product.name)}</a></h2><span class="chip ${KIND[x.kind][1]}">${KIND[x.kind][0]}</span></div>
+                    <p class="muted" style="margin:0 0 8px">${esc(x.why)} · ${int(Number(x.product.stock) || 0)} in stock${Number(x.product.price) ? ' · ' + eur(Number(x.product.price)) : ''}</p>
+                    <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap"><p style="margin:0;flex:1 1 260px;font-style:italic">“${esc(x.caption)}”</p>
+                    <button class="btn small ghost" type="button" data-cap="${i}">${icon('content_copy')}Copy caption</button></div>
+                </div>`).join('') + '<p class="chart-note">From this month’s questions, what came back in stock, what’s asked more than usual and stock that isn’t selling. The captions are a start in Albanian – change them as you like.</p>'
+                : '<div class="panel"><p class="empty">No ideas this week yet – they come from questions, deliveries and unsold stock.</p></div>';
+            view.addEventListener('click', e => { const b = e.target.closest('[data-cap]'); if (b) copyText(ideas[Number(b.dataset.cap)].caption); });
         }
 
         // ---- 11. how fast you answer, against orders

@@ -9,12 +9,14 @@
 // when one was cancelled - so every cancellation inflated stock. New orders now take their items
 // off stock in the same batch and are marked stockDeducted; only those give stock back when
 // cancelled or returned. Older orders offer "Take from stock" instead of guessing.
-import { db, collection, doc, getDoc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
+import { db, collection, doc, getDoc, setDoc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
 import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs, realSerial
 } from './data.js';
 import { warrantyDialog } from './warranty.js';
 import { orderChat, withPhones } from './igcustomers.js';
+import { orderChecks, agreedPrices } from './ordercheck.js';
+import { aliasFromCorrection, aliasKey } from './iginsights.js';
 import { chatLink } from './followups.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -31,6 +33,12 @@ const itemsTotal = items => r2(items.reduce((a, i) => a + (Number(i.price) || 0)
 const productFor = (products, it) => (it.id && products.find(p => p._id === it.id)) || products.find(p => p.name === it.name) || null;
 
 const on = { filter: 'open', q: '', opened: false };
+
+// Bot orders worth a second look before shipping (Finding #84): a "Check" chip, reasons on hover.
+function checkChip(o, orders) {
+    const c = orderChecks(o, orders, orderTime);
+    return c.length ? ` <span class="chip warn" title="${esc(c.map(x => x.text).join(' · '))}">Check</span>` : '';
+}
 
 export function renderOnline(ctx) {
     const orders = ctx.model.orders.slice().sort((a, b) => (orderTime(b) || 0) - (orderTime(a) || 0));
@@ -70,7 +78,7 @@ export function renderOnline(ctx) {
                 <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((o.items || []).map(i => `${Number(i.quantity) > 1 ? i.quantity + ' × ' : ''}${i.name}`).join(', ') || o.productName || '–')}</td>
                 <td class="n">${eur(orderTotal(o), 2)}</td>
                 <td class="muted">${esc(sourceOf(o))}</td>
-                <td><span class="chip ${CHIP[o.status || 'Ordered'] ?? ''}">${esc(o.status || 'Ordered')}</span></td></tr>`).join('')
+                <td><span class="chip ${CHIP[o.status || 'Ordered'] ?? ''}">${esc(o.status || 'Ordered')}</span>${checkChip(o, orders)}</td></tr>`).join('')
             || '<tr><td colspan="6" class="muted" style="padding:18px">No orders match.</td></tr>';
     };
     draw();
@@ -88,6 +96,27 @@ export function renderOnline(ctx) {
 }
 
 // ------------------------------------------------------------------ one order
+
+// The bot couldn't place a product and the owner picked the right one: remember the word
+// (productAliases), so the bot and the reports match it next time (Finding #84).
+async function learnFromCorrection(before, after, products) {
+    const a = aliasFromCorrection(before, after);
+    const p = a && products.find(x => x._id === a.productId);
+    if (!a || !p || !aliasKey(a.text)) return;
+    try {
+        await setDoc(doc(db, 'productAliases', aliasKey(a.text)), { text: a.text, productId: p._id, productName: p.name, source: 'correction', at: Date.now() });
+        toast(`Learned: “${a.text.toLowerCase()}” means ${p.name}`);
+    } catch (e) { console.warn('Word not learned', e); }
+}
+
+function checkBox(o, orders) {
+    const c = orderChecks(o, orders, orderTime), agreed = agreedPrices(o);
+    if (!c.length && !agreed.length) return '';
+    return `<section class="panel" style="padding:10px 14px;border-color:#5a4320">
+        ${c.length ? `<h3 style="margin:0 0 4px">${icon('warning')} Check before shipping</h3><p style="margin:0">${esc(c.map(x => x.text).join(' · '))}.</p>` : ''}
+        ${agreed.length ? `<p class="muted" style="margin:${c.length ? '6px' : '0'} 0 0">Price agreed in the chat: ${agreed.map(a => `${esc(a.name)} €${money2(a.price)} (catalogue €${money2(a.catalogPrice)})`).join(' · ')}</p>` : ''}
+    </section>`;
+}
 
 // A bot order: the messages it came from, beside the name, phone and address it wrote down, so a
 // misread can be caught before shipping (Finding #83). Read from the bot's memory when opened.
@@ -125,6 +154,7 @@ export function orderDetail(ctx, o) {
                 <span class="hint" id="od-hint">${o.stockDeducted ? 'Returned or Cancelled puts the items back in stock.' : 'This order never took stock, so changing its status doesn’t change stock.'}</span></label>
             <section><h3>Customer</h3><p style="margin:0">${esc(who(o) || '–')}${phoneOf(o) ? ` · <a href="tel:${esc(phoneOf(o).replace(/\s/g, ''))}">${esc(phoneOf(o))}</a>` : ''}</p>
                 <p class="empty" style="margin:2px 0 0">${esc(addressOf(o) || 'No address')}</p></section>
+            ${checkBox(o, ctx.model.orders)}
             ${o.instagramId ? `<section id="od-chat"><h3>From the Instagram chat</h3><p class="empty">Reading the chat…</p></section>` : ''}
             <section><h3>Items</h3><div class="lines">${(o.items || []).map(i => { const p = productFor(products, i); return `
                 <div class="line"><div><b>${Number(i.quantity) > 1 ? int(i.quantity) + ' × ' : ''}${esc(i.name)}</b><span>${p ? `${int(Number(p.stock) || 0)} in stock` : 'not in the catalogue'}${realSerial(i.serialNumber) ? ' · S/N ' + esc(realSerial(i.serialNumber)) : ''}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`; }).join('') || '<p class="empty">No items recorded.</p>'}</div></section>
@@ -271,6 +301,7 @@ function orderDrawer(ctx, existing, prefill) {
         try {
             await batch.commit();
             toast(isNew ? `Order saved for ${data.clientName}, stock updated` : 'Order updated');
+            if (!isNew && o.source === 'Instagram Chatbot') await learnFromCorrection(o.items || [], items, products);
             // Whoever opened this drawer may need to know which order it became.
             if (fresh && prefill && typeof prefill.onSaved === 'function') await prefill.onSaved(fresh.id);
             close(); await ctx.reload();

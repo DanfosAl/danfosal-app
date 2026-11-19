@@ -20,7 +20,7 @@ import { loadExtras, askedByProduct } from './dashboard-data.js';
 import { buildPurchasing, deliveryDates, arrivalOf } from './purchasing.js';
 import { COVER_DAYS, assess, proposeOrder, supplierPrices, customsShare, waitingByProductId, materialNo, portalText, supplierKey, codeKey } from './proposal.js';
 import { checkButton, wireCheckButton } from './autopilot-run.js';
-import { allAsks, askedCounts, askedReport } from './iginsights.js';
+import { allAsks, askedCounts, askedReport, aliasMap, demandTrend } from './iginsights.js';
 
 const TAB = 'reorder';
 const KARCHER = 'karcher';
@@ -62,7 +62,7 @@ function productForLine(products, l) {
 
 // The figures the proposal needs (proposal.js): sales from analyze(), the order list, the year
 // plans at their real pace, and - when loaded - Kärcher's prices and the chatbot's questions.
-function figuresFor(m, a, { docs = [], events = [], chats = [] } = {}) {
+function figuresFor(m, a, { docs = [], events = [], chats = [], aliases = new Map() } = {}) {
     const year = new Date(a.now).getFullYear();
     const plans = [year, year + 1].map(y => planFor(m, y)).filter(Boolean);
     const demandByYear = plans.length ? new Map(plans.map(pl => [Number(pl.year), new Map((pl.products || []).map(r => [r.id, r.demand || []]))])) : null;
@@ -71,7 +71,7 @@ function figuresFor(m, a, { docs = [], events = [], chats = [] } = {}) {
     return {
         soldUnits: a.soldUnits, soldUnits12: a.soldUnits12, lastSoldAt: a.lastSoldAt,
         waiting: waitingByProductId(m.products, m.orderLines || []),
-        asked: askedFor(m.products, events, chats, a.now),
+        asked: askedFor(m.products, events, chats, a.now, aliases),
         prices: docs.length ? supplierPrices(docs) : new Map(),
         demandByYear, paceOf: id => pace.get(id) ?? 1, now: a.now,
         windowDays: SALES_WINDOW_DAYS, restockDays: RESTOCK_DAYS, minUnits: MIN_UNITS_FOR_TREND
@@ -81,10 +81,10 @@ function figuresFor(m, a, { docs = [], events = [], chats = [] } = {}) {
 // What people asked the Instagram bot for, per catalogue product, in 6 months. Machines count by
 // model (all the SC 3s together, askedByProduct); everything else - detergents, accessories - by the
 // exact product the question named (Finding #81: the bot's memory, and the old log matched by name).
-function askedFor(products, events, chats, now) {
+function askedFor(products, events, chats, now, aliases = new Map()) {
     const out = events.length ? askedByProduct(products, events, now) : new Map();
     if (!events.length && !chats.length) return out;
-    askedCounts(allAsks({ chats, events, products }), now).forEach((x, id) => {
+    askedCounts(allAsks({ chats, events, products, aliases }), now).forEach((x, id) => {
         if (!out.has(id)) out.set(id, { questions: x.questions_6m, questions_6m: x.questions_6m });
     });
     return out;
@@ -119,16 +119,21 @@ export async function renderNextOrder(ctx) {
 
     // The purchase papers (prices, customs, delivery dates) and what people ask the chatbot. The
     // proposal still works without either; it just knows less.
-    let docs = [], events = [], chats = [], missing = [];
+    let docs = [], events = [], chats = [], aliasDocs = [], missing = [];
     await Promise.all([
         getDocs(collection(db, 'purchaseDocs')).then(s => { docs = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => missing.push('the purchase papers')),
-        loadExtras(['events', 'igChats']).then(x => { events = x.events || []; chats = x.igChats || []; }).catch(() => missing.push('the chatbot questions'))
+        loadExtras(['events', 'igChats']).then(x => { events = x.events || []; chats = x.igChats || []; }).catch(() => missing.push('the chatbot questions')),
+        getDocs(collection(db, 'productAliases')).then(s => { aliasDocs = s.docs.map(d => d.data()); }).catch(() => {})
     ]);
     if (ctx.tab !== TAB) return;   // the owner moved on while it loaded
 
-    const f = figuresFor(m, a, { docs: isK ? docs : [], events, chats });
-    // Asked for on Instagram in the last 6 months, but not in the catalogue at all (Finding #81).
-    const notSold = askedReport(allAsks({ chats, events, products }), products, a.now, { days: 183 }).filter(r => r.status === 'none' && r.people >= 2).slice(0, 8);
+    const aliases = aliasMap(aliasDocs);
+    const f = figuresFor(m, a, { docs: isK ? docs : [], events, chats, aliases });
+    // Asked for on Instagram in the last 6 months, but not in the catalogue at all (Finding #82),
+    // and what is asked about more than usual lately - order it earlier (Finding #84).
+    const asks = allAsks({ chats, events, products, aliases });
+    const notSold = askedReport(asks, products, a.now, { days: 183 }).filter(r => r.status === 'none' && r.people >= 2).slice(0, 8);
+    const rising = demandTrend(asks, products, a.now).slice(0, 6);
     const customs = isK && docs.length ? customsShare(buildPurchasing(docs, { products }).customs, a.now) : null;
     const dates = deliveryDates(docs);
 
@@ -225,6 +230,12 @@ export async function renderNextOrder(ctx) {
         ${ordered.length ? `<section class="panel" aria-labelledby="ow-h">
             <h2 class="panel-title" id="ow-h">Ordered, on the way<span>${int(ordered.length)}</span></h2>
             ${onTheWay(ordered, products, dates)}
+        </section>` : ''}
+
+        ${rising.length ? `<section class="panel" aria-labelledby="ri-h">
+            <h2 class="panel-title" id="ri-h">Asked about more than usual on Instagram<span>${int(rising.length)}</span></h2>
+            <div class="lines">${rising.map(r => `<div class="line"><div><b>${esc(r.name)}</b><span>${r.product ? `${int(Number(r.product.stock) || 0)} in stock` : 'not in your catalogue'} · usually ${r.usual} ${r.usual === 1 ? 'person' : 'people'} a month</span></div><span class="n">${plural(r.recent, 'person', 'people')} in 30 days</span></div>`).join('')}</div>
+            <p class="chart-note">Questions on Instagram come weeks before the sales. When a product is asked about twice as often as usual, it may be worth ordering earlier or more.</p>
         </section>` : ''}
 
         ${notSold.length ? `<section class="panel" aria-labelledby="ns-h">

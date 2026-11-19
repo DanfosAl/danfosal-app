@@ -1,11 +1,11 @@
 {
-  "version": "1.4.4",
-  "date": "2026-11-18",
-  "notes": "Android: the app now really updates itself (1.4.2 and 1.4.3 never checked on a real phone). Install this APK once on each phone; after that new screens arrive by themselves. Settings no longer says 'latest' when it doesn't know.",
+  "version": "1.4.5",
+  "date": "2026-11-19",
+  "notes": "Sell › Instagram: Follow up - customers waiting for your answer, and customers who went quiet after you answered, from the Instagram bot's reading of each chat. Instagram usernames instead of visitor numbers; Today shows who is waiting.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.4/Danfosal-App-1.4.4.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.4/danfosal-www-1.4.4.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.4/Danfosal-App-Setup-1.4.4.exe",
-  "bundleSha256": "c04856f5a47d21ba852ff9dcf9edb71eb20e1938d7a042508dca93151155f9d9",
-  "bundleBytes": 390947
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/Danfosal-App-1.4.5.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/danfosal-www-1.4.5.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.5/Danfosal-App-Setup-1.4.5.exe",
+  "bundleSha256": "1af7fef5f78e6dacb6d31b40d19e7f9683e6d314f85291d206cb6e47fabc09d3",
+  "bundleBytes": 395862
 }

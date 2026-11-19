@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.8  
+**Version:** 1.4.9  
 **Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - A smarter Instagram bot: agreed prices, learned words, checks, health, demand rising, post ideas (version 1.4.9)
+## [Released] - 2026-11-19 - A smarter Instagram bot: agreed prices, learned words, checks, health, demand rising, post ideas (version 1.4.9)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #84.
 

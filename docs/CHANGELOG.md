@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.5  
+**Version:** 1.4.6  
 **Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - Sell › Instagram: Private accounts (version 1.4.6)
+## [Released] - 2026-11-19 - Sell › Instagram: Private accounts (version 1.4.6)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #81.
 

@@ -3,7 +3,7 @@
 
 **Audit Date:** February 9, 2026  
 **Auditor:** Senior Principal Software Architect & Lead Security Auditor  
-**Application Version:** 1.4.5 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
+**Application Version:** 1.4.6 (from 18 Nov 2026 every release bumps it: devices update themselves, Finding #78; phones from the 1.4.4 APK on, Finding #80)  
 **Danfos Garanci Version:** 1.1.0 (separate Windows app; first installed September 13, 2026, last reinstalled October 7, 2026)  
 **Verdict:** ✅ **PRODUCTION-READY & SECURED**  
 **Last Updated:** October 9, 2026 — full audit of code, data, deployments and the shop PC, then the owner-only sign-in (Finding #64), the Danfos HQ audit (Finding #65) and HQ's briefing (Finding #66); see **CURRENT STATE** below, which wins wherever an older section disagrees  
@@ -920,7 +920,7 @@ it. The owner asked to put that to use in the app.
   sidebar counts them on Today.
 - **Privacy:** the app reads the chats slimmed (`slimChat`): the message texts are never put in the
   browser's session storage, only the reading, the times and the name.
-- **Private from the app (version 1.4.6, same day):** the owner asked to mark an account private
+- **Private from the app (version 1.4.6, released the same day):** the owner asked to mark an account private
   from the app, for good, until he says otherwise. **Private** on a Follow up row, or on anyone in
   the People list (even someone who wrote before the bot kept a memory), merges `privateFields()` into
   `instagramBotChats/{id}`: `ignored: true, ignoredBy: 'owner', ignoredAt`, and drops the stored

@@ -1,11 +1,11 @@
 {
-  "version": "1.4.11",
+  "version": "1.4.12",
   "date": "2026-11-19",
-  "notes": "Customers › Phone numbers: customers without a phone, and the number they typed in an Instagram chat - add it in one click, or say it isn't them.",
+  "notes": "An online order and its easyPOS receipt now count once, as an online sale (no more double revenue); printing the receipt moves an open online order to Processing. Online orders shows the receipt inside each order and a Counted twice? list for unclear pairs of the last 30 days.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/Danfosal-App-1.4.11.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/danfosal-www-1.4.11.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.11/Danfosal-App-Setup-1.4.11.exe",
-  "bundleSha256": "f647c9281af18377f8432a81381f73f1bf256ad746044c1787b8ebda3b0d6f4c",
-  "bundleBytes": 422932
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/Danfosal-App-1.4.12.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/danfosal-www-1.4.12.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/Danfosal-App-Setup-1.4.12.exe",
+  "bundleSha256": "4e600e0949eebc00d0d21b423d166c41496a683c239997b68a278799d11f75bf",
+  "bundleBytes": 429620
 }

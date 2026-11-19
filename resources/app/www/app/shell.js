@@ -25,7 +25,8 @@ export const NAV = [
         ['Yearly plan', 'stock.html#plan', 'event_note']] },
     { id: 'customers', label: 'Customers', icon: 'group', href: 'customers.html', pages: [
         ['Customers', 'customers.html#all', 'group'],
-        ['Review names', 'customers.html#review', 'merge']] },
+        ['Review names', 'customers.html#review', 'merge'],
+        ['Phone numbers', 'customers.html#phones', 'call']] },
     { id: 'service', label: 'Service', icon: 'build', href: 'service.html', pages: [
         ['Repairs', 'service.html#tickets', 'build'],
         ['Warranty cards', 'service.html#warranties', 'verified']] },
@@ -139,6 +140,7 @@ const SYNONYMS = {
     'stock.html#plan': 'forecast plan annual yearly procurement parashikim plani vjetor',
     'customers.html#all': 'clients klient kliente vip loyalty segments regulars',
     'customers.html#review': 'duplicates merge lookalike spelling',
+    'customers.html#phones': 'phone numbers telephone instagram missing',
     'service.html#tickets': 'repair servis riparim ticket',
     'service.html#warranties': 'warranty garanci certificate',
     'settings.html#health': 'data health check duplicates firebase connection negative stock count fix',

@@ -87,3 +87,49 @@ export function chatsForCustomer(entry, raw = new Map()) {
     });
     return out.sort((a, b) => b.last - a.last);
 }
+
+// ---------------------------------------------------------------- phone numbers for customers (Finding #86)
+
+// Only 18 of 166 customer profiles had a phone (18 Nov 2026). People often type their name and
+// number in an Instagram chat; a customer without a phone whose full name appears in a chat where
+// they typed a number gets that number suggested. The owner adds it with one click, or says "Not
+// them". Sources: the bot's memory (raw chats), and `stored` suggestions (one-off from the older
+// inbox, if the owner allowed it): [{name, phone, username, at, snippet}].
+const words = s => ' ' + String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]+/g, ' ').trim() + ' ';
+const phoneOf = s => { const d = String(s || '').replace(/\D/g, ''); return d.length >= 9 ? '0' + d.slice(-9) : ''; };
+const pretty = p => p.length === 10 ? `${p.slice(0, 3)} ${p.slice(3, 6)} ${p.slice(6)}` : p;
+export const suggestionKey = (name, phone) => `${nameKey(name)}|${phoneOf(phone)}`;
+
+// -> [{entry, phone, from: 'instagram'|'inbox', username, at, snippet, chatId}], newest first.
+export function phoneSuggestions(directory = [], raw = new Map(), { stored = [], notThem = new Set() } = {}) {
+    const wanted = directory.filter(e => !e.phoneDigits && e.name && words(e.name).trim().split(' ').length >= 2 && nameKey(e.name).length >= 6);
+    const out = [];
+    const seen = new Set();
+    const add = (e, phone, x) => {
+        const p = phoneOf(phone), k = suggestionKey(e.name, p);
+        if (!p || notThem.has(k) || seen.has(k)) return;
+        seen.add(k);
+        out.push({ entry: e, phone: pretty(p), key: k, ...x });
+    };
+    for (const e of wanted) {
+        const w = words(e.name);
+        raw.forEach((data, id) => {
+            if (!data || data.ignored) return;
+            const mine = (data.messages || []).filter(m => m && m.role !== 'shop' && m.text);
+            const phones = [...new Set(mine.flatMap(m => [...String(m.text).matchAll(PHONE)].map(x => phoneOf(x[0]))))].filter(Boolean);
+            const prev = data.previousOrder || {};
+            if (prev.clientName && nameKey(prev.clientName) === nameKey(e.name) && prev.telephone) {
+                add(e, prev.telephone, { from: 'instagram', username: data.username || '', at: Number(data.lastOrderAt) || 0, snippet: 'the bot’s order for this chat', chatId: id });
+                return;
+            }
+            const m = mine.slice().reverse().find(x => words(x.text).includes(w));
+            if (!m) return;
+            const here = [...String(m.text).matchAll(PHONE)].map(x => phoneOf(x[0])).filter(Boolean);
+            const phone = here[0] || (phones.length === 1 ? phones[0] : '');
+            if (phone) add(e, phone, { from: 'instagram', username: data.username || '', at: Number(m.at) || 0, snippet: String(m.text).slice(0, 140), chatId: id });
+        });
+        for (const x of stored) if (x && nameKey(x.name) === nameKey(e.name)) add(e, x.phone, { from: 'inbox', username: x.username || '', at: Number(x.at) || 0, snippet: String(x.snippet || '').slice(0, 140), storedId: x._id || null });
+    }
+    return out.sort((a, b) => b.at - a.at);
+}
+

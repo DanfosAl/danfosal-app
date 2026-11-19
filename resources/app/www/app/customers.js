@@ -7,8 +7,8 @@
 // Nothing here deletes a customer: merging records the other spelling as an alias, and a merged
 // profile is only marked `mergedInto` (the classic delete also deleted the customer's sales).
 import { bootWorkspace } from './workspace.js';
-import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp, getDocs } from './firebase.js';
-import { chatsForCustomer } from './igcustomers.js';
+import { db, collection, doc, addDoc, updateDoc, setDoc, arrayUnion, writeBatch, Timestamp, getDocs, getDoc } from './firebase.js';
+import { chatsForCustomer, phoneSuggestions } from './igcustomers.js';
 import { chatLink } from './followups.js';
 import { esc, eur, int, icon, plural, day, fold, money2, toast, openDrawer, openModal } from './ui.js';
 import { DAY, productFamily, customerDirectory, lookalikeCustomers, customerKey, saleTime, orderTime, orderTotal, saleInvoiceNumber, shortInvoice, saleSource, toMs, realSerial, soldOrder
@@ -389,6 +389,64 @@ async function mergeDialog(ctx, pair) {
     } catch (x) { toast(`Couldn't merge: ${x.message}`, { bad: true }); }
 }
 
+// ================================================================== phone numbers from Instagram
+
+// Customers without a phone whose full name appears in an Instagram chat where they typed a number
+// (Finding #86): the bot's memory, plus suggestions from the older inbox if they were brought in
+// (`phoneSuggestions`). Add puts the number on the customer (making a profile if there is none);
+// Not them hides that pairing for good (settings/customerReview.phoneNotThem).
+function renderPhones(ctx) {
+    ctx.setSub('Customers without a phone number, and the number they typed in an Instagram chat.');
+    ctx.body.innerHTML = '<p class="empty">Reading the Instagram chats…</p>';
+    (async () => {
+        let raw = new Map(), stored = [], notThem = new Set();
+        try {
+            const [chats, sugg, rev] = await Promise.all([
+                getDocs(collection(db, 'instagramBotChats')),
+                getDocs(collection(db, 'phoneSuggestions')).catch(() => ({ docs: [] })),
+                getDoc(doc(db, 'settings', 'customerReview'))]);
+            raw = new Map(chats.docs.map(d => [d.id, d.data()]));
+            stored = sugg.docs.map(d => ({ _id: d.id, ...d.data() })).filter(x => !x.done);
+            notThem = new Set((rev.exists() && rev.data().phoneNotThem) || []);
+        } catch (e) { ctx.body.innerHTML = `<p class="err">Couldn't read the Instagram chats: ${esc(e.message)}</p>`; return; }
+        const list = phoneSuggestions(directoryOf(ctx.model), raw, { stored, notThem });
+        const without = directoryOf(ctx.model).filter(e => !e.phoneDigits && e.count > 0).length;
+        ctx.body.innerHTML = `
+            <div class="panel" style="padding:14px 16px"><p class="empty" style="margin:0">${int(without)} customers who bought something have no phone number. These are the ones whose full name appears in an Instagram chat where they typed a number. Check the message, then add the number or say it isn’t them.</p></div>
+            ${list.length ? `<div class="table-wrap"><table class="dt"><thead><tr><th>Customer</th><th>Number found</th><th>Where</th><th></th></tr></thead>
+            <tbody id="ph-body">${list.map((x, i) => `<tr style="cursor:default">
+                <td class="name"><b>${esc(x.entry.name)}</b><span>${plural(x.entry.count, 'purchase', 'purchases')}${x.entry.last ? ' · last ' + esc(day(x.entry.last)) + ' ' + new Date(x.entry.last).getFullYear() : ''}</span></td>
+                <td style="white-space:nowrap"><b>${esc(x.phone)}</b></td>
+                <td style="max-width:360px"><span class="muted">${x.from === 'inbox' ? 'older Instagram chat' : 'Instagram'}${x.username ? ' · @' + esc(x.username) : ''}${x.at ? ' · ' + esc(day(x.at)) + ' ' + new Date(x.at).getFullYear() : ''}</span>
+                    ${x.snippet ? `<span style="display:block;font-size:12px;color:var(--muted);font-style:italic">“${esc(x.snippet)}”</span>` : ''}</td>
+                <td class="n" style="white-space:nowrap"><button class="btn small primary" type="button" data-add="${i}">${icon('call')}Add</button>
+                    <button class="btn small ghost" type="button" data-not="${i}">Not them</button></td></tr>`).join('')}</tbody></table></div>`
+            : `<div class="all-clear">${icon('check_circle')}<div><b>Nothing to add right now.</b><br><span>When a customer without a phone types their name and number in an Instagram chat, it shows here.</span></div></div>`}`;
+        const tb = ctx.body.querySelector('#ph-body');
+        if (!tb) return;
+        tb.addEventListener('click', async ev => {
+            const a = ev.target.closest('[data-add]'), n = ev.target.closest('[data-not]');
+            const x = list[Number((a || n || {}).dataset ? (a || n).dataset.add || (a || n).dataset.not : -1)];
+            if (!x) return;
+            (a || n).disabled = true;
+            try {
+                if (a) {
+                    const e = x.entry;
+                    if (e.profile) await updateDoc(doc(db, 'customers', e.profile._id), { phone: x.phone });
+                    else await addDoc(collection(db, 'customers'), { name: e.name, phone: x.phone, nipt: e.nipt || '', email: e.email || '', address: e.address || '', status: 'Active', image: '', source: 'app', createdAt: Timestamp.now() });
+                    if (x.storedId) await updateDoc(doc(db, 'phoneSuggestions', x.storedId), { done: 'added', doneAt: Date.now() });
+                    toast(`${e.name}: ${x.phone} added`);
+                } else {
+                    await setDoc(doc(db, 'settings', 'customerReview'), { phoneNotThem: arrayUnion(x.key) }, { merge: true });
+                    if (x.storedId) await updateDoc(doc(db, 'phoneSuggestions', x.storedId), { done: 'not-them', doneAt: Date.now() });
+                    toast(`${x.phone} won’t be suggested for ${x.entry.name} again`);
+                }
+                await ctx.reload();
+            } catch (err) { (a || n).disabled = false; toast(`Couldn't save: ${err.message}`, { bad: true }); }
+        });
+    })();
+}
+
 // ================================================================== boot
 
 bootWorkspace({
@@ -396,6 +454,7 @@ bootWorkspace({
     tabs: [
         { id: 'all', label: 'Customers', icon: 'group', render: renderList },
         { id: 'winback', label: 'Win back', icon: 'campaign', render: renderWinBack },
-        { id: 'review', label: 'Review names', icon: 'merge', render: renderReview, count: (a, m) => reviewOf(m).length }
+        { id: 'review', label: 'Review names', icon: 'merge', render: renderReview, count: (a, m) => reviewOf(m).length },
+        { id: 'phones', label: 'Phone numbers', icon: 'call', render: renderPhones }
     ]
 });

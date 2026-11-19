@@ -895,6 +895,27 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **86. CUSTOMERS › PHONE NUMBERS: THE NUMBER A CUSTOMER TYPED ON INSTAGRAM, ADDED IN ONE CLICK** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+Only 18 of 166 customer profiles had a phone (18 Nov 2026); 375 customers who bought something have
+none. The owner chose idea 4 of the fifth list.
+
+- **`phoneSuggestions`** (`www/app/igcustomers.js`): a customer without a phone, whose name has
+  two or more words, gets a number suggested when their full name appears in a customer message of
+  an Instagram chat and that message carries a number (or the chat has exactly one number), or when
+  the bot's last order for a chat was in their name. Private chats and the shop's own messages are
+  left out; a chat with two numbers and the name alone suggests nothing.
+- **Customers › Phone numbers** (new tab, also in the menu and the search): the customer, the number,
+  where it was found (@username, the date, the message itself), **Add** (puts it on the profile, or
+  makes a profile with it) and **Not them** (never suggested again: `settings/customerReview.phoneNotThem`).
+- **The older inbox:** the bot's memory starts on 19 Nov 2026, so today it finds none. The Instagram
+  inbox downloaded on 18 Nov 2026 for the assistant tests (local only) holds 43 such matches; they
+  can be brought in once as `phoneSuggestions` documents (name, number, username, date, the one
+  message, at most 140 characters) - only with the owner's yes.
+- **Checked:** `tests/phones.test.mjs` (3, made-up names and numbers); 56 tests in all. The real
+  Customers page in the browser with a stand-in database: both kinds of suggestion listed, Add wrote
+  the phone to the profile, Not them saved the pairing and closed the stored suggestion.
+
 #### **85. CASH WITH THE COURIER, INSTAGRAM ON THE CUSTOMER'S PAGE, THE BOT'S REPORT CARD, SAME TIME LAST YEAR** — ✅ **LIVE (November 19, 2026, version 1.4.10: GitHub release v1.4.10, Hosting, shop PC installed, HQ refreshed; the updaters compare versions number by number, so 1.4.10 is newer than 1.4.9)**
 
 From the fourth list of ideas the owner chose 1, 5, 6 and 7. Danfosal only; no AI.
@@ -1018,8 +1039,11 @@ five read what the bot already writes, so none of them costs an AI call.
 - **Limits:** sources, answer speed and the stock-at-the-time start with the bot's memory (19 Nov
   2026); older questions only count as "back in stock" when a delivery was received after them.
   People from the older log show as "visitor 12345" until the bot meets them again - except the
-  234 of 434 people who asked in the 12 months before, whose @username was looked up once through
-  the Graph API on 19 Nov 2026 with the owner's yes (Instagram didn't give it for the other 200).
+  people who asked in the 12 months before, whose @username was looked up once through the Graph
+  API on 19 Nov 2026 with the owner's yes: 234 at first, then the first run hit Graph's hourly
+  "application request limit" and a slower second run found 193 more - 427 of 435 chats have one
+  (the other 8 answered with an error, e.g. deleted accounts). Lesson: Graph look-ups go 1.5 s apart
+  and stop at the first limit answer.
 - **Checked:** `tests/iginsights.test.mjs` (8, made-up data), the existing tests (33 in all); the
   real Sell › Instagram screen was opened in the browser with a stand-in database of made-up chats
   (a first run showed the screen passed the log in another shape than Next order - fixed) at desktop

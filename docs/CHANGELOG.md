@@ -6,6 +6,15 @@
 
 ---
 
+## [Unreleased] - 2026-11-19 - Customers › Phone numbers (version 1.4.11)
+
+Full details are in GOLDEN_MANIFEST.md, Finding #86.
+
+### Added
+- Customers › Phone numbers: customers without a phone, and the number they typed in an Instagram chat - Add in one click, or Not them
+
+---
+
 ## [Released] - 2026-11-19 - Cash with the courier, Instagram on the customer's page, the bot's report card, same time last year (version 1.4.10)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #85.

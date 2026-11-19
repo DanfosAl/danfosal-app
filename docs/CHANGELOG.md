@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.9  
+**Version:** 1.4.10  
 **Last Updated:** November 19, 2026
 
 ---
 
-## [Unreleased] - 2026-11-19 - Cash with the courier, Instagram on the customer's page, the bot's report card, same time last year (version 1.4.10)
+## [Released] - 2026-11-19 - Cash with the courier, Instagram on the customer's page, the bot's report card, same time last year (version 1.4.10)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #85.
 

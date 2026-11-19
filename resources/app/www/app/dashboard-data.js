@@ -175,7 +175,8 @@ export function buildDashboard(m, { events = [], purchaseDocs = [] } = {}, now =
     sales.forEach((s) => {
         const x = months.get(monthKey(s.t)); if (!x) return;
         if (s.refund) x.refunds_net += -s.net; else { x.receipts++; x[SRC[s.src]]++; }
-        x.shop_net += s.net;
+        // The receipt of an online order counts as online money (Finding #87).
+        if (s.online && !s.refund) { x.online_net += s.net; x.online_orders++; } else x.shop_net += s.net;
         if (s.cost === null) x.uncosted_net += s.net; else { x.costed_net += s.net; x.cost += s.cost; }
     });
     orders.forEach((o) => { const x = months.get(monthKey(o.t)); if (x) { x.online_net += o.net; x.online_orders++; } });
@@ -251,7 +252,7 @@ export function buildDashboard(m, { events = [], purchaseDocs = [] } = {}, now =
         cust.set(k, c);
     };
     m.sales.filter((s) => !s.isReturn).forEach((s) => { const t = D.saleTime(s); if (!Number.isNaN(t)) addBuy(s.clientName || s.customerName, t, D.netRevenue(s), linesBySale.get(s._id) || []); });
-    m.orders.filter(D.soldOrder).forEach((o) => {
+    m.orders.filter(D.countedOrder).forEach((o) => {
         const ls = (o.items || []).map((it) => ({ name: String(it.name || '').trim(), family: D.productFamily(it.name, it), net: (Number(it.price) || 0) * (Number(it.quantity) || 1) / VAT, qty: Number(it.quantity) || 1 }));
         addBuy(o.clientName || o.customerName, D.orderTime(o), D.orderTotal(o) / VAT, ls);
     });
@@ -296,7 +297,7 @@ export function buildDashboard(m, { events = [], purchaseDocs = [] } = {}, now =
         }
     };
     m.sales.filter((s) => !s.isReturn).forEach((s) => basket((linesBySale.get(s._id) || []).filter((l) => !l.isService && !l.pre && l.name && l.name !== '?').map((l) => l.name), D.saleTime(s)));
-    m.orders.filter(D.soldOrder).forEach((o) => basket((o.items || []).map((it) => String(it.name || '').trim()).filter(Boolean), D.orderTime(o)));
+    m.orders.filter(D.countedOrder).forEach((o) => basket((o.items || []).map((it) => String(it.name || '').trim()).filter(Boolean), D.orderTime(o)));
     out.bought_together = [...pairs.values()].filter((p) => p.n >= 2).sort((a, b) => b.n - a.n || b.last - a.last).slice(0, 20)
         .map((p, i) => ({ rank: i + 1, product_a: p.a, product_b: p.b, times: p.n, last_time: dayKey(p.last) }));
 
@@ -360,7 +361,7 @@ export function buildDashboard(m, { events = [], purchaseDocs = [] } = {}, now =
     });
     const units12 = {};
     lines.forEach((l) => { if (l.pid && l.t >= since12 && !l.refund) units12[l.pid] = (units12[l.pid] || 0) + l.qty; });
-    m.orders.filter(D.soldOrder).forEach((o) => { const t = D.orderTime(o); if (t < since12) return;
+    m.orders.filter(D.countedOrder).forEach((o) => { const t = D.orderTime(o); if (t < since12) return;
         (o.items || []).forEach((it) => { const pid = D.productIdOfLine(it, knownIds) || (it.id && knownIds.has(it.id) ? it.id : null); if (pid) units12[pid] = (units12[pid] || 0) + (Number(it.quantity) || 1); }); });
     const byModel = machinesByModel(m.products);
     out.demand_stock = Object.entries(mq).filter(([mm, n]) => n >= 2 && mm !== 'Puzzi 8').sort((a, b) => b[1] - a[1]).map(([model, questions]) => {

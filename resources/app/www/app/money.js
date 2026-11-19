@@ -579,7 +579,7 @@ function renderOutlook(ctx) {
     // In: sales at the pace of the last 90 days (what customers actually pay, VAT included).
     const since = now - 90 * DAY;
     const sold90 = m.sales.filter(s => !s.isReturn && saleTime(s) >= since).reduce((a, s) => a + (Number(s.total) || 0), 0)
-        + m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && toMs(o.timestamp || o.orderDate) >= since).reduce((a, o) => a + (Number(o.total) || Number(o.price) || 0), 0)
+        + m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && !o.receiptSaleId && !o._receipt && toMs(o.timestamp || o.orderDate) >= since).reduce((a, o) => a + (Number(o.total) || Number(o.price) || 0), 0)
         - (m.returns || []).filter(r => returnTime(r) >= since).reduce((a, r) => a + returnTotal(r), 0);
     const salesIn = sold90 / 3;
     const owedToYou = m.debts.reduce((a, d) => a + Math.max(0, balanceOf(d)), 0);

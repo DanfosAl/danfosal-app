@@ -267,7 +267,7 @@ function newTicketDrawer(ctx, preset) {
         const phone = el.querySelector('#nt-phone'); if (!phone.value && e.phone) phone.value = e.phone;
         const bought = [];
         e.sales.filter(s => !s.isReturn).forEach(s => (s.items || []).forEach((it, i) => { if (!it.isService) bought.push({ name: it.name || it.productName, serial: it.serialNumber || '', t: saleTime(s), saleId: s._id, type: 'storeSale', index: i }); }));
-        e.orders.filter(soldOrder).forEach(o => (o.items || []).forEach((it, i) => bought.push({ name: it.name || it.productName, serial: it.serialNumber || '', t: orderTime(o), saleId: o._id, type: 'onlineOrder', index: i })));
+        e.orders.filter(o => soldOrder(o) && !o.receiptSaleId && !o._receipt).forEach(o => (o.items || []).forEach((it, i) => bought.push({ name: it.name || it.productName, serial: it.serialNumber || '', t: orderTime(o), saleId: o._id, type: 'onlineOrder', index: i })));
         bought.sort((a, b) => (b.t || 0) - (a.t || 0));
         machinesBox.innerHTML = bought.length ? `<p class="empty" style="margin:0 0 6px">Bought by ${esc(e.name)}, pick one to link the sale:</p><div class="filters">${bought.slice(0, 12).map((b, i) =>
             `<button class="filter" type="button" data-b="${i}" aria-pressed="false">${esc(b.name || '?')}<span class="n">${b.t ? esc(day(b.t)) : ''}</span></button>`).join('')}</div>` : '';

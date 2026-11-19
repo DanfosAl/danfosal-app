@@ -2,6 +2,7 @@
 import { mountShell, setPipelineStatus, setSearchData, setNavCounts, navCountsFor } from './shell.js';
 import { loadAll, analyze, saleTime, orderTime, orderTotal } from './data.js';
 import { withCourier } from './courier.js';
+import { linkNewReceipts } from './receiptlink.js';
 import { planAttention } from './planmodel.js';
 import { renderToday, renderLoading, renderError } from './today.js';
 import { db } from './firebase.js';
@@ -23,7 +24,8 @@ function paint() {
     a.arriving = arrivingSoon(model.orderLines, deliveryDates(purchaseDocs), a.now);   // Kärcher lines due this week
     a.igFollow = followUps(igChats, a.now);   // Instagram customers waiting for an answer / to follow up
     a.courier = withCourier(model.orders, a.now, { orderTime, orderTotal });   // cash the courier still holds
-    a.igHealth = botHealth(igStatus, a.now);   // the bot gone quiet, or unable to read orders
+    a.igHealth = botHealth(igStatus, a.now);
+    a.receiptMaybe = (model.receiptPairs || {}).suggestions || [];   // online orders that may also have a receipt   // the bot gone quiet, or unable to read orders
     a.igBackIn = backInStock(allAsks({ chats: igChats, products: model.products }), model.products, igChats, a.now);   // asked while out of stock, back now
     if (a.lastSale) a.lastSale._t = saleTime(a.lastSale);
     renderToday(content, a, { onGoalChange: paint });
@@ -38,6 +40,8 @@ async function refresh({ quiet = false } = {}) {
     try {
         const [m, x] = await Promise.all([loadAll(), loadExtras(['purchaseDocs', 'igChats', 'igStatus']).catch(() => ({}))]);
         model = m;
+        // An easyPOS receipt for an online order: link them, count once, move the order to Processing.
+        await linkNewReceipts(model).catch(e => console.warn('Receipt links', e));
         purchaseDocs = x.purchaseDocs || purchaseDocs;
         igChats = x.igChats || igChats;
         igStatus = x.igStatus || igStatus;

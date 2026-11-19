@@ -2,6 +2,7 @@
 // and a reload after each save so every screen shows the same, current numbers.
 import { mountShell, setPipelineStatus, setSearchData, setNavCounts, navCountsFor } from './shell.js';
 import { loadAll, analyze } from './data.js';
+import { linkNewReceipts } from './receiptlink.js';
 import { esc, icon } from './ui.js';
 
 export function bootWorkspace({ active, title, tabs, defaultTab }) {
@@ -47,6 +48,7 @@ export function bootWorkspace({ active, title, tabs, defaultTab }) {
     async function reload() {
         try {
             ctx.model = await loadAll();
+            await linkNewReceipts(ctx.model).catch(e => console.warn('Receipt links', e));   // Finding #87
             ctx.a = analyze(ctx.model);
             setSearchData(ctx.model);
             setPipelineStatus(ctx.a.lastEasypos, ctx.a.now);

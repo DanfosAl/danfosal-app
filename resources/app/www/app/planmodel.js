@@ -33,7 +33,7 @@ export function unitsByMonth(m) {
         c[src] = (c[src] || 0) + 1; coverage.set(mk, c);
         (s.items || []).forEach(it => { if (!it.isService) add(pidOf(it), mk, Number(it.quantity) || 1); });
     });
-    m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status)).forEach(o => {
+    m.orders.filter(o => !['Returned', 'Cancelled'].includes(o.status) && !o.receiptSaleId && !o._receipt).forEach(o => {
         const t = orderTime(o); if (isNaN(t)) return;
         (o.items || []).forEach(it => add(pidOf(it), mkOf(t), Number(it.quantity) || 1));
     });

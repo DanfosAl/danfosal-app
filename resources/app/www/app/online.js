@@ -11,13 +11,15 @@
 // cancelled or returned. Older orders offer "Take from stock" instead of guessing.
 import { db, collection, doc, getDoc, setDoc, writeBatch, increment, updateDoc, deleteDoc } from './firebase.js';
 import { esc, eur, int, icon, plural, day, fold, money2, dateTime, toast, openDrawer, openModal } from './ui.js';
-import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs, realSerial
+import { DAY, WALKIN, orderTime, orderTotal, rankProducts, customerDirectory, toMs, realSerial, saleTime, shortInvoice, saleInvoiceNumber
 } from './data.js';
 import { warrantyDialog } from './warranty.js';
 import { orderChat, withPhones } from './igcustomers.js';
 import { orderChecks, agreedPrices } from './ordercheck.js';
 import { aliasFromCorrection, aliasKey, changedFields } from './iginsights.js';
 import { withCourier } from './courier.js';
+import { linkReceipt, unlinkReceipt, notSamePair } from './receiptlink.js';
+import { matchKind } from './orderreceipts.js';
 import { chatLink } from './followups.js';
 
 const r2 = n => Math.round(n * 100) / 100;
@@ -34,6 +36,21 @@ const itemsTotal = items => r2(items.reduce((a, i) => a + (Number(i.price) || 0)
 const productFor = (products, it) => (it.id && products.find(p => p._id === it.id)) || products.find(p => p.name === it.name) || null;
 
 const on = { filter: 'open', q: '', opened: false };
+
+// Orders that may also have an easyPOS receipt, where the receipt has no buyer name or the order
+// was already further along: the owner says whether it's the same sale (Finding #87).
+const receiptLabel = s => `${saleInvoiceNumber(s) ? 'receipt ' + shortInvoice(saleInvoiceNumber(s)) : 'a till sale'} of ${day(saleTime(s))}, €${money2(Number(s.total) || 0)}${s.clientName && !WALKIN.test(s.clientName) ? ', ' + s.clientName : ''}`;
+function maybePanel(list) {
+    if (!list.length) return '';
+    return `<div class="panel" id="on-maybe" style="border-color:#5a4320">
+        <div class="viz-head"><h2 class="panel-title">${icon('receipt_long')} Counted twice?</h2><span class="muted" style="font-size:12.5px">${plural(list.length, 'online order', 'online orders')} may also have an easyPOS receipt</span></div>
+        <div class="lines">${list.slice(0, 12).map((x, i) => `<div class="line" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:0"><b>${esc(who(x.order) || 'Order')} · ${esc(day(orderTime(x.order)))} · €${money2(orderTotal(x.order))}</b><span>${esc((x.order.items || []).map(it => it.name).join(', '))} – and ${esc(receiptLabel(x.sale))}</span></div>
+            <span style="display:flex;gap:6px;margin-left:auto"><button class="btn small primary" type="button" data-same="${i}">${icon('link')}Same sale</button>
+            <button class="btn small ghost" type="button" data-notsame="${i}">Not the same</button></span></div>`).join('')}</div>
+        <p class="chart-note">Same products and money, a day or two apart. If you rang the order through easyPOS, it’s one sale: “Same sale” counts it once, as an online sale.</p>
+    </div>`;
+}
 
 // Cash still with the courier (Finding #85): Shipped or Delivered, not Paid - oldest first.
 function courierPanel(c, now) {
@@ -69,7 +86,9 @@ export function renderOnline(ctx) {
     const month = new Date(ctx.a.now); month.setDate(1); month.setHours(0, 0, 0, 0);
     const thisMonth = orders.filter(o => orderTime(o) >= month.getTime() && !GIVES_BACK.has(o.status));
     const courier = withCourier(ctx.model.orders, ctx.a.now, { orderTime, orderTotal });
+    const maybe = ((ctx.model.receiptPairs || {}).suggestions || []);
     ctx.body.innerHTML = `
+        ${maybePanel(maybe)}
         ${courierPanel(courier, ctx.a.now)}
         ${since !== null && since > 30 ? `<div class="panel" style="padding:12px 16px;display:flex;gap:12px;align-items:center">${icon('info')}<span class="muted" style="flex:1">No online order has been recorded for ${plural(since, 'day', 'days')}. If Instagram sales are still happening, record them here with “New order” so they count in stock, customers and Insights.</span></div>` : ''}
         <div class="kpis">
@@ -96,12 +115,24 @@ export function renderOnline(ctx) {
                 <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((o.items || []).map(i => `${Number(i.quantity) > 1 ? i.quantity + ' × ' : ''}${i.name}`).join(', ') || o.productName || '–')}</td>
                 <td class="n">${eur(orderTotal(o), 2)}</td>
                 <td class="muted">${esc(sourceOf(o))}</td>
-                <td><span class="chip ${CHIP[o.status || 'Ordered'] ?? ''}">${esc(o.status || 'Ordered')}</span>${checkChip(o, orders)}</td></tr>`).join('')
+                <td><span class="chip ${CHIP[o.status || 'Ordered'] ?? ''}">${esc(o.status || 'Ordered')}</span>${checkChip(o, orders)}${o.receiptSaleId || o._receipt ? ` <span class="chip" title="Rung through easyPOS: counted once, with its receipt">${icon('receipt_long')}</span>` : ''}</td></tr>`).join('')
             || '<tr><td colspan="6" class="muted" style="padding:18px">No orders match.</td></tr>';
     };
     draw();
     ctx.body.querySelector('#on-q').addEventListener('input', e => { on.q = e.target.value; draw(); });
     ctx.body.querySelector('#on-f').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { on.filter = b.dataset.f; draw(); } });
+    const mp = ctx.body.querySelector('#on-maybe');
+    if (mp) mp.addEventListener('click', async e => {
+        const same = e.target.closest('[data-same]'), not = e.target.closest('[data-notsame]');
+        const x = maybe[Number((same || not || {}).dataset ? (same || not).dataset.same || (same || not).dataset.notsame : -1)];
+        if (!x) return;
+        (same || not).disabled = true;
+        try {
+            if (same) { await linkReceipt(ctx.model, x.order, x.sale); toast(`${who(x.order) || 'Order'} and its receipt now count once`); }
+            else { await notSamePair(x.order._id, x.sale._id); toast('Kept as two separate sales'); }
+            await ctx.reload();
+        } catch (err) { (same || not).disabled = false; toast(`Couldn't save: ${err.message}`, { bad: true }); }
+    });
     const cp = ctx.body.querySelector('#on-courier');
     if (cp) cp.addEventListener('click', async e => {
         const b = e.target.closest('[data-paid]'); if (!b) return;
@@ -137,6 +168,25 @@ async function learnFromCorrection(before, after, products) {
         await setDoc(doc(db, 'productAliases', aliasKey(a.text)), { text: a.text, productId: p._id, productName: p.name, source: 'correction', at: Date.now() });
         toast(`Learned: “${a.text.toLowerCase()}” means ${p.name}`);
     } catch (e) { console.warn('Word not learned', e); }
+}
+
+// The easyPOS receipt this order is on (counted once), or the receipts it could be (Finding #87).
+function receiptCandidates(o, m) {
+    return m.sales.filter(s => !s.isReturn && !s.onlineOrderId && !s._onlineOrder && matchKind({ ...o, status: o.status === 'Paid' ? 'Ordered' : o.status }, s, { orderTime, saleTime }))
+        .slice(0, 5);
+}
+function receiptBox(o, m) {
+    const sid = o.receiptSaleId || o._receipt;
+    if (sid) {
+        const s = m.sales.find(x => x._id === sid);
+        return `<section><h3>easyPOS receipt</h3><p style="margin:0">${icon('receipt_long')} ${s ? esc(receiptLabel(s)) : 'linked'} – counted once, as an online sale${o.receiptLinkedBy === 'strong' || o.receiptLinkedBy === 'exact' || o._receipt && !o.receiptSaleId ? ' (linked automatically)' : ''}.</p>
+            <button class="btn small ghost" type="button" id="od-unlink" style="margin-top:6px">${icon('link_off')}Not this receipt</button></section>`;
+    }
+    const c = receiptCandidates(o, m);
+    if (!c.length) return '';
+    return `<section><h3>easyPOS receipt</h3><p class="muted" style="margin:0 0 6px">If you rang this order through easyPOS, link its receipt so it counts once:</p>
+        <div class="lines">${c.map((s, i) => `<div class="line" style="display:flex;align-items:center;gap:8px"><div style="flex:1"><b>${esc(receiptLabel(s))}</b></div>
+            <button class="btn small" type="button" data-link="${i}">${icon('link')}This one</button></div>`).join('')}</div></section>`;
 }
 
 function checkBox(o, orders) {
@@ -185,6 +235,7 @@ export function orderDetail(ctx, o) {
             <section><h3>Customer</h3><p style="margin:0">${esc(who(o) || '–')}${phoneOf(o) ? ` · <a href="tel:${esc(phoneOf(o).replace(/\s/g, ''))}">${esc(phoneOf(o))}</a>` : ''}</p>
                 <p class="empty" style="margin:2px 0 0">${esc(addressOf(o) || 'No address')}</p></section>
             ${checkBox(o, ctx.model.orders)}
+            ${receiptBox(o, ctx.model)}
             ${o.instagramId ? `<section id="od-chat"><h3>From the Instagram chat</h3><p class="empty">Reading the chat…</p></section>` : ''}
             <section><h3>Items</h3><div class="lines">${(o.items || []).map(i => { const p = productFor(products, i); return `
                 <div class="line"><div><b>${Number(i.quantity) > 1 ? int(i.quantity) + ' × ' : ''}${esc(i.name)}</b><span>${p ? `${int(Number(p.stock) || 0)} in stock` : 'not in the catalogue'}${realSerial(i.serialNumber) ? ' · S/N ' + esc(realSerial(i.serialNumber)) : ''}</span></div><span class="n">€${money2((Number(i.price) || 0) * (Number(i.quantity) || 1))}</span></div>`; }).join('') || '<p class="empty">No items recorded.</p>'}</div></section>
@@ -197,6 +248,17 @@ export function orderDetail(ctx, o) {
     });
 
     if (o.instagramId) showOrderChat(el.querySelector('#od-chat'), o);
+    const unlink = el.querySelector('#od-unlink');
+    if (unlink) unlink.addEventListener('click', async () => {
+        try { await unlinkReceipt(o, o.receiptSaleId || o._receipt); toast('Unlinked – the order and the receipt count as two sales again'); close(); await ctx.reload(); }
+        catch (x) { toast(`Couldn't save: ${x.message}`, { bad: true }); }
+    });
+    const cands = (o.receiptSaleId || o._receipt) ? [] : receiptCandidates(o, ctx.model);
+    el.querySelectorAll('[data-link]').forEach(b => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await linkReceipt(ctx.model, o, cands[Number(b.dataset.link)]); toast('Linked – counted once, as an online sale'); close(); await ctx.reload(); }
+        catch (x) { b.disabled = false; toast(`Couldn't save: ${x.message}`, { bad: true }); }
+    }));
 
     el.querySelector('#od-save').addEventListener('click', async () => {
         const next = el.querySelector('#od-status').value;

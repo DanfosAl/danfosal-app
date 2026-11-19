@@ -37,11 +37,13 @@ function allRecords(model) {
             kind: 'sale', id: s._id, rec: s, t: saleTime(s), src, total: Number(s.total) || 0,
             doc: inv ? `${s.type === 'easypos' ? 'Receipt' : 'Invoice'} ${shortInvoice(inv)}` : src === 'Till' ? 'Till sale' : src === 'Import' ? 'Imported sale' : 'Sale',
             who: s.clientName || s.customerName || '', items: s.items || [],
-            margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn, prepay: prepayChip(s)
+            margin: cost === null || !net ? null : (net - cost) / net, isReturn: !!s.isReturn, prepay: prepayChip(s),
+            online: !!(s.onlineOrderId || s._onlineOrder)
         };
     });
     // A cancelled or returned order sold nothing: it stays under Online orders, not here.
-    const orders = model.orders.filter(soldOrder).map(o => ({
+    // An order rung through easyPOS shows once: as its receipt, marked Online order (Finding #87).
+    const orders = model.orders.filter(o => soldOrder(o) && !o.receiptSaleId && !o._receipt).map(o => ({
         kind: 'order', id: o._id, rec: o, t: orderTime(o), src: 'Online', total: orderTotal(o),
         doc: 'Online order', who: o.clientName || o.customerName || '', items: o.items || [], margin: null, status: o.status
     }));
@@ -108,7 +110,7 @@ function renderSales(ctx) {
             const more = r.items.length > 1 ? ` +${r.items.length - 1}` : '';
             return `<tr data-kind="${r.kind}" data-id="${esc(r.id)}" tabindex="0">
                 <td class="muted" style="white-space:nowrap">${esc(dateTime(r.t))}</td>
-                <td>${esc(r.doc)}${r.prepay || ''}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}${r.kind === 'refund' ? ' <span class="chip bad">money back</span>' : ''}</td>
+                <td>${esc(r.doc)}${r.prepay || ''}${r.online ? ' <span class="chip vio" title="The receipt of an online order - counted once, as an online sale">online order</span>' : ''}${r.isReturn ? ' <span class="chip bad">return</span>' : ''}${r.kind === 'refund' ? ' <span class="chip bad">money back</span>' : ''}</td>
                 <td>${r.who && !WALKIN.test(r.who) ? esc(r.who) : '<span class="muted">walk-in</span>'}</td>
                 <td class="muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${first ? esc(`${Number(first.quantity) || 1} × ${first.name || '?'}`) + more : '–'}</td>
                 <td><span class="chip">${esc(r.src)}</span></td>

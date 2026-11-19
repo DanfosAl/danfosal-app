@@ -895,6 +895,45 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 
 ---
 
+#### **87. AN ONLINE ORDER AND ITS EASYPOS RECEIPT ARE ONE SALE: COUNTED ONCE, AS ONLINE; PRINTING THE RECEIPT MOVES THE ORDER TO PROCESSING** — 🟡 **BUILT AND TESTED (November 19, 2026), NOT RELEASED YET**
+
+The owner (19 Nov 2026): "when I have the online order I usually make the sale through easyPOS and a
+receipt is printed - make sure the app registers it as an online sale and doesn't count it double;
+and when I print the receipt the order should change to preparing or ready to ship."
+
+- **What was wrong:** an online order and its easyPOS receipt were both counted - revenue, units
+  sold (Stock › Next order), customer totals, the plan, Money, Sell › All sales - and stock twice
+  when the order had taken it too. On the real data: 15 pairs where the receipt carries the order's
+  customer name (counted twice until now); 9 more likely pairs where the receipt has no buyer name.
+- **Pairing** (`www/app/orderreceipts.js`, pure): *strong* - the receipt is in the order's customer
+  name (or phone), every product of the order is on it and the money agrees (€2 / 3%), a day before
+  to 10 days after; *exact* - the order is still open, a receipt after it (within 7 days) with the very
+  same products and quantities and the same money within €1, and no other candidate on either side.
+  Both are linked automatically; anything less clear (e.g. the order already shipped, the receipt
+  nameless) goes on a "Counted twice?" list with **Same sale** / **Not the same**
+  (`settings/orderReceipts.notSame`) - only for orders of the last 30 days (`SUGGEST_DAYS`): the
+  owner didn't want the 9 old ones ("it is in the past and I don't care anymore"). They stay as
+  they were; a pair can still be linked by hand from the order (easyPOS receipt › This one).
+- **Linking** (`www/app/receiptlink.js`, one Firestore transaction per pair, so two devices can't do
+  it twice) writes `onlineOrders.receiptSaleId / receiptLinkedAt / receiptLinkedBy` and
+  `storeSales.onlineOrderId`; an order still New Lead / Ordered / Pending moves to **Processing**
+  with "easyPOS receipt printed" in its history; if the order had taken stock and the receipt's lines
+  are linked to the same products (the till bridge took stock for them), that stock is given back
+  once. It runs whenever Danfosal loads its data - Today (every 5 minutes while open) and every
+  other page - so the status follows the receipt within minutes, not at the instant of printing.
+- **Counting** (`data.js countedOrder`): a linked order is no longer a sale of its own in the ledger,
+  customers, the analysis, the dashboard, the plan, Money and All sales; its receipt counts, marked
+  online (the monthly figures put it in online money). Sell › All sales marks the receipt "online
+  order"; Online orders shows a receipt mark, the receipt in the order (Not this receipt / or the
+  receipts it could be, This one), and the "Counted twice?" list; Today mentions that list.
+- **Checked:** `tests/orderreceipts.test.mjs` (6, made-up data) - strong, exact, someone else's
+  receipt, before the order, two open orders for one receipt, written links kept, Not the same,
+  Processing, stock given back only for product-linked receipt lines, suggestions only for the last
+  30 days; 62 tests in all. A read-only dry run on the real data (15 strong, 0 open, 0 with stock
+  taken twice, 0 suggestions after the 30-day limit). In the
+  browser with a stand-in database: the list, the receipt in the drawer, the automatic writes (the
+  open order to Processing, the paid one only linked) and Same sale.
+
 #### **86. CUSTOMERS › PHONE NUMBERS: THE NUMBER A CUSTOMER TYPED ON INSTAGRAM, ADDED IN ONE CLICK** — ✅ **LIVE (November 19, 2026, version 1.4.11: GitHub release v1.4.11, Hosting, shop PC installed, HQ refreshed)**
 
 Only 18 of 166 customer profiles had a phone (18 Nov 2026); 375 customers who bought something have

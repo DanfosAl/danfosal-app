@@ -89,6 +89,9 @@ export function needsYou(a) {
             why: `The bot recorded ${a.botMissing.length === 1 ? 'one' : a.botMissing.length} with money on ${a.botMissing.length === 1 ? 'it' : 'them'} – the latest ${day(top.t)}, €${money2(top.revenue)}, ${plural(top.items, 'item', 'items')} – and no order was ever created here. Add it from the chat, or mark it as nothing to do.`,
             action: ['Open Instagram', 'sell.html#leads'] });
     }
+    // Online orders that may also have an easyPOS receipt (Finding #87).
+    if (a.receiptMaybe && a.receiptMaybe.length) items.push({ sev: 'info', title: `${plural(a.receiptMaybe.length, 'online order may', 'online orders may')} also have an easyPOS receipt`,
+        why: 'Same products and money a day or two apart. If it’s the same sale, say so in Online orders and it counts once.', action: ['Check them', 'sell.html#online'] });
     // Cash the courier still holds: shipped or delivered, not marked paid (Finding #85).
     if (a.courier && a.courier.list.length && a.courier.list[0].days >= 3) {
         const c = a.courier, oldest = c.list[0];

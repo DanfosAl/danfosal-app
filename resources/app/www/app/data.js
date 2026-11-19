@@ -5,6 +5,7 @@
 // New screens read these definitions instead of inventing their own. The rules match the
 // Phase 0 data fix (GOLDEN_MANIFEST Finding #25).
 import { db, ready, collection, getDocs, doc, getDoc, query, where } from './firebase.js';
+import { pairOrdersWithReceipts } from './orderreceipts.js';
 
 export const VAT = 1.2;                  // Albanian standard VAT, 20%
 export const RESTOCK_DAYS = 42;          // a Kärcher restock takes ~6 weeks (owner, 21 Sep 2026)
@@ -19,6 +20,12 @@ const CLOSED_ORDER = new Set(['Paid', 'Returned', 'Cancelled']);
 // An online order that was cancelled or sent back sold nothing: it stays in Online orders, with
 // its status, but no total, count or "bought" list takes it.
 export const soldOrder = o => o.status !== 'Returned' && o.status !== 'Cancelled';
+// An online order rung through easyPOS has a receipt that already counts as the sale (Finding #87):
+// that order is not counted again - revenue, units sold, customers, the plan. The receipt counts,
+// as an online sale. receiptSaleId is the written link; _receipt one found at this load.
+export const countedOrder = o => soldOrder(o) && !o.receiptSaleId && !o._receipt;
+export const receiptOf = o => o.receiptSaleId || o._receipt || null;
+export const onlineReceipt = s => !!(s && (s.onlineOrderId || s._onlineOrder));
 
 // ------------------------------------------------------------------ time and names
 
@@ -269,9 +276,9 @@ export function salesLedger(m) {
             lines.push({ t, net: nets[i], cost: c === null ? null : c * qty, qty, pid, name, family: productFamily(name, it), src,
                 isService: !!it.isService, pre: !!(it.isPrepayment || it.isPrepaymentDeduction), saleId: s._id });
         });
-        sales.push({ t, net: netRevenue(s), cost: costed ? cost : null, src, easypos: s.type === 'easypos', s });
+        sales.push({ t, net: netRevenue(s), cost: costed ? cost : null, src, easypos: s.type === 'easypos', online: onlineReceipt(s), s });
     });
-    m.orders.filter(soldOrder).forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT, o }); });
+    m.orders.filter(countedOrder).forEach(o => { const t = orderTime(o); if (!isNaN(t)) orders.push({ t, net: orderTotal(o) / VAT, o }); });
     const byName = productNameIndex(m.products);
     (m.returns || []).forEach(r => {
         const t = returnTime(r); if (isNaN(t)) return;
@@ -326,9 +333,10 @@ export async function loadAll() {
     // Owner decisions kept in settings: receipt names that are services (Stock > Link receipt
     // items), lookalike customer names confirmed to be different people (Customers > Review), and
     // how prices are suggested (the profit asked for, and suggestions kept as they were).
-    let receiptServices = [], notSameCustomers = [], monthlyTarget = MONTHLY_TARGET_DEFAULT, pricing = {};
+    let receiptServices = [], notSameCustomers = [], monthlyTarget = MONTHLY_TARGET_DEFAULT, pricing = {}, orderReceiptNotSame = [];
     try {
-        const [s, r, g, pr] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview')), getDoc(doc(db, 'settings', 'targets')), getDoc(doc(db, 'settings', 'pricing'))]);
+        const [s, r, g, pr, orc] = await Promise.all([getDoc(doc(db, 'settings', 'receiptNames')), getDoc(doc(db, 'settings', 'customerReview')), getDoc(doc(db, 'settings', 'targets')), getDoc(doc(db, 'settings', 'pricing')), getDoc(doc(db, 'settings', 'orderReceipts'))]);
+        if (orc.exists()) orderReceiptNotSame = orc.data().notSame || [];
         if (s.exists()) receiptServices = s.data().services || [];
         if (r.exists()) notSameCustomers = r.data().notSame || [];
         if (g.exists() && Number(g.data().monthlyRevenueNet) > 0) monthlyTarget = Number(g.data().monthlyRevenueNet);
@@ -343,7 +351,11 @@ export async function loadAll() {
         if (status.exists()) websiteSync = status.data();
     } catch { /* no website sync yet */ }
     const debtors = debtorDocs.docs.map(d => ({ _id: d.id, ...d.data() }));
-    return { products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, monthlyTarget, pricing, websiteProposals, websiteSync, loadedAt: Date.now() };
+    // Online orders and their easyPOS receipts: one sale, counted once (Finding #87).
+    const receiptPairs = pairOrdersWithReceipts(orders, sales, { notSame: new Set(orderReceiptNotSame), orderTime, saleTime });
+    const salesById = new Map(sales.map(s => [s._id, s]));
+    orders.forEach(o => { const p = receiptPairs.pairs.get(o._id); if (!p) return; o._receipt = p.saleId; const s = salesById.get(p.saleId); if (s) s._onlineOrder = o._id; });
+    return { receiptPairs, products, sales, orders, customers, tickets, warranties, debts, debtors, corrections, expenses, creditors, predictions, orderLines, returns, recurring, botOrders, receiptServices, notSameCustomers, monthlyTarget, pricing, websiteProposals, websiteSync, loadedAt: Date.now() };
 }
 
 // ---- costs that repeat every month (rent, salaries, the accountant)
@@ -432,7 +444,7 @@ export function customerDirectory(m) {
     m.debts.forEach(d => { const e = entryFor(d.debtor); if (e) e.debts.push(d); });
     (m.returns || []).forEach(r => { const e = entryFor(r.customerName); if (e) e.refunds.push(r); });
     entries.forEach(e => {
-        const sold = e.orders.filter(soldOrder);
+        const sold = e.orders.filter(countedOrder);
         const times = e.sales.map(saleTime).concat(sold.map(orderTime)).filter(t => !isNaN(t));
         const bought = e.sales.filter(s => !s.isReturn);
         // Money handed back is money this customer did not spend. Revenue, profit and the plan
@@ -518,7 +530,7 @@ export function analyze(m, now = Date.now()) {
     const productById = new Map(m.products.map(p => [p._id, p]));
     const knownIds = new Set(productById.keys());
     const sales = m.sales.filter(s => !s.isReturn);
-    const orders = m.orders.filter(soldOrder);
+    const orders = m.orders.filter(countedOrder);
     const refunds = (m.returns || []).map(r => ({ ...r, _t: returnTime(r) })).filter(r => !isNaN(r._t));
     const byName = productNameIndex(m.products);
 

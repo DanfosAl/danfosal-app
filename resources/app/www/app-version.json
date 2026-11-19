@@ -1,11 +1,11 @@
 {
-  "version": "1.4.6",
+  "version": "1.4.7",
   "date": "2026-11-19",
-  "notes": "Sell › Instagram: mark an account private (family, friends) - the bot ignores it for good until you press Not private; a Private chats list shows every ignored account and who decided.",
+  "notes": "Sell › Instagram: Back in stock (people who asked while it was out of stock, with a ready message), Offer idle stock, Asked for (incl. not in your catalogue), Where chats come from, Answer speed. Stock › Next order counts Instagram questions for every product.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/Danfosal-App-1.4.6.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/danfosal-www-1.4.6.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.6/Danfosal-App-Setup-1.4.6.exe",
-  "bundleSha256": "18eb8eed7247f00a53955033ffbcabdb2930ef8ed484a4005661745b64e944c9",
-  "bundleBytes": 397205
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/Danfosal-App-1.4.7.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/danfosal-www-1.4.7.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.7/Danfosal-App-Setup-1.4.7.exe",
+  "bundleSha256": "c2044a13217c41fb30831ba623aaf2ec8c48fc296cb98e7211d0419443d328b6",
+  "bundleBytes": 404961
 }

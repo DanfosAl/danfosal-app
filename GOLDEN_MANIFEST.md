@@ -85,8 +85,9 @@ in stock, 12,577 units; 0 negative) · `onlineOrders` 311 (Paid 307, Returned 3,
    exists but is not scheduled; `C:\Danfosal\Backups` holds only fix backups. Settings › Tools ›
    "Save everything" (JSON) is the only copy, and it is manual. Blaze now allows
    `firestore:export`.
-2. **Two security items are open** (an external endpoint, a credential in a script); access to the
-   data itself is closed since 9 Oct (Finding #64: owner-only sign-in and rules). This repository is
+2. **One security item is open** (an external endpoint); the credential in a script was removed on
+   20 Nov 2026 (Finding #88). Access to the data itself is closed since 9 Oct (Finding #64: owner-only
+   sign-in and rules). This repository is
    public, so their details are kept off it, in `SECURITY-OPEN.local.md` on the shop PC
    (`*.local.md` is git-ignored).
 3. **Costs:** 28 products have no cost price and 4 no code; 43 sales have a line of unknown cost
@@ -568,15 +569,15 @@ Then re-verify with `schtasks /query` that it shows up before trusting this find
 
 ---
 
-#### **9. REPO CLUTTER: ONE-OFF SCRIPTS, STRAY APK, HARDCODED KEYSTORE PASSWORD** — 🟢 **OPEN, not fixed (low priority)**
+#### **9. REPO CLUTTER: ONE-OFF SCRIPTS, STRAY APK, HARDCODED KEYSTORE PASSWORD** — 🟢 **OPEN, not fixed (low priority); the keystore password part was fixed 20 Nov 2026 (Finding #88)**
 **Found Aug 24, 2026:**
 - ~27 customer-named one-off maintenance scripts live permanently in `resources/app/` root (`fix-<customer>-order.js`, `cleanup-<customer>.js`, `check-return-details.js`, etc.) — not shipped in builds, but clutter the working tree.
 - A stray duplicate APK sits in the repo root (`Danfosal-App-v1.4.0-DATA-FIXED-2026-02-08_1921 - Copy.apk`, ~3.5MB, untracked).
-- `sign-android-app.ps1` hardcodes the Android release keystore password as `"123456"`.
+- `sign-android-app.ps1` hardcoded the Android release keystore password. **Removed 20 Nov 2026 (Finding #88):** the script now asks for it.
 
 **Assessment:** None of this is dangerous for a single-user internal app, but it's worth a cleanup pass eventually — mainly so future AI-agent sessions working in this repo don't get confused by dead scripts or accidentally touch the wrong file.
 
-**Recommendation:** Move one-off scripts to a `scripts/adhoc/` subfolder or delete once done; remove the stray APK; leave the keystore password alone unless re-generating the keystore (changing it now would just mean remembering a new password for no real security gain on a personal device).
+**Recommendation:** Move one-off scripts to a `scripts/adhoc/` subfolder or delete once done; remove the stray APK; leave the keystore password alone unless re-generating the keystore (changing it now would just mean remembering a new password for no real security gain on a personal device). *Superseded 20 Nov 2026: GitGuardian flagged the password as public - see Finding #88.*
 
 ---
 
@@ -895,6 +896,46 @@ Packaging them was considered and rejected: the bridge needs `serviceAccountKey.
 **Note:** `easypos-ocr-bridge.js` is a separate pipeline and genuinely needs OCR, because the print-capture service hands it PNG images of printed receipts. Its own matcher already carries the equivalent digit guard (Finding #21).
 
 ---
+
+#### **88. THE ANDROID KEYSTORE PASSWORD WAS PUBLIC: REMOVED FROM THE REPOSITORY** — ✅ **FIXED IN THE REPOSITORY (November 20, 2026); the password itself left as it is (owner's decision, low risk)**
+
+GitGuardian e-mailed the owner on 19 Nov 2026 ("Keystore Password exposed on GitHub",
+DanfosAl/danfosal-app). Checked on 20 Nov:
+- **What was public:** the release-keystore password, hard-coded in
+  `resources/app/scripts/android/sign-android-app.ps1` since 8 Jan 2026, and printed three times in
+  this manifest (Finding #9 and the old APK signing guide). Yesterday's pushes did not add it; they
+  changed this manifest, which is probably when GitGuardian read it.
+- **What was not:** the keystores themselves (`resources/app/my-release-key.keystore`,
+  `danfosal-app.keystore`, both PKCS12, Nov 2025) were never committed (`*.keystore` is git-ignored),
+  so the password alone opens nothing. The APKs in use since Oct 2026 are signed with the debug key
+  (`C:\Users\User\.android\debug.keystore`, backed up in `E:\Danfos Backups\Android signing key`),
+  not with this release key.
+- **The rest of the history was scanned too** (private keys, service-account keys, GitHub/Meta/AWS/
+  OpenAI-style tokens, Google API keys): `serviceAccountKey.example.json` is only a placeholder; the
+  two real server keys never appear; the only Google keys are the Firebase web config of
+  `danfosal-app`, which is public by design (every web app ships it; access is closed by the
+  owner-only rules, Finding #64).
+- **Fixed:** the script no longer contains the password. It asks for it (or reads
+  `$env:DANFOSAL_KEYSTORE_PASS`) and passes it to keytool/apksigner through that variable, never on a
+  command line; the manifest no longer prints it.
+- **Not done on purpose: rewriting git history.** The old password stays in old commits. It has been
+  public for ten months and GitGuardian already has it, so removing it from history would not make
+  it secret again, and rewriting would change every commit and the release tags the updater relies
+  on. Only changing the password would make the old one worthless (below).
+- **The password itself was left unchanged (owner's decision, 20 Nov 2026):** it only opens the two
+  keystore files, which never left the shop PC, and the APKs in use are signed with another key -
+  whoever could copy those files would already be inside the PC. **If the release key is ever used**
+  (for example for the Play Store), change the password first. The key itself stays the same, so
+  anything ever signed with it still updates; keytool asks for the current and the new password
+  itself, so neither is typed into a chat or a file:
+
+  ```powershell
+  & "$env:JAVA_HOME\bin\keytool.exe" -storepasswd -keystore "E:\DanfosalApp\resources\app\my-release-key.keystore"
+  ```
+
+  Then the same for `danfosal-app.keystore` (if the old password doesn't open it, it already had a
+  different one and needs nothing). Keep the new password in a password manager: without it the
+  release key can't be used. If the old password was ever used anywhere else, change it there too.
 
 #### **87. AN ONLINE ORDER AND ITS EASYPOS RECEIPT ARE ONE SALE: COUNTED ONCE, AS ONLINE; PRINTING THE RECEIPT MOVES THE ORDER TO PROCESSING** — ✅ **LIVE (November 19, 2026, version 1.4.12: GitHub release v1.4.12, Hosting, shop PC installed, HQ refreshed)**
 
@@ -4574,8 +4615,8 @@ $SignedApk = "android\app\build\outputs\apk\release\app-release-signed.apk"
 & "android-sdk\build-tools\34.0.0\apksigner.bat" sign `
     --ks my-release-key.keystore `
     --ks-key-alias "my-key-alias" `
-    --ks-pass "pass:123456" `
-    --key-pass "pass:123456" `
+    --ks-pass env:DANFOSAL_KEYSTORE_PASS `   # the password is never written down here (Finding #88)
+    --key-pass env:DANFOSAL_KEYSTORE_PASS `
     --out $SignedApk `
     $AlignedApk
 
@@ -4616,7 +4657,7 @@ android {
 - `versionCode` MUST increment for each update (or installation fails)
 - `versionName` is display version (e.g., "1.4.0")
 - APK must be signed with same keystore for updates to work
-- Keystore password: "123456" (stored in keystore file)
+- Keystore password: not written in this repository (it is public). The owner keeps it; `scripts/android/sign-android-app.ps1` asks for it (Finding #88).
 
 ---
 

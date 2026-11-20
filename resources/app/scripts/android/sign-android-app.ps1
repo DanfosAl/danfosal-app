@@ -19,7 +19,15 @@ $AlignedApk = "$AppDir\android\app\build\outputs\apk\release\app-release-aligned
 $SignedApk = "$AppDir\android\app\build\outputs\apk\release\app-release-signed.apk"
 $Keystore = "$AppDir\my-release-key.keystore"
 $KeystoreAlias = "my-key-alias"
-$KeystorePass = "123456"
+# The keystore password is never written in this file: the repository is public, and the old
+# hard-coded one was flagged by GitGuardian on 19 Nov 2026 (GOLDEN_MANIFEST.md, Finding #88).
+# The script asks for it, or takes it from $env:DANFOSAL_KEYSTORE_PASS if that is already set in
+# this window. It is handed to keytool/apksigner through that variable, never on a command line.
+if (-not $env:DANFOSAL_KEYSTORE_PASS) {
+    $secure = Read-Host "Password of $Keystore" -AsSecureString
+    $env:DANFOSAL_KEYSTORE_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+}
+if (-not $env:DANFOSAL_KEYSTORE_PASS) { throw "No keystore password given." }
 
 # Set JAVA_HOME for apksigner
 $env:JAVA_HOME = $JavaHome
@@ -28,7 +36,7 @@ $env:Path = "$JavaHome\bin;$env:Path"
 Write-Host "Checking for keystore..."
 if (-not (Test-Path $Keystore)) {
     Write-Host "Generating new keystore..."
-    & $Keytool -genkey -v -keystore $Keystore -alias $KeystoreAlias -keyalg RSA -keysize 2048 -validity 10000 -storepass $KeystorePass -keypass $KeystorePass -dname "CN=Danfosal, OU=App, O=Danfosal, L=Unknown, S=Unknown, C=Unknown"
+    & $Keytool -genkey -v -keystore $Keystore -alias $KeystoreAlias -keyalg RSA -keysize 2048 -validity 10000 -storepass:env DANFOSAL_KEYSTORE_PASS -keypass:env DANFOSAL_KEYSTORE_PASS -dname "CN=Danfosal, OU=App, O=Danfosal, L=Unknown, S=Unknown, C=Unknown"
 } else {
     Write-Host "Keystore already exists."
 }
@@ -38,9 +46,10 @@ if (Test-Path $AlignedApk) { Remove-Item $AlignedApk }
 & $Zipalign -v -p 4 $UnsignedApk $AlignedApk
 
 Write-Host "Signing APK..."
-& $ApkSigner sign --ks $Keystore --ks-key-alias $KeystoreAlias --ks-pass pass:$KeystorePass --key-pass pass:$KeystorePass --out $SignedApk $AlignedApk
+& $ApkSigner sign --ks $Keystore --ks-key-alias $KeystoreAlias --ks-pass env:DANFOSAL_KEYSTORE_PASS --key-pass env:DANFOSAL_KEYSTORE_PASS --out $SignedApk $AlignedApk
 
 Write-Host "--------------------------------------------------"
+Remove-Item Env:DANFOSAL_KEYSTORE_PASS -ErrorAction SilentlyContinue
 Write-Host "APK Signed Successfully!"
 Write-Host "Signed APK location: $SignedApk"
 Write-Host "Transfer this file to your phone and install it."

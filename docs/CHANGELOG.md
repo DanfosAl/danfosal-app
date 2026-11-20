@@ -6,6 +6,14 @@
 
 ---
 
+## [Unreleased] - 2026-11-20 - Instagram questions recognise "BD 35/15" and taught words; the bot warning names OpenAI
+
+### Fixed
+- Sell › Instagram › Asked about a product: a question showed "not recognised" when the catalogue glues a variant letter to the size ("BD 35/15" vs "BD 35/15C"), and words taught with "This means…" were not used in that table (they were in Asked for)
+- Today's Instagram bot warning said "Google AI Studio"; the bot reads with OpenAI since 20 Nov 2026, so it now names the provider of the failing key, and a key that stopped working says where to put a new one (Render › Environment)
+
+---
+
 ## [Released] - 2026-11-19 - An online order and its easyPOS receipt count once; printing the receipt moves the order to Processing (version 1.4.12)
 
 Full details are in GOLDEN_MANIFEST.md, Finding #87.

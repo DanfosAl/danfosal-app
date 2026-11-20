@@ -91,6 +91,14 @@ test('7. the bot health warning', () => {
     const credit = botHealth({ lastAiOkAt: NOW - 5 * D, lastAiError: { at: NOW - D, message: 'ResourceExhausted: 429 Your prepayment credits are depleted' } }, NOW);
     assert.equal(credit.sev, 'crit');
     assert.match(credit.why, /credit/);
+    assert.match(credit.why, /Google AI Studio/, 'an old error without a provider was Gemini');
+    const openaiCredit = botHealth({ lastAiOkAt: NOW - 5 * D, lastAiError: { at: NOW - D, provider: 'OpenAI', message: "OpenAI RateLimitError: Error code: 429 - insufficient_quota" } }, NOW);
+    assert.match(openaiCredit.why, /OpenAI key .*platform\.openai\.com/);
+    assert.doesNotMatch(openaiCredit.why, /Google/);
+    const deadKey = botHealth({ lastAiOkAt: NOW - 5 * D, lastAiError: { at: NOW - D, provider: 'OpenAI', message: 'OpenAI AuthenticationError: Error code: 401 - invalid_api_key' } }, NOW);
+    assert.match(deadKey.why, /OpenAI key doesn’t work any more.*OPENAI_API_KEY/);
+    const deadGemini = botHealth({ lastAiOkAt: NOW - 5 * D, lastAiError: { at: NOW - D, message: 'Unauthenticated: 401 The bound service account is deleted or disabled.' } }, NOW);
+    assert.match(deadGemini.why, /Gemini key .*GEMINI_API_KEY/);
     assert.equal(botHealth({ lastAiOkAt: NOW, lastAiError: { at: NOW - D, message: 'x' } }, NOW), null, 'a later good read clears it');
     assert.equal(botHealth({ lastCustomerMessageAt: NOW - 4 * D }, NOW).sev, 'warn');
 });

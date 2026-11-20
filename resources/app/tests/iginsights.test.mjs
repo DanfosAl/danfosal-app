@@ -3,7 +3,7 @@
 // Every chat, account, product and number below is made up. This repository is public.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { allAsks, backInStock, idleOffers, askedReport, askedCounts, sourcesReport, answerSpeed, modelOf, isShopAccount, matchAsked, buildIndex } from '../www/app/iginsights.js';
+import { allAsks, backInStock, idleOffers, askedReport, askedCounts, sourcesReport, answerSpeed, modelOf, isShopAccount, matchAsked, matchQuestion, buildIndex, productKeys, aliasMap } from '../www/app/iginsights.js';
 import { slimChat } from '../www/app/followups.js';
 
 const NOW = new Date(2026, 10, 19, 12).getTime();
@@ -23,6 +23,23 @@ test('model numbers and the shop account', () => {
     assert.ok(isShopAccount('17841400000000000'));
     assert.ok(!isShopAccount('1990000000000001'));
     assert.deepEqual(matchAsked('a e keni sc3?', buildIndex(products)).map(p => p._id), ['sc3']);
+});
+
+test('a variant letter glued to the size: "BD 35/15" finds BD 35/15C (20 Nov 2026)', () => {
+    const cat = [{ _id: 'bd', name: 'BD 35/15C', stock: 6 }, { _id: 'ph', name: 'Pad per 35/15', stock: 5 }, { _id: 'rm', name: 'RM 553 5L uNIVERSAL', stock: 1 }];
+    assert.deepEqual(matchAsked('BD 35/15', buildIndex(cat)).map(p => p._id), ['bd']);
+    assert.deepEqual(matchAsked('bd 35/15c', buildIndex(cat)).map(p => p._id), ['bd']);
+    assert.ok(productKeys(cat[0]).includes('bd3515c'), 'the whole name still matches');
+    assert.ok(!productKeys(cat[2]).includes('rm5535'), 'a unit (5L) is not a variant letter');
+});
+
+test('a logged question uses the words the owner taught, then model numbers', () => {
+    const cat = [...products, { _id: 'bd', name: 'BD 35/15C', stock: 6 }];
+    const byId = new Map(cat.map(p => [p._id, p]));
+    const taught = aliasMap([{ text: 'BD 35', productId: 'bd' }, { text: 'fshese e vogel', productId: 'wd3' }]);
+    assert.deepEqual(matchQuestion('BD 35/20', buildIndex(cat), taught, byId).map(p => p._id), ['bd'], 'taught by its model');
+    assert.deepEqual(matchQuestion('fshese e vogel, sc3', buildIndex(cat), taught, byId).map(p => p._id), ['wd3', 'sc3']);
+    assert.deepEqual(matchQuestion('fshese e vogel', buildIndex(cat), new Map(), byId), [], 'nothing taught, nothing matched');
 });
 
 test('asks from the bot and the old log, private chats and the shop account left out, no double counting', () => {

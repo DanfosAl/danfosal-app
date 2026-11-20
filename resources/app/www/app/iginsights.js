@@ -31,8 +31,10 @@ export const isShopAccount = id => /^1784\d{13}$/.test(String(id || ''));
 
 // A product is "named" in a question when its model number reads inside the squashed text:
 // "sc3easyfix" contains "sc3". Only keys that mix letters and digits count.
+// A variant letter glued to the size reads as its own word: "BD 35/15C" is also "BD 35/15", which
+// is how people write it (20 Nov 2026). Only after "35/15"-style numbers, so "5L" and "230V" stay.
 export function productKeys(p) {
-    const words = String(p.name || '').split(/\s+/).filter(Boolean);
+    const words = String(p.name || '').replace(/(\d\/\d+)([a-z])(?![a-z0-9])/gi, '$1 $2').split(/\s+/).filter(Boolean);
     const keys = new Set();
     const ok = k => k.length >= 3 && /\d/.test(k) && /[a-z]/.test(k);
     for (let i = 0; i < words.length; i++) {
@@ -67,6 +69,19 @@ export function matchAsked(text, index) {
 // Learned words: productAliases docs [{text, productId}] -> Map(squash(text) -> productId).
 export const aliasKey = text => squash(text).slice(0, 120);
 export const aliasMap = (docs = []) => new Map(docs.filter(a => a && a.text && a.productId).map(a => [aliasKey(a.text), a.productId]));
+
+// The catalogue products a logged question names, up to 3: a word the owner taught first ("BD 35"
+// = BD 35/15C, taught in Asked for), then model numbers. The same rule allAsks uses for the log.
+export function matchQuestion(text, index, aliases = new Map(), byId = new Map()) {
+    const out = [];
+    for (const part of String(text || '').split(/[,;]/)) {
+        const t = part.trim();
+        if (!squash(t)) continue;
+        const p = byId.get(aliases.get(aliasKey(t)) || aliases.get(aliasKey(modelOf(t))));
+        if (p && !out.includes(p)) out.push(p);
+    }
+    return [...out, ...matchAsked(text, index).filter(p => !out.includes(p))].slice(0, 3);
+}
 
 // Correcting a bot order teaches a word: when exactly one item the bot couldn't match (no id) was
 // replaced by exactly one catalogue product. -> {text, productId} or null.
@@ -295,16 +310,23 @@ export function postIdeas({ backIn = [], asked = [], trend = [], unsold = [] } =
 
 // ---------------------------------------------------------------- 7. the bot's health
 
-// status = settings/instagramBot {lastWebhookAt, lastCustomerMessageAt, lastAiOkAt, lastAiError}.
+// status = settings/instagramBot {lastWebhookAt, lastCustomerMessageAt, lastAiOkAt, lastAiError {at, provider, message}}.
 // -> {sev, title, why} or null. Quiet = no customer message for 3 days (it usually gets about one a day).
+// The bot reads with OpenAI since 20 Nov 2026 (Gemini before; older errors carry no provider).
 export function botHealth(status, now = Date.now(), { quietDays = 3 } = {}) {
     if (!status) return null;
     const err = status.lastAiError || null;
     if (err && err.at && err.at > (status.lastAiOkAt || 0)) {
-        const credit = /credit|prepay|billing|spending cap|quota|429|402/i.test(err.message || '');
+        const msg = String(err.message || '');
+        const provider = err.provider || (/openai/i.test(msg) ? 'OpenAI' : 'Gemini');
+        const openai = provider === 'OpenAI';
+        const credit = /credit|prepay|billing|spending cap|quota|429|402/i.test(msg);
+        const badKey = /401|unauthenticated|invalid_api_key|incorrect api key|api key not valid/i.test(msg);
+        const tail = 'until then messages arrive but no orders are written.';
         return { sev: 'crit', title: 'The Instagram bot can’t read orders',
-            why: credit ? 'Its AI key has run out of credit or hit its spending cap. Top it up in Google AI Studio; until then messages arrive but no orders are written.'
-                : `Its last attempt failed (${String(err.message || 'unknown error').slice(0, 120)}). Messages still arrive; orders aren't written until it reads again.` };
+            why: credit ? `Its ${provider} key has run out of credit or hit its spending cap. Top it up in ${openai ? 'OpenAI (platform.openai.com › Billing)' : 'Google AI Studio'}; ${tail}`
+                : badKey ? `Its ${provider} key doesn’t work any more. Put a working key in Render (instagram-chatbot › Environment › ${openai ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'}); ${tail}`
+                : `Its last attempt failed (${msg.slice(0, 120) || 'unknown error'}). Messages still arrive; orders aren't written until it reads again.` };
     }
     const last = Math.max(status.lastCustomerMessageAt || 0, 0);
     if (last && now - last > quietDays * DAY) {

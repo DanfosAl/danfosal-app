@@ -30,7 +30,7 @@ import { openNewOrder, orderDetail } from './online.js';
 import { slimChat, followUps, privateChats, privateFields, publicFields, doneFields, doneReasons, REASONS, who as chatWho } from './followups.js';
 import { findCustomer, customerSummary } from './igcustomers.js';
 import { followPanel, privatePanel } from './followpanel.js';
-import { buildIndex, matchAsked, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL, aliasMap, aliasKey, demandTrend, postIdeas, botReportCard } from './iginsights.js';
+import { buildIndex, matchQuestion, allAsks, backInStock, idleOffers, askedReport, sourcesReport, answerSpeed, SOURCE_LABEL, aliasMap, aliasKey, demandTrend, postIdeas, botReportCard } from './iginsights.js';
 
 const PERIODS = [['30', '30 days'], ['90', '90 days'], ['365', '12 months']];
 const state = { period: '30', only: 'all', view: 'questions', sender: null, showPrivate: false, askedOnly: 'all' };
@@ -167,10 +167,11 @@ export async function renderLeads(ctx) {
     const draw = () => {
         const now = ctx.a.now, from = now - Number(state.period) * DAY;
         const period = events.filter(e => e.t >= from);
+        const aliases = aliasMap(aliasDocs), byId = new Map(ctx.model.products.map(p => [p._id, p]));
 
         const asked = period.filter(e => e.name === 'product_inquiry' && String(e.p.products || '').trim()).map(e => {
             const text = String(e.p.products).trim();
-            return { ev: e, t: e.t, sender: String(e.p.sender_id || ''), text, hits: matchAsked(text, index), topics: topicsOf(text) };
+            return { ev: e, t: e.t, sender: String(e.p.sender_id || ''), text, hits: matchQuestion(text, index, aliases, byId), topics: topicsOf(text) };
         });
         const senders = new Map();
         period.forEach(e => {
@@ -203,7 +204,7 @@ export async function renderLeads(ctx) {
         const fu = followUps(chats, now);
         const products = ctx.model.products;
         // This screen keeps the log as {name, p, t}; the reports read it the way Next order does.
-        const asks = allAsks({ chats, events: events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), products, aliases: aliasMap(aliasDocs) });
+        const asks = allAsks({ chats, events: events.map(e => ({ event_name: e.name, t: e.t, params: e.p })), products, aliases });
         const backIn = backInStock(asks, products, chats, now);
         const idle = idleOffers(ctx.a.unsold || [], asks, chats, now);
         const askedRows = askedReport(asks, products, now, { days: Number(state.period) });

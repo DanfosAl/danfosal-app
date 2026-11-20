@@ -1,12 +1,12 @@
 #  CHANGELOG - Danfosal App
 
 **Project:** Danfosal Business Intelligence App  
-**Version:** 1.4.11  
-**Last Updated:** November 19, 2026
+**Version:** 1.4.13  
+**Last Updated:** November 20, 2026
 
 ---
 
-## [Unreleased] - 2026-11-20 - Instagram questions recognise "BD 35/15" and taught words; the bot warning names OpenAI
+## [Released] - 2026-11-20 - Instagram questions recognise "BD 35/15" and taught words; the bot warning names OpenAI (version 1.4.13)
 
 ### Fixed
 - Sell › Instagram › Asked about a product: a question showed "not recognised" when the catalogue glues a variant letter to the size ("BD 35/15" vs "BD 35/15C"), and words taught with "This means…" were not used in that table (they were in Asked for)

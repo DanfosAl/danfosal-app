@@ -1,11 +1,11 @@
 {
-  "version": "1.4.12",
-  "date": "2026-11-19",
-  "notes": "An online order and its easyPOS receipt now count once, as an online sale (no more double revenue); printing the receipt moves an open online order to Processing. Online orders shows the receipt inside each order and a Counted twice? list for unclear pairs of the last 30 days.",
+  "version": "1.4.13",
+  "date": "2026-11-20",
+  "notes": "Instagram: 'BD 35/15' and words taught with 'This means...' are recognised in Asked about a product; the bot warning names OpenAI and says where to fix a dead key.",
   "minNative": "1.4.2",
-  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/Danfosal-App-1.4.12.apk",
-  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/danfosal-www-1.4.12.zip",
-  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.12/Danfosal-App-Setup-1.4.12.exe",
-  "bundleSha256": "4e600e0949eebc00d0d21b423d166c41496a683c239997b68a278799d11f75bf",
-  "bundleBytes": 429620
+  "apk": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.13/Danfosal-App-1.4.13.apk",
+  "bundle": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.13/danfosal-www-1.4.13.zip",
+  "desktop": "https://github.com/DanfosAl/danfosal-app/releases/download/v1.4.13/Danfosal-App-Setup-1.4.13.exe",
+  "bundleSha256": "b02e7167af406a0af8d66375f05e655334afa7756f625c556013fd5dae08283e",
+  "bundleBytes": 430176
 }
